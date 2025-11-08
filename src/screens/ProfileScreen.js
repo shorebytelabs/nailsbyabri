@@ -3,6 +3,7 @@ import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-nativ
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
+import { useTheme } from '../theme';
 
 function ProfileScreen({
   user,
@@ -11,9 +12,12 @@ function ProfileScreen({
   onUpdatePreferences,
   onLogout,
   onRefreshConsentLogs,
+  onStartOrder,
+  canStartOrder = true,
 }) {
   const [localPreferences, setLocalPreferences] = useState(preferences);
   const [saving, setSaving] = useState(false);
+  const { theme } = useTheme();
 
   useEffect(() => {
     setLocalPreferences(preferences);
@@ -37,12 +41,44 @@ function ProfileScreen({
 
   return (
     <ScreenContainer>
-      <View style={styles.header}>
-        <Text style={styles.title}>Welcome, {user.name}</Text>
-        <Text style={styles.subtitle}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: theme?.colors?.secondaryBackground || styles.header.backgroundColor,
+            borderRadius: 12,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.title,
+            { color: theme?.colors?.primaryFont || styles.title.color },
+          ]}
+        >
+          Welcome, {user.name}
+        </Text>
+        <Text
+          style={[
+            styles.subtitle,
+            { color: theme?.colors?.secondaryFont || styles.subtitle.color },
+          ]}
+        >
           Manage your profile, consent history, and saved preferences.
         </Text>
       </View>
+
+      <PrimaryButton
+        label="Start New Order"
+        onPress={onStartOrder}
+        style={styles.startOrderButton}
+        disabled={!canStartOrder}
+      />
+      {!canStartOrder ? (
+        <Text style={styles.helperText}>
+          Parental consent must be approved before placing an order.
+        </Text>
+      ) : null}
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Child Profile</Text>
@@ -157,6 +193,7 @@ function formatDate(value) {
 const styles = StyleSheet.create({
   header: {
     marginBottom: 24,
+    padding: 16,
   },
   title: {
     fontSize: 26,
@@ -248,6 +285,13 @@ const styles = StyleSheet.create({
   logoutButton: {
     marginTop: 12,
     backgroundColor: '#b00020',
+  },
+  startOrderButton: {
+    marginBottom: 20,
+  },
+  helperText: {
+    color: '#5c5f8d',
+    marginBottom: 12,
   },
 });
 

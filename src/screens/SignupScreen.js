@@ -4,6 +4,7 @@ import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
 import { signup } from '../services/api';
+import { useTheme } from '../theme';
 
 function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   const [name, setName] = useState('');
@@ -15,6 +16,8 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const { theme } = useTheme();
 
   const age = useMemo(() => calculateAge(dob), [dob]);
   const isMinor = typeof age === 'number' && age < 18;
@@ -49,9 +52,29 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
 
   return (
     <ScreenContainer>
-      <View style={styles.header}>
-        <Text style={styles.title}>Create Your Account</Text>
-        <Text style={styles.subtitle}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: theme?.colors?.secondaryBackground || styles.header.backgroundColor,
+            borderRadius: 12,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.title,
+            { color: theme?.colors?.primaryFont || styles.title.color },
+          ]}
+        >
+          Create Your Account
+        </Text>
+        <Text
+          style={[
+            styles.subtitle,
+            { color: theme?.colors?.secondaryFont || styles.subtitle.color },
+          ]}
+        >
           Enter your details to continue. We will request parental consent if you are a minor.
         </Text>
       </View>
@@ -88,12 +111,22 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
 
         <View style={styles.noticeContainer}>
           {typeof age === 'number' ? (
-            <Text style={styles.noticeText}>
+            <Text
+              style={[
+                styles.noticeText,
+                { color: theme?.colors?.primaryFont || styles.noticeText.color },
+              ]}
+            >
               Your age is calculated as {age}.{' '}
               {isMinor ? 'Parental consent required.' : 'You are registering as an adult.'}
             </Text>
           ) : (
-            <Text style={styles.noticeText}>
+            <Text
+              style={[
+                styles.noticeText,
+                { color: theme?.colors?.primaryFont || styles.noticeText.color },
+              ]}
+            >
               Enter your date of birth to verify if parental consent is required.
             </Text>
           )}
@@ -161,6 +194,7 @@ function calculateAge(dobString) {
 const styles = StyleSheet.create({
   header: {
     marginBottom: 24,
+    padding: 16,
   },
   title: {
     fontSize: 26,

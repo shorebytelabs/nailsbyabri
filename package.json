@@ -13,12 +13,16 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.1.1",
     "@react-native/new-app-screen": "0.82.1",
+    "@stripe/stripe-react-native": "^0.37.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "express": "^4.21.1",
+    "react-native-image-picker": "^7.1.2",
     "react": "19.1.1",
     "react-native": "0.82.1",
     "react-native-safe-area-context": "^5.5.2",
+    "stripe": "^16.5.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

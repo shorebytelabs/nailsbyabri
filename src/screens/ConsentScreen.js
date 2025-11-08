@@ -4,12 +4,14 @@ import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
 import { submitConsent } from '../services/api';
+import { useTheme } from '../theme';
 
 function ConsentScreen({ user, consentLog, consentToken, onConsentComplete, onBackToLogin }) {
   const [token, setToken] = useState(consentToken || '');
   const [approverName, setApproverName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { theme } = useTheme();
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -30,9 +32,29 @@ function ConsentScreen({ user, consentLog, consentToken, onConsentComplete, onBa
 
   return (
     <ScreenContainer>
-      <View style={styles.header}>
-        <Text style={styles.title}>Parent or Guardian Approval</Text>
-        <Text style={styles.subtitle}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: theme?.colors?.secondaryBackground || styles.header.backgroundColor,
+            borderRadius: 12,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.title,
+            { color: theme?.colors?.primaryFont || styles.title.color },
+          ]}
+        >
+          Parent or Guardian Approval
+        </Text>
+        <Text
+          style={[
+            styles.subtitle,
+            { color: theme?.colors?.secondaryFont || styles.subtitle.color },
+          ]}
+        >
           Please review the child&apos;s account information and confirm consent using the secure token we sent.
         </Text>
       </View>
@@ -112,6 +134,7 @@ function formatDate(dateString) {
 const styles = StyleSheet.create({
   header: {
     marginBottom: 24,
+    padding: 16,
   },
   title: {
     fontSize: 24,

@@ -1,22 +1,36 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import ConsentScreen from './src/screens/ConsentScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SignupScreen from './src/screens/SignupScreen';
+import OrderBuilderScreen from './src/screens/OrderBuilderScreen';
+import OrderConfirmationScreen from './src/screens/OrderConfirmationScreen';
 import { fetchConsentLogs } from './src/services/api';
 import {
   defaultPreferences,
   loadPreferences,
   savePreferences,
 } from './src/storage/preferences';
+import ThemeProvider, { useTheme } from './src/theme';
+import APP_CONFIG from './src/config/appConfig';
+
+if (!APP_CONFIG.stripePublishableKey || APP_CONFIG.stripePublishableKey.includes('replace')) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    'Stripe publishable key not configured. Update src/config/appConfig.js before processing real payments.',
+  );
+}
 
 const SCREENS = {
   SIGNUP: 'signup',
   LOGIN: 'login',
   CONSENT: 'consent',
   PROFILE: 'profile',
+  ORDER_BUILDER: 'orderBuilder',
+  ORDER_CONFIRMATION: 'orderConfirmation',
 };
 
 const initialState = {
@@ -25,9 +39,12 @@ const initialState = {
   pendingConsent: null,
   consentLogs: [],
   preferences: defaultPreferences,
+  activeOrder: null,
+  lastCompletedOrder: null,
 };
 
-function App() {
+function AppContent() {
+  const { theme } = useTheme();
   const [state, setState] = useState(initialState);
   const [loadingPreferences, setLoadingPreferences] = useState(false);
   const [loadingLogs, setLoadingLogs] = useState(false);
@@ -110,6 +127,7 @@ function App() {
         currentUser: null,
         consentLogs: [],
         preferences: defaultPreferences,
+        activeOrder: null,
       }));
     },
     [refreshConsentLogs],
@@ -126,6 +144,7 @@ function App() {
           currentUser: response.user,
           pendingConsent: null,
           preferences: defaultPreferences,
+          activeOrder: null,
         }));
         refreshConsentLogs(response.user.id);
       }
@@ -182,10 +201,63 @@ function App() {
   );
 
   const handleLogout = useCallback(() => {
+    setStatusMessage(null);
     setState({
       ...initialState,
       screen: SCREENS.LOGIN,
     });
+  }, []);
+
+  const handleStartOrder = useCallback(() => {
+    if (!state.currentUser) {
+      setStatusMessage('Please log in to create an order.');
+      setState((prev) => ({
+        ...prev,
+        screen: SCREENS.LOGIN,
+      }));
+      return;
+    }
+    if (state.currentUser.pendingConsent) {
+      setStatusMessage('Parental consent must be approved before placing an order.');
+      return;
+    }
+    const draftOrder =
+      state.activeOrder && state.activeOrder.status !== 'paid' ? state.activeOrder : null;
+    setState((prev) => ({
+      ...prev,
+      screen: SCREENS.ORDER_BUILDER,
+      activeOrder: draftOrder,
+    }));
+  }, [state.activeOrder, state.currentUser]);
+
+  const handleDraftSaved = useCallback((order) => {
+    setState((prev) => ({
+      ...prev,
+      activeOrder: order,
+    }));
+  }, []);
+
+  const handleOrderCancelled = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      screen: SCREENS.PROFILE,
+    }));
+  }, []);
+
+  const handleOrderComplete = useCallback((order) => {
+    setState((prev) => ({
+      ...prev,
+      screen: SCREENS.ORDER_CONFIRMATION,
+      activeOrder: order,
+      lastCompletedOrder: order,
+    }));
+  }, []);
+
+  const handleConfirmationDone = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      screen: SCREENS.PROFILE,
+    }));
   }, []);
 
   const overlayMessage = useMemo(() => {
@@ -198,78 +270,113 @@ function App() {
     return null;
   }, [loadingLogs, loadingPreferences]);
 
+  const backgroundColor = theme?.colors?.primaryBackground || '#f7f7fb';
+  const bannerBackground = theme?.colors?.secondaryBackground || '#e6eaff';
+  const bannerTextColor = theme?.colors?.primaryFont || '#272b75';
+
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" />
-        <View style={styles.container}>
-          {statusMessage ? (
-            <Banner message={statusMessage} onDismiss={() => setStatusMessage(null)} />
-          ) : null}
+    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
+      <StatusBar barStyle="dark-content" />
+      <View style={styles.container}>
+        {statusMessage ? (
+          <Banner
+            message={statusMessage}
+            onDismiss={() => setStatusMessage(null)}
+            backgroundColor={bannerBackground}
+            textColor={bannerTextColor}
+          />
+        ) : null}
 
-          {state.screen === SCREENS.SIGNUP ? (
-            <SignupScreen
-              onSignupSuccess={handleSignupSuccess}
-              onSwitchToLogin={() => setState((prev) => ({ ...prev, screen: SCREENS.LOGIN }))}
-            />
-          ) : null}
+        {state.screen === SCREENS.SIGNUP ? (
+          <SignupScreen
+            onSignupSuccess={handleSignupSuccess}
+            onSwitchToLogin={() => setState((prev) => ({ ...prev, screen: SCREENS.LOGIN }))}
+          />
+        ) : null}
 
-          {state.screen === SCREENS.LOGIN ? (
-            <LoginScreen
-              onLoginSuccess={handleLoginSuccess}
-              onConsentPending={handleConsentPendingLogin}
-              onSwitchToSignup={() => setState((prev) => ({ ...prev, screen: SCREENS.SIGNUP }))}
-            />
-          ) : null}
+        {state.screen === SCREENS.LOGIN ? (
+          <LoginScreen
+            onLoginSuccess={handleLoginSuccess}
+            onConsentPending={handleConsentPendingLogin}
+            onSwitchToSignup={() => setState((prev) => ({ ...prev, screen: SCREENS.SIGNUP }))}
+          />
+        ) : null}
 
-          {state.screen === SCREENS.CONSENT && state.pendingConsent ? (
-            <ConsentScreen
-              user={state.pendingConsent.user}
-              consentLog={state.pendingConsent.consentLog}
-              consentToken={state.pendingConsent.token}
-              onConsentComplete={handleConsentComplete}
-              onBackToLogin={() =>
-                setState((prev) => ({
-                  ...prev,
-                  screen: SCREENS.LOGIN,
-                  pendingConsent: null,
-                }))
+        {state.screen === SCREENS.CONSENT && state.pendingConsent ? (
+          <ConsentScreen
+            user={state.pendingConsent.user}
+            consentLog={state.pendingConsent.consentLog}
+            consentToken={state.pendingConsent.token}
+            onConsentComplete={handleConsentComplete}
+            onBackToLogin={() =>
+              setState((prev) => ({
+                ...prev,
+                screen: SCREENS.LOGIN,
+                pendingConsent: null,
+              }))
+            }
+          />
+        ) : null}
+
+        {state.screen === SCREENS.PROFILE && state.currentUser ? (
+          <ProfileScreen
+            user={state.currentUser}
+            consentLogs={state.consentLogs}
+            preferences={state.preferences}
+            onUpdatePreferences={handleUpdatePreferences}
+            onLogout={handleLogout}
+            onRefreshConsentLogs={() => {
+              if (state.currentUser) {
+                refreshConsentLogs(state.currentUser.id);
               }
-            />
-          ) : null}
+            }}
+            onStartOrder={handleStartOrder}
+            canStartOrder={!state.currentUser.pendingConsent}
+          />
+        ) : null}
 
-          {state.screen === SCREENS.PROFILE && state.currentUser ? (
-            <ProfileScreen
-              user={state.currentUser}
-              consentLogs={state.consentLogs}
-              preferences={state.preferences}
-              onUpdatePreferences={handleUpdatePreferences}
-              onLogout={handleLogout}
-              onRefreshConsentLogs={() => {
-                if (state.currentUser) {
-                  refreshConsentLogs(state.currentUser.id);
-                }
-              }}
-            />
-          ) : null}
+        {state.screen === SCREENS.ORDER_BUILDER && state.currentUser ? (
+          <OrderBuilderScreen
+            user={state.currentUser}
+            onClose={handleOrderCancelled}
+            onDraftSaved={handleDraftSaved}
+            onPaymentComplete={handleOrderComplete}
+            initialOrder={state.activeOrder}
+          />
+        ) : null}
 
-          {overlayMessage ? (
-            <View style={styles.overlay}>
-              <ActivityIndicator size="large" color="#272b75" />
-              <Text style={styles.overlayText}>{overlayMessage}</Text>
-            </View>
-          ) : null}
-        </View>
-      </SafeAreaView>
-    </SafeAreaProvider>
+        {state.screen === SCREENS.ORDER_CONFIRMATION && state.activeOrder ? (
+          <OrderConfirmationScreen order={state.activeOrder} onDone={handleConfirmationDone} />
+        ) : null}
+
+        {overlayMessage ? (
+          <View
+            style={[
+              styles.overlay,
+              { backgroundColor: `${backgroundColor}f2` },
+            ]}
+          >
+            <ActivityIndicator size="large" color={theme?.colors?.accent || '#272b75'} />
+            <Text
+              style={[
+                styles.overlayText,
+                { color: theme?.colors?.primaryFont || styles.overlayText.color },
+              ]}
+            >
+              {overlayMessage}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    </SafeAreaView>
   );
 }
 
-function Banner({ message, onDismiss }) {
+function Banner({ message, onDismiss, backgroundColor, textColor }) {
   return (
-    <View style={styles.banner}>
-      <Text style={styles.bannerText}>{message}</Text>
-      <Text style={styles.bannerDismiss} onPress={onDismiss}>
+    <View style={[styles.banner, { backgroundColor }]}>
+      <Text style={[styles.bannerText, { color: textColor }]}>{message}</Text>
+      <Text style={[styles.bannerDismiss, { color: textColor }]} onPress={onDismiss}>
         Dismiss
       </Text>
     </View>
@@ -279,7 +386,6 @@ function Banner({ message, onDismiss }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f7f7fb',
   },
   container: {
     flex: 1,
@@ -291,7 +397,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingVertical: 16,
     paddingHorizontal: 24,
-    backgroundColor: 'rgba(247,247,251,0.95)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -304,7 +409,6 @@ const styles = StyleSheet.create({
   banner: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#e6eaff',
     borderBottomWidth: 1,
     borderBottomColor: '#d1d6ff',
     flexDirection: 'row',
@@ -312,15 +416,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bannerText: {
-    color: '#272b75',
     fontWeight: '600',
     flex: 1,
   },
   bannerDismiss: {
-    color: '#272b75',
     fontWeight: '600',
     marginLeft: 16,
   },
 });
+
+const App = () => (
+  <StripeProvider publishableKey={APP_CONFIG.stripePublishableKey}>
+    <ThemeProvider initialThemeId={APP_CONFIG.defaultThemeId}>
+      <SafeAreaProvider>
+        <AppContent />
+      </SafeAreaProvider>
+    </ThemeProvider>
+  </StripeProvider>
+);
 
 export default App;

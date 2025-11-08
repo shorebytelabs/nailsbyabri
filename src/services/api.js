@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import shapeCatalog from '../../shared/catalog/shapes.json';
 
 const DEFAULT_BASE_URL = 'http://localhost:4000';
 
@@ -66,5 +67,48 @@ export async function fetchConsentLogs() {
   const response = await fetch(`${API_BASE_URL}/auth/consent/logs`);
   const data = await handleResponse(response);
   return data.logs;
+}
+
+export async function fetchShapes() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/catalog/shapes`);
+    const data = await handleResponse(response);
+    if (Array.isArray(data.shapes) && data.shapes.length) {
+      return data.shapes;
+    }
+    return shapeCatalog;
+  } catch (error) {
+    return shapeCatalog;
+  }
+}
+
+export async function createOrUpdateOrder(orderPayload) {
+  const response = await fetch(`${API_BASE_URL}/orders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(orderPayload),
+  });
+  return handleResponse(response);
+}
+
+export async function createPaymentIntent(orderId) {
+  const response = await fetch(`${API_BASE_URL}/orders/${orderId}/payment-intent`, {
+    method: 'POST',
+  });
+  return handleResponse(response);
+}
+
+export async function completeOrder(orderId, payload = {}) {
+  const response = await fetch(`${API_BASE_URL}/orders/${orderId}/complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+export async function fetchOrder(orderId) {
+  const response = await fetch(`${API_BASE_URL}/orders/${orderId}`);
+  return handleResponse(response);
 }
 

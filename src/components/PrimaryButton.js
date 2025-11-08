@@ -5,6 +5,7 @@ import {
   Text,
   TouchableOpacity,
 } from 'react-native';
+import { useTheme } from '../theme';
 
 function PrimaryButton({
   label,
@@ -13,11 +14,19 @@ function PrimaryButton({
   loading = false,
   style,
 }) {
+  const { theme } = useTheme();
   const isDisabled = disabled || loading;
+  const backgroundColor = theme?.colors?.accent || styles.button.backgroundColor;
+  const disabledColor = theme?.colors?.hover || styles.disabled.backgroundColor;
 
   return (
     <TouchableOpacity
-      style={[styles.button, isDisabled && styles.disabled, style]}
+      style={[
+        styles.button,
+        { backgroundColor },
+        isDisabled && { backgroundColor: disabledColor },
+        style,
+      ]}
       onPress={onPress}
       disabled={isDisabled}
       activeOpacity={0.85}

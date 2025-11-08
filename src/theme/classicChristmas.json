@@ -1,0 +1,15 @@
+{
+  "id": "classicChristmas",
+  "name": "Classic Christmas",
+  "colors": {
+    "primaryBackground": "#F4EBE3",
+    "secondaryBackground": "#BF9B7A",
+    "primaryFont": "#354037",
+    "secondaryFont": "#767154",
+    "accent": "#6F171F",
+    "hover": "#BF9B7A",
+    "border": "#D9C8A9",
+    "error": "#B33A3A"
+  }
+}
+

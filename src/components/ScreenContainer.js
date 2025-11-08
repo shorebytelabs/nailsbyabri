@@ -1,14 +1,26 @@
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { useTheme } from '../theme';
 
 function ScreenContainer({ children, style, scroll = true }) {
+  const { theme } = useTheme();
+  const backgroundColor = theme?.colors?.primaryBackground || styles.view.backgroundColor;
+  const contentStyle = [
+    styles.inner,
+    { backgroundColor },
+    style,
+  ];
+
   if (!scroll) {
-    return <View style={[styles.view, style]}>{children}</View>;
+    return <View style={[styles.view, { backgroundColor }, style]}>{children}</View>;
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContent} style={styles.scrollView}>
-      <View style={[styles.inner, style]}>{children}</View>
+    <ScrollView
+      contentContainerStyle={styles.scrollContent}
+      style={[styles.scrollView, { backgroundColor }]}
+    >
+      <View style={contentStyle}>{children}</View>
     </ScrollView>
   );
 }
@@ -28,7 +40,6 @@ const styles = StyleSheet.create({
   },
   view: {
     flex: 1,
-    backgroundColor: '#f7f7fb',
     paddingHorizontal: 24,
     paddingVertical: 32,
   },

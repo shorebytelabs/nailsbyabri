@@ -1,0 +1,15 @@
+{
+  "id": "modernMaroon",
+  "name": "Modern Maroon",
+  "colors": {
+    "primaryBackground": "#F9F3ED",
+    "secondaryBackground": "#E7D8CA",
+    "primaryFont": "#220707",
+    "secondaryFont": "#AC9185",
+    "accent": "#531C22",
+    "hover": "#AC9185",
+    "border": "#D0B7A3",
+    "success": "#767154"
+  }
+}
+

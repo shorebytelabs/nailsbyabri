@@ -1,0 +1,33 @@
+[
+  {
+    "id": "almond",
+    "name": "Almond",
+    "imageUrl": "https://images.unsplash.com/photo-1604654894610-df63bc536371?auto=format&fit=crop&w=400&q=60",
+    "basePrice": 55
+  },
+  {
+    "id": "coffin",
+    "name": "Coffin",
+    "imageUrl": "https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=400&q=60",
+    "basePrice": 60
+  },
+  {
+    "id": "stiletto",
+    "name": "Stiletto",
+    "imageUrl": "https://images.unsplash.com/photo-1588516903720-8ceb67f9efde?auto=format&fit=crop&w=400&q=60",
+    "basePrice": 65
+  },
+  {
+    "id": "square",
+    "name": "Square",
+    "imageUrl": "https://images.unsplash.com/photo-1618861487981-8ee3aaee72be?auto=format&fit=crop&w=400&q=60",
+    "basePrice": 50
+  },
+  {
+    "id": "round",
+    "name": "Round",
+    "imageUrl": "https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=400&q=60",
+    "basePrice": 48
+  }
+]
+

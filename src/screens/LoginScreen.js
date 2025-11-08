@@ -4,12 +4,14 @@ import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
 import { login } from '../services/api';
+import { useTheme } from '../theme';
 
 function LoginScreen({ onLoginSuccess, onConsentPending, onSwitchToSignup }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { theme } = useTheme();
 
   const handleSubmit = async () => {
     setError(null);
@@ -35,9 +37,31 @@ function LoginScreen({ onLoginSuccess, onConsentPending, onSwitchToSignup }) {
 
   return (
     <ScreenContainer>
-      <View style={styles.header}>
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Log in to manage your appointments and profile.</Text>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: theme?.colors?.secondaryBackground || styles.header.backgroundColor,
+            borderRadius: 12,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.title,
+            { color: theme?.colors?.primaryFont || styles.title.color },
+          ]}
+        >
+          Welcome Back
+        </Text>
+        <Text
+          style={[
+            styles.subtitle,
+            { color: theme?.colors?.secondaryFont || styles.subtitle.color },
+          ]}
+        >
+          Log in to manage your appointments and profile.
+        </Text>
       </View>
 
       <View style={styles.section}>
@@ -77,6 +101,7 @@ function LoginScreen({ onLoginSuccess, onConsentPending, onSwitchToSignup }) {
 const styles = StyleSheet.create({
   header: {
     marginBottom: 24,
+    padding: 16,
   },
   title: {
     fontSize: 26,

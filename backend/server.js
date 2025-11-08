@@ -1,14 +1,36 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const { v4: uuid } = require('uuid');
+const Stripe = require('stripe');
 const { readData, writeData } = require('./storage');
+const { calculateOrderPricing } = require('./orderPricing');
+const shapeCatalog = require('../shared/catalog/shapes.json');
 
 const PORT = process.env.PORT || 4000;
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
+const stripe = STRIPE_SECRET_KEY ? Stripe(STRIPE_SECRET_KEY) : null;
+
+if (!STRIPE_SECRET_KEY) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    'Stripe secret key not set. Payment endpoints will return errors until STRIPE_SECRET_KEY is provided.',
+  );
+}
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use('/payments/webhook', express.raw({ type: 'application/json' }));
+const jsonBodyParser = express.json();
+app.use((req, res, next) => {
+  if (req.originalUrl === '/payments/webhook') {
+    return next();
+  }
+  return jsonBodyParser(req, res, next);
+});
 
 function calculateAge(dobString) {
   const dob = new Date(dobString);
@@ -36,6 +58,15 @@ function normalizeEmail(value) {
 function publicConsentLog(log) {
   const { token, ...rest } = log;
   return rest;
+}
+
+function sanitizeOrder(order) {
+  const { paymentIntentClientSecret, ...rest } = order;
+  return rest;
+}
+
+function findOrderById(state, orderId) {
+  return state.orders.find((item) => item.id === orderId);
 }
 
 app.post('/auth/signup', async (req, res) => {
@@ -215,6 +246,228 @@ app.get('/auth/consent/logs', (_req, res) => {
     logs: state.consentLogs.map(publicConsentLog),
     count: state.consentLogs.length,
   });
+});
+
+app.get('/catalog/shapes', (_req, res) => {
+  return res.json({ shapes: shapeCatalog });
+});
+
+app.post('/orders', (req, res) => {
+  const {
+    id: orderId,
+    userId,
+    shapeId,
+    setCount,
+    variations,
+    sizes,
+    deliveryMethod,
+    deliverySpeed,
+    designImage,
+    designFileName,
+    notes,
+    status,
+  } = req.body || {};
+
+  if (!userId) {
+    return res.status(400).json({ error: 'userId is required to create an order' });
+  }
+  if (!shapeId) {
+    return res.status(400).json({ error: 'shapeId is required to create an order' });
+  }
+
+  try {
+    const pricing = calculateOrderPricing({
+      shapeId,
+      setCount,
+      variations,
+      sizes,
+      deliveryMethod,
+      deliverySpeed,
+    });
+
+    const state = readData();
+    const normalizedStatus = status || 'draft';
+    const now = new Date().toISOString();
+    let order = orderId ? findOrderById(state, orderId) : null;
+    const isNew = !order;
+
+    if (isNew) {
+      order = {
+        id: uuid(),
+        createdAt: now,
+        userId,
+      };
+      state.orders.push(order);
+    }
+
+    Object.assign(order, {
+      userId,
+      shapeId,
+      setCount,
+      variations: Array.isArray(variations) ? variations : [],
+      sizes: sizes && typeof sizes === 'object' ? sizes : {},
+      deliveryMethod: deliveryMethod || 'pickup',
+      deliverySpeed: deliverySpeed || 'standard',
+      designImage: designImage || null,
+      designFileName: designFileName || null,
+      notes: notes || '',
+      status: normalizedStatus,
+      pricing,
+      updatedAt: now,
+    });
+
+    writeData(state);
+
+    return res.status(isNew ? 201 : 200).json({
+      order: sanitizeOrder(order),
+    });
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+});
+
+app.get('/orders/:orderId', (req, res) => {
+  const { orderId } = req.params;
+  const state = readData();
+  const order = findOrderById(state, orderId);
+  if (!order) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+  return res.json({ order: sanitizeOrder(order) });
+});
+
+app.post('/orders/:orderId/payment-intent', async (req, res) => {
+  if (!stripe) {
+    return res.status(500).json({
+      error: 'Stripe is not configured. Provide STRIPE_SECRET_KEY to enable payments.',
+    });
+  }
+
+  const { orderId } = req.params;
+  const state = readData();
+  const order = findOrderById(state, orderId);
+  if (!order) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+  if (!order.pricing || typeof order.pricing.total !== 'number') {
+    return res.status(400).json({ error: 'Order total unavailable' });
+  }
+
+  try {
+    const amountInCents = Math.round(order.pricing.total * 100);
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amountInCents,
+      currency: 'usd',
+      metadata: {
+        orderId: order.id,
+        userId: order.userId,
+      },
+      automatic_payment_methods: {
+        enabled: true,
+      },
+    });
+
+    order.paymentIntentId = paymentIntent.id;
+    order.paymentIntentClientSecret = paymentIntent.client_secret;
+    order.status = 'pending_payment';
+    order.updatedAt = new Date().toISOString();
+
+    writeData(state);
+
+    return res.json({
+      clientSecret: paymentIntent.client_secret,
+      order: sanitizeOrder(order),
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/orders/:orderId/complete', (req, res) => {
+  const { orderId } = req.params;
+  const { paymentIntentId } = req.body || {};
+  const state = readData();
+  const order = findOrderById(state, orderId);
+
+  if (!order) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+
+  if (paymentIntentId && order.paymentIntentId && paymentIntentId !== order.paymentIntentId) {
+    return res.status(400).json({ error: 'Payment intent mismatch for this order' });
+  }
+
+  if (order.status === 'paid') {
+    return res.status(200).json({ order: sanitizeOrder(order) });
+  }
+
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const estimated = new Date(now);
+  const daysToAdd =
+    order.pricing && order.pricing.estimatedCompletionDays
+      ? Number(order.pricing.estimatedCompletionDays)
+      : 7;
+  estimated.setDate(estimated.getDate() + daysToAdd);
+
+  order.status = 'paid';
+  order.paidAt = new Date().toISOString();
+  order.estimatedFulfillmentDate = estimated.toISOString();
+  order.updatedAt = order.paidAt;
+
+  writeData(state);
+
+  return res.json({
+    order: sanitizeOrder(order),
+  });
+});
+
+app.post('/payments/webhook', (req, res) => {
+  if (!stripe) {
+    return res.status(500).json({ error: 'Stripe is not configured.' });
+  }
+
+  let event = req.body;
+
+  if (STRIPE_WEBHOOK_SECRET) {
+    const signature = req.headers['stripe-signature'];
+    try {
+      event = stripe.webhooks.constructEvent(req.body, signature, STRIPE_WEBHOOK_SECRET);
+    } catch (err) {
+      return res.status(400).send(`Webhook signature verification failed: ${err.message}`);
+    }
+  } else if (Buffer.isBuffer(req.body)) {
+    try {
+      event = JSON.parse(req.body.toString('utf8'));
+    } catch (err) {
+      return res.status(400).send(`Unable to parse webhook payload: ${err.message}`);
+    }
+  }
+
+  const state = readData();
+
+  if (event.type === 'payment_intent.succeeded') {
+    const paymentIntent = event.data.object;
+    const order = state.orders.find((item) => item.paymentIntentId === paymentIntent.id);
+    if (order) {
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const estimated = new Date(now);
+      const daysToAdd =
+        order.pricing && order.pricing.estimatedCompletionDays
+          ? Number(order.pricing.estimatedCompletionDays)
+          : 7;
+      estimated.setDate(estimated.getDate() + daysToAdd);
+
+      order.status = 'paid';
+      order.paidAt = new Date().toISOString();
+      order.estimatedFulfillmentDate = estimated.toISOString();
+      order.updatedAt = order.paidAt;
+      writeData(state);
+    }
+  }
+
+  return res.json({ received: true });
 });
 
 app.listen(PORT, () => {
