@@ -1,0 +1,32 @@
+{
+  "users": [
+    {
+      "id": "3e4db3cd-3ca6-4811-acee-6184f391b07f",
+      "name": "Savannah Chheng",
+      "email": "savannahchheng@gmail.com",
+      "dob": "2011-10-16",
+      "age": 14,
+      "parentEmail": "arlenealday@hotmail.com",
+      "parentPhone": "6194009575",
+      "createdAt": "2025-11-08T01:29:30.432Z",
+      "pendingConsent": false,
+      "consentedAt": "2025-11-08T01:30:16.935Z",
+      "consentApprover": "Arlene Alday",
+      "consentChannel": "email",
+      "passwordHash": "$2a$10$S.0jJsdXrPS9l21/ByAWruNV.cTcDPTBVDj1yre3rEBb9HyZVIvBy"
+    }
+  ],
+  "consentLogs": [
+    {
+      "id": "39b46882-92dc-451c-aaf9-115d03f2b017",
+      "userId": "3e4db3cd-3ca6-4811-acee-6184f391b07f",
+      "status": "approved",
+      "channel": "email",
+      "contact": "arlenealday@hotmail.com",
+      "createdAt": "2025-11-08T01:29:30.432Z",
+      "approvedAt": "2025-11-08T01:30:16.935Z",
+      "approverName": "Arlene Alday",
+      "token": null
+    }
+  ]
+}

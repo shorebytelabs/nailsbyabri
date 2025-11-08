@@ -7,13 +7,19 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "server": "node backend/server.js"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.1.1",
+    "@react-native/new-app-screen": "0.82.1",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
     "react": "19.1.1",
     "react-native": "0.82.1",
-    "@react-native/new-app-screen": "0.82.1",
-    "react-native-safe-area-context": "^5.5.2"
+    "react-native-safe-area-context": "^5.5.2",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
