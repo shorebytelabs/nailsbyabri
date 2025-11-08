@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -327,6 +327,12 @@ function OrderBuilderScreen({
   const [clientSecret, setClientSecret] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessingPayment, setProcessingPayment] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({
+    nailSets: true,
+    delivery: false,
+    notes: false,
+    price: false,
+  });
 
   const [nailSets, setNailSets] = useState(
     Array.isArray(initialOrder?.nailSets)
@@ -344,6 +350,7 @@ function OrderBuilderScreen({
         }))
       : [],
   );
+  const previousNailSetCount = useRef(nailSets.length);
 
   const [fulfillment, setFulfillment] = useState(
     initialOrder?.fulfillment || { method: 'pickup', speed: 'standard', address: null },
@@ -368,6 +375,17 @@ function OrderBuilderScreen({
     loadShapes();
   }, []);
 
+  useEffect(() => {
+    const methodCfg = deliveryMethodConfig[fulfillment.method] || deliveryMethodConfig.pickup;
+    if (fulfillment.method !== methodCfg.id || !methodCfg.speedOptions[fulfillment.speed]) {
+      setFulfillment((prev) => ({
+        ...prev,
+        method: methodCfg.id,
+        speed: methodCfg.speedOptions[prev.speed] ? prev.speed : methodCfg.defaultSpeed,
+      }));
+    }
+  }, [deliveryMethodConfig, fulfillment.method, fulfillment.speed]);
+
   const priceDetails = useMemo(
     () =>
       calculatePriceBreakdown({
@@ -381,6 +399,66 @@ function OrderBuilderScreen({
       }),
     [nailSets, fulfillment, promoCode],
   );
+
+  useEffect(() => {
+    if (previousNailSetCount.current === 0 && nailSets.length > 0) {
+      setExpandedSections((prev) => ({ ...prev, nailSets: true, delivery: true }));
+    }
+    previousNailSetCount.current = nailSets.length;
+  }, [nailSets.length]);
+
+  const toggleSection = useCallback(
+    (id) => {
+      if (id === 'nailSets' && nailSets.length === 0 && expandedSections[id]) {
+        return;
+      }
+      setExpandedSections((prev) => ({
+        ...prev,
+        [id]: !prev[id],
+      }));
+    },
+    [expandedSections, nailSets.length],
+  );
+
+  const renderSectionHeader = useCallback(
+    (id, title) => {
+      const expanded = expandedSections[id];
+      return (
+        <TouchableOpacity
+          key={id}
+          style={[
+            styles.sectionHeader,
+            {
+              backgroundColor:
+                theme?.colors?.secondaryBackground || styles.sectionHeader.backgroundColor,
+            },
+          ]}
+          onPress={() => toggleSection(id)}
+          activeOpacity={0.9}
+        >
+          <Text
+            style={[
+              styles.sectionHeaderTitle,
+              { color: theme?.colors?.primaryFont || styles.sectionHeaderTitle.color },
+            ]}
+          >
+            {title}
+          </Text>
+          <Text
+            style={[
+              styles.sectionHeaderIcon,
+              { color: theme?.colors?.primaryFont || styles.sectionHeaderIcon.color },
+            ]}
+          >
+            {expanded ? '▼' : '▶'}
+          </Text>
+        </TouchableOpacity>
+      );
+    },
+    [expandedSections, theme?.colors, toggleSection],
+  );
+
+  const addSetButtonLabel = nailSets.length === 0 ? 'Create Nail Set' : 'Add Another Nail Set';
 
   const selectedMethodConfig =
     deliveryMethodConfig[fulfillment.method] || deliveryMethodConfig.pickup;
@@ -558,11 +636,6 @@ function OrderBuilderScreen({
     }
   };
 
-  const headerStyles = [
-    styles.sectionHeader,
-    { backgroundColor: theme?.colors?.secondaryBackground || styles.sectionHeader.backgroundColor },
-  ];
-
   return (
     <ScreenContainer>
       <TouchableOpacity onPress={onClose}>
@@ -574,240 +647,261 @@ function OrderBuilderScreen({
 
       {step === 'summary' ? (
         <>
-          <View style={headerStyles}>
-            <Text style={styles.sectionTitle}>Nail Sets</Text>
-            <Text style={styles.helperText}>Add a set for each unique design or recipient.</Text>
-          </View>
-
-          {nailSets.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.helperText}>No nail sets yet.</Text>
-            </View>
-          ) : (
-            nailSets.map((set, index) => {
-              const shape = shapes.find((item) => item.id === set.shapeId);
-              const warning = !validateNailSet(set);
-              const preview = set.designUploads[0];
-              return (
-                <View key={set.id} style={styles.setCard}>
-                  <View style={styles.setCardHeader}>
-                    <View style={styles.setCardTitleRow}>
-                      <View style={styles.setThumbnail}>
-                        {preview ? (
-                          <Image
-                            source={{ uri: preview.uri || `data:image/jpeg;base64,${preview.base64}` }}
-                            style={styles.setThumbnailImage}
-                          />
-                        ) : (
-                          <Text style={styles.setThumbnailPlaceholder}>
-                            {shape?.name?.charAt(0) || 'S'}
-                          </Text>
-                        )}
-                      </View>
-                      <View style={styles.setTitleContent}>
-                        <Text style={styles.setTitle}>{set.name || `Set #${index + 1}`}</Text>
-                        <Text style={styles.setSubTitle}>
-                          {shape?.name || 'Shape'} • {set.quantity} set{Number(set.quantity) > 1 ? 's' : ''}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.setActions}>
-                      <TouchableOpacity onPress={() => handleDuplicateSet(set.id)}>
-                        <Text style={styles.secondaryAction}>Duplicate</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleEditSet(set.id)}>
-                        <Text style={styles.secondaryAction}>Edit</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleRemoveSet(set.id)}>
-                        <Text style={[styles.secondaryAction, styles.destructiveAction]}>Remove</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  {warning ? (
-                    <Text style={styles.warningText}>
-                      No design uploaded or description provided. We&apos;ll need more detail for this set.
-                    </Text>
-                  ) : null}
-                  {set.setNotes ? <Text style={styles.helperText}>Notes: {set.setNotes}</Text> : null}
+          {renderSectionHeader('nailSets', 'Nail Sets')}
+          {expandedSections.nailSets && (
+            <View style={styles.section}>
+              <Text style={styles.helperText}>Add a set for each unique design or recipient.</Text>
+              {nailSets.length === 0 ? (
+                <View style={styles.emptyStateBox}>
+                  <Text style={styles.emptyStateIcon}>💅</Text>
+                  <Text style={styles.emptyStateText}>
+                    No nail sets added yet.{'\n'}Tap “Create Nail Set” to design your first set!
+                  </Text>
+                  <PrimaryButton
+                    label={addSetButtonLabel}
+                    onPress={handleAddSet}
+                    style={styles.addSetButton}
+                  />
                 </View>
-              );
-            })
+              ) : (
+                <>
+                  <Text style={styles.sectionSubheader}>Your Nail Sets</Text>
+                  {nailSets.map((set, index) => {
+                    const shape = shapes.find((item) => item.id === set.shapeId);
+                    const warning = !validateNailSet(set);
+                    const preview = set.designUploads[0];
+                    return (
+                      <View key={set.id} style={styles.setCard}>
+                        <View style={styles.setCardHeader}>
+                          <View style={styles.setCardTitleRow}>
+                            <View style={styles.setThumbnail}>
+                              {preview ? (
+                                <Image
+                                  source={{ uri: preview.uri || `data:image/jpeg;base64,${preview.base64}` }}
+                                  style={styles.setThumbnailImage}
+                                />
+                              ) : (
+                                <Text style={styles.setThumbnailPlaceholder}>
+                                  {shape?.name?.charAt(0) || 'S'}
+                                </Text>
+                              )}
+                            </View>
+                            <View style={styles.setTitleContent}>
+                              <Text style={styles.setTitle}>{set.name || `Set #${index + 1}`}</Text>
+                              <Text style={styles.setSubTitle}>
+                                {shape?.name || 'Shape'} • {set.quantity} set
+                                {Number(set.quantity) > 1 ? 's' : ''}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={styles.setActions}>
+                            <TouchableOpacity onPress={() => handleDuplicateSet(set.id)}>
+                              <Text style={styles.secondaryAction}>Duplicate</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleEditSet(set.id)}>
+                              <Text style={styles.secondaryAction}>Edit</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleRemoveSet(set.id)}>
+                              <Text style={[styles.secondaryAction, styles.destructiveAction]}>Remove</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                        {warning ? (
+                          <Text style={styles.warningText}>
+                            No art uploaded — we&apos;ll contact you to clarify design.
+                          </Text>
+                        ) : null}
+                        {set.setNotes ? <Text style={styles.helperText}>Notes: {set.setNotes}</Text> : null}
+                      </View>
+                    );
+                  })}
+                  <PrimaryButton
+                    label={addSetButtonLabel}
+                    onPress={handleAddSet}
+                    style={styles.addSetButton}
+                  />
+                </>
+              )}
+            </View>
           )}
 
-          <PrimaryButton label="Create Nail Set" onPress={handleAddSet} style={styles.addSetButton} />
-
-          <View style={headerStyles}>
-            <Text style={styles.sectionTitle}>Delivery Options</Text>
-          </View>
-          <Text style={styles.stepLabel}>Step 1 – How you&apos;ll get your nails</Text>
-          <View style={styles.methodGrid}>
-            {Object.values(deliveryMethodConfig).map((method) => {
-              const selected = selectedMethodConfig.id === method.id;
-              return (
-                <TouchableOpacity
-                  key={method.id}
-                  style={[
-                    styles.methodCard,
-                    selected && { borderColor: theme?.colors?.accent || '#272b75' },
-                  ]}
-                  onPress={() =>
-                    setFulfillment((prev) => ({
-                      ...prev,
-                      method: method.id,
-                      speed: method.defaultSpeed,
-                    }))
-                  }
-                >
-                  <Text style={styles.methodTitle}>{method.label}</Text>
-                  <Text style={styles.methodDescription}>{method.description}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {selectedMethodConfig.id === 'shipping' || selectedMethodConfig.id === 'delivery' ? (
+          {renderSectionHeader('delivery', 'Delivery Options')}
+          {expandedSections.delivery && (
             <View style={styles.section}>
-              <Text style={styles.label}>Shipping Address</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Full Name"
-                value={fulfillment.address?.name || ''}
-                onChangeText={(text) =>
-                  setFulfillment((prev) => ({
-                    ...prev,
-                    address: { ...prev.address, name: text },
-                  }))
-                }
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Address Line 1"
-                value={fulfillment.address?.line1 || ''}
-                onChangeText={(text) =>
-                  setFulfillment((prev) => ({
-                    ...prev,
-                    address: { ...prev.address, line1: text },
-                  }))
-                }
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Address Line 2"
-                value={fulfillment.address?.line2 || ''}
-                onChangeText={(text) =>
-                  setFulfillment((prev) => ({
-                    ...prev,
-                    address: { ...prev.address, line2: text },
-                  }))
-                }
-              />
-              <View style={styles.addressRow}>
-                <TextInput
-                  style={[styles.input, styles.addressHalf]}
-                  placeholder="City"
-                  value={fulfillment.address?.city || ''}
-                  onChangeText={(text) =>
-                    setFulfillment((prev) => ({
-                      ...prev,
-                      address: { ...prev.address, city: text },
-                    }))
-                  }
-                />
-                <TextInput
-                  style={[styles.input, styles.addressQuarter]}
-                  placeholder="State"
-                  autoCapitalize="characters"
-                  value={fulfillment.address?.state || ''}
-                  onChangeText={(text) =>
-                    setFulfillment((prev) => ({
-                      ...prev,
-                      address: { ...prev.address, state: text },
-                    }))
-                  }
-                />
-                <TextInput
-                  style={[styles.input, styles.addressQuarter]}
-                  placeholder="ZIP"
-                  keyboardType="number-pad"
-                  value={fulfillment.address?.postalCode || ''}
-                  onChangeText={(text) =>
-                    setFulfillment((prev) => ({
-                      ...prev,
-                      address: { ...prev.address, postalCode: text },
-                    }))
-                  }
-                />
+              <Text style={styles.stepLabel}>Step 1 – How you&apos;ll get your nails</Text>
+              <View style={styles.methodGrid}>
+                {Object.values(deliveryMethodConfig).map((method) => {
+                  const selected = selectedMethodConfig.id === method.id;
+                  return (
+                    <TouchableOpacity
+                      key={method.id}
+                      style={[
+                        styles.methodCard,
+                        selected && { borderColor: theme?.colors?.accent || '#272b75' },
+                      ]}
+                      onPress={() =>
+                        setFulfillment((prev) => ({
+                          ...prev,
+                          method: method.id,
+                          speed: method.defaultSpeed,
+                        }))
+                      }
+                    >
+                      <Text style={styles.methodTitle}>{method.label}</Text>
+                      <Text style={styles.methodDescription}>{method.description}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-            </View>
-          ) : null}
 
-          <Text style={styles.stepLabel}>Step 2 – How fast you want them</Text>
-          <Text style={styles.helperText}>{selectedMethodConfig.description}</Text>
-          <View style={styles.speedList}>
-            {Object.values(selectedMethodConfig.speedOptions).map((option) => {
-              const selected = selectedSpeedConfig.id === option.id;
-              const costLabel =
-                option.fee > 0 ? `(+${formatCurrency(option.fee)})` : '(Included)';
-              return (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.speedCard,
-                    selected && { borderColor: theme?.colors?.accent || '#272b75' },
-                  ]}
-                  onPress={() =>
-                    setFulfillment((prev) => ({
-                      ...prev,
-                      speed: option.id,
-                    }))
-                  }
-                >
-                  <Text style={styles.speedTitle}>
-                    {option.label} – {option.description} {costLabel}
-                  </Text>
-                  {option.tagline ? <Text style={styles.speedTagline}>{option.tagline}</Text> : null}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+              {selectedMethodConfig.id === 'shipping' || selectedMethodConfig.id === 'delivery' ? (
+                <View style={styles.subSection}>
+                  <Text style={styles.label}>Shipping Address</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Full Name"
+                    value={fulfillment.address?.name || ''}
+                    onChangeText={(text) =>
+                      setFulfillment((prev) => ({
+                        ...prev,
+                        address: { ...prev.address, name: text },
+                      }))
+                    }
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Address Line 1"
+                    value={fulfillment.address?.line1 || ''}
+                    onChangeText={(text) =>
+                      setFulfillment((prev) => ({
+                        ...prev,
+                        address: { ...prev.address, line1: text },
+                      }))
+                    }
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Address Line 2"
+                    value={fulfillment.address?.line2 || ''}
+                    onChangeText={(text) =>
+                      setFulfillment((prev) => ({
+                        ...prev,
+                        address: { ...prev.address, line2: text },
+                      }))
+                    }
+                  />
+                  <View style={styles.addressRow}>
+                    <TextInput
+                      style={[styles.input, styles.addressHalf]}
+                      placeholder="City"
+                      value={fulfillment.address?.city || ''}
+                      onChangeText={(text) =>
+                        setFulfillment((prev) => ({
+                          ...prev,
+                          address: { ...prev.address, city: text },
+                        }))
+                      }
+                    />
+                    <TextInput
+                      style={[styles.input, styles.addressQuarter]}
+                      placeholder="State"
+                      autoCapitalize="characters"
+                      value={fulfillment.address?.state || ''}
+                      onChangeText={(text) =>
+                        setFulfillment((prev) => ({
+                          ...prev,
+                          address: { ...prev.address, state: text },
+                        }))
+                      }
+                    />
+                    <TextInput
+                      style={[styles.input, styles.addressQuarter]}
+                      placeholder="ZIP"
+                      keyboardType="number-pad"
+                      value={fulfillment.address?.postalCode || ''}
+                      onChangeText={(text) =>
+                        setFulfillment((prev) => ({
+                          ...prev,
+                          address: { ...prev.address, postalCode: text },
+                        }))
+                      }
+                    />
+                  </View>
+                </View>
+              ) : null}
 
-          <View style={headerStyles}>
-            <Text style={styles.sectionTitle}>Order Notes & Promo</Text>
-          </View>
-          <TextInput
-            style={[styles.input, styles.notesInput]}
-            placeholder="Any global notes? e.g. Gift wrap please."
-            value={orderNotes}
-            onChangeText={setOrderNotes}
-            multiline
-            numberOfLines={3}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Promo code"
-            autoCapitalize="characters"
-            value={promoCode}
-            onChangeText={setPromoCode}
-          />
-
-          <View style={headerStyles}>
-            <Text style={styles.sectionTitle}>Price Breakdown</Text>
-          </View>
-          <View style={styles.section}>
-            {priceDetails.lineItems.map((item) => (
-              <View key={item.id} style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>{item.label}</Text>
-                <Text style={styles.breakdownAmount}>{formatCurrency(item.amount)}</Text>
+              <Text style={styles.stepLabel}>Step 2 – How fast you want them</Text>
+              <Text style={styles.helperText}>{selectedMethodConfig.description}</Text>
+              <View style={styles.speedList}>
+                {Object.values(selectedMethodConfig.speedOptions).map((option) => {
+                  const selected = selectedSpeedConfig.id === option.id;
+                  const costLabel =
+                    option.fee > 0 ? `(+${formatCurrency(option.fee)})` : '(Included)';
+                  return (
+                    <TouchableOpacity
+                      key={option.id}
+                      style={[
+                        styles.speedCard,
+                        selected && { borderColor: theme?.colors?.accent || '#272b75' },
+                      ]}
+                      onPress={() =>
+                        setFulfillment((prev) => ({
+                          ...prev,
+                          speed: option.id,
+                        }))
+                      }
+                    >
+                      <Text style={styles.speedTitle}>
+                        {option.label} – {option.description} {costLabel}
+                      </Text>
+                      {option.tagline ? <Text style={styles.speedTagline}>{option.tagline}</Text> : null}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-            ))}
-            <View style={styles.breakdownTotalRow}>
-              <Text style={styles.breakdownTotalLabel}>Total</Text>
-              <Text style={styles.breakdownTotalAmount}>{formatCurrency(priceDetails.total)}</Text>
+
             </View>
-            <Text style={styles.helperText}>
-              Estimated completion: {priceDetails.estimatedCompletionDays} business days after payment.
-            </Text>
-          </View>
+          )}
+
+          {renderSectionHeader('notes', 'Order Notes & Promo')}
+          {expandedSections.notes && (
+            <View style={styles.section}>
+              <TextInput
+                style={[styles.input, styles.notesInput]}
+                placeholder="Any global notes? e.g. Gift wrap please."
+                value={orderNotes}
+                onChangeText={setOrderNotes}
+                multiline
+                numberOfLines={3}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Promo code"
+                autoCapitalize="characters"
+                value={promoCode}
+                onChangeText={setPromoCode}
+              />
+            </View>
+          )}
+
+          {renderSectionHeader('price', 'Price Breakdown')}
+          {expandedSections.price && (
+            <View style={styles.section}>
+              {priceDetails.lineItems.map((item) => (
+                <View key={item.id} style={styles.breakdownRow}>
+                  <Text style={styles.breakdownLabel}>{item.label}</Text>
+                  <Text style={styles.breakdownAmount}>{formatCurrency(item.amount)}</Text>
+                </View>
+              ))}
+              <View style={styles.breakdownTotalRow}>
+                <Text style={styles.breakdownTotalLabel}>Total</Text>
+                <Text style={styles.breakdownTotalAmount}>{formatCurrency(priceDetails.total)}</Text>
+              </View>
+              <Text style={styles.helperText}>
+                Estimated completion: {priceDetails.estimatedCompletionDays} business days after payment.
+              </Text>
+            </View>
+          )}
 
           <View style={styles.actionRow}>
             <TouchableOpacity onPress={handleSaveDraft} disabled={isSaving}>
@@ -872,20 +966,31 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionHeader: {
-    paddingVertical: 12,
+    marginTop: 24,
+    paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
     backgroundColor: '#f1f1f6',
-    marginTop: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  sectionTitle: {
+  sectionHeaderTitle: {
     fontSize: 18,
     fontWeight: '700',
+    color: '#272b75',
+  },
+  sectionHeaderIcon: {
+    fontSize: 16,
     color: '#272b75',
   },
   helperText: {
     marginTop: 8,
     color: '#555',
+  },
+  section: {
+    marginTop: 12,
+    paddingHorizontal: 4,
   },
   stepLabel: {
     marginTop: 16,
@@ -893,8 +998,34 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#272b75',
   },
-  emptyState: {
-    padding: 16,
+  sectionSubheader: {
+    marginTop: 12,
+    marginBottom: 8,
+    fontWeight: '600',
+    color: '#272b75',
+  },
+  emptyStateBox: {
+    marginTop: 12,
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#d9ddff',
+    borderStyle: 'dashed',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  emptyStateIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    color: '#5c5f8d',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  subSection: {
+    marginTop: 16,
   },
   setCard: {
     backgroundColor: '#fff',
