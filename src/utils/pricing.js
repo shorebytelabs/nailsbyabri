@@ -1,6 +1,6 @@
 import shapeCatalog from '../../shared/catalog/shapes.json';
 
-const DESIGN_SETUP_FEE = 10;
+const DESIGN_SETUP_FEE = 0;
 
 export const DELIVERY_METHODS = {
   pickup: {

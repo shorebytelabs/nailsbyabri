@@ -2,7 +2,7 @@ const path = require('path');
 
 const shapeCatalog = require(path.join(__dirname, '..', 'shared', 'catalog', 'shapes.json'));
 
-const DESIGN_SETUP_FEE = 10;
+const DESIGN_SETUP_FEE = 0;
 
 const DELIVERY_METHODS = {
   pickup: {
