@@ -3,24 +3,25 @@ import { StyleSheet, Text, View } from 'react-native';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
 import { useTheme } from '../theme';
-import { formatCurrency, getShapeCatalog } from '../utils/pricing';
+import { formatCurrency, getShapeCatalog, pricingConstants } from '../utils/pricing';
 
 const shapeCatalog = getShapeCatalog();
+const deliveryMethodConfig = pricingConstants.DELIVERY_METHODS;
 
 function OrderConfirmationScreen({ order, onDone }) {
   const { theme } = useTheme();
 
+  const methodConfig =
+    deliveryMethodConfig[order?.fulfillment?.method] || deliveryMethodConfig.pickup;
+  const speedConfig =
+    methodConfig.speedOptions[order?.fulfillment?.speed] ||
+    methodConfig.speedOptions[methodConfig.defaultSpeed];
   const estimatedDate = order?.estimatedFulfillmentDate
     ? new Date(order.estimatedFulfillmentDate).toLocaleDateString()
     : null;
-  const fulfillmentMethod =
-    order?.fulfillment?.method === 'delivery'
-      ? 'Local Delivery'
-      : order?.fulfillment?.method === 'shipping'
-      ? 'Shipping'
-      : 'Studio Pickup';
-  const fulfillmentSpeed = order?.fulfillment?.speed
-    ? capitalize(order.fulfillment.speed)
+  const fulfillmentMethod = methodConfig.label;
+  const fulfillmentSpeed = speedConfig
+    ? `${speedConfig.label} – ${speedConfig.description}`
     : 'Standard';
 
   return (
@@ -75,7 +76,8 @@ function OrderConfirmationScreen({ order, onDone }) {
         {order?.orderNotes ? <InfoRow label="Order Notes" value={order.orderNotes} /> : null}
       </View>
 
-      {order?.fulfillment?.address ? (
+      {(methodConfig.id === 'shipping' || methodConfig.id === 'delivery') &&
+      order?.fulfillment?.address ? (
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Ship To</Text>
           <Text style={styles.bodyText}>{order.fulfillment.address.name}</Text>
@@ -137,13 +139,6 @@ function InfoRow({ label, value }) {
       <Text style={styles.infoValue}>{value || '—'}</Text>
     </View>
   );
-}
-
-function capitalize(value) {
-  if (!value) {
-    return '';
-  }
-  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 const styles = StyleSheet.create({

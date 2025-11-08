@@ -1,21 +1,52 @@
 import shapeCatalog from '../../shared/catalog/shapes.json';
 
-const SPEED_RULES = {
-  standard: { label: 'Standard Speed', days: 7, fee: 0 },
-  priority: { label: 'Priority Speed', days: 5, fee: 18 },
-  rush: { label: 'Rush Speed', days: 3, fee: 35 },
-};
-
-const DELIVERY_RULES = {
-  pickup: { label: 'Studio Pickup', fee: 0 },
-  delivery: { label: 'Local Delivery', fee: 10 },
-  shipping: { label: 'Standard Shipping', fee: 7 },
-};
-
 const DESIGN_SETUP_FEE = 10;
+
+export const DELIVERY_METHODS = {
+  pickup: {
+    id: 'pickup',
+    label: 'Pick Up',
+    description: 'Ready in 10 days in 92127',
+    baseFee: 0,
+    speedOptions: {
+      standard: { id: 'standard', label: 'Standard', description: '10–14 days', fee: 0, days: 12, tagline: 'Included' },
+      priority: { id: 'priority', label: 'Priority', description: '3–5 days', fee: 5, days: 4, tagline: 'Get your nails faster!' },
+      rush: { id: 'rush', label: 'Rush', description: 'Next day', fee: 10, days: 1, tagline: 'Fast-track your order!' },
+    },
+    defaultSpeed: 'standard',
+  },
+  delivery: {
+    id: 'delivery',
+    label: 'Local Delivery',
+    description: 'Ready in 10 days in 92127',
+    baseFee: 10,
+    speedOptions: {
+      standard: { id: 'standard', label: 'Standard', description: '10–14 days', fee: 0, days: 12, tagline: 'Included' },
+      priority: { id: 'priority', label: 'Priority', description: '3–5 days', fee: 10, days: 4, tagline: 'Get your nails faster!' },
+      rush: { id: 'rush', label: 'Rush', description: 'Next day', fee: 15, days: 1, tagline: 'Fast-track your order!' },
+    },
+    defaultSpeed: 'standard',
+  },
+  shipping: {
+    id: 'shipping',
+    label: 'Shipping',
+    description: 'Ready to ship in 10–14 days',
+    baseFee: 7,
+    speedOptions: {
+      standard: { id: 'standard', label: 'Standard', description: '10–14 days', fee: 0, days: 12, tagline: 'Included' },
+      priority: { id: 'priority', label: 'Priority', description: '3–5 days', fee: 15, days: 4, tagline: 'Get your nails faster!' },
+      rush: { id: 'rush', label: 'Rush', description: 'Next day', fee: 20, days: 1, tagline: 'Fast-track your order!' },
+    },
+    defaultSpeed: 'standard',
+  },
+};
 
 export function getShapeById(shapeId) {
   return shapeCatalog.find((shape) => shape.id === shapeId);
+}
+
+function getMethodConfig(method) {
+  return DELIVERY_METHODS[method] || DELIVERY_METHODS.pickup;
 }
 
 function normalizeNailSets(nailSets = []) {
@@ -72,7 +103,9 @@ export function calculatePriceBreakdown({
       subtotal: 0,
       discounts: 0,
       total: 0,
-      estimatedCompletionDays: SPEED_RULES[fulfillment.speed]?.days ?? SPEED_RULES.standard.days,
+      estimatedCompletionDays: getMethodConfig(fulfillment.method).speedOptions[
+        fulfillment.speed || getMethodConfig(fulfillment.method).defaultSpeed
+      ].days,
       summary: [],
     };
   }
@@ -110,24 +143,24 @@ export function calculatePriceBreakdown({
     });
   });
 
-  const deliveryMethod = fulfillment.method || 'pickup';
-  const deliverySpeed = fulfillment.speed || 'standard';
-  const speedRule = SPEED_RULES[deliverySpeed] || SPEED_RULES.standard;
-  const deliveryRule = DELIVERY_RULES[deliveryMethod] || DELIVERY_RULES.pickup;
+  const methodConfig = getMethodConfig(fulfillment.method);
+  const speedConfig =
+    methodConfig.speedOptions[fulfillment.speed] ||
+    methodConfig.speedOptions[methodConfig.defaultSpeed];
 
-  if (deliveryRule.fee > 0) {
+  if (methodConfig.baseFee > 0) {
     lineItems.push({
       id: 'fulfillment',
-      label: deliveryRule.label,
-      amount: deliveryRule.fee,
+      label: methodConfig.label,
+      amount: methodConfig.baseFee,
     });
   }
 
-  if (speedRule.fee > 0) {
+  if (speedConfig.fee > 0) {
     lineItems.push({
       id: 'speed',
-      label: speedRule.label,
-      amount: speedRule.fee,
+      label: `${methodConfig.label} • ${speedConfig.label}`,
+      amount: speedConfig.fee,
     });
   }
 
@@ -151,7 +184,7 @@ export function calculatePriceBreakdown({
     subtotal,
     discounts: discount,
     total: subtotal,
-    estimatedCompletionDays: speedRule.days,
+    estimatedCompletionDays: speedConfig.days,
     summary: setSummaries,
   };
 }
@@ -165,8 +198,7 @@ export function getShapeCatalog() {
 }
 
 export const pricingConstants = {
-  SPEED_RULES,
-  DELIVERY_RULES,
+  DELIVERY_METHODS,
   DESIGN_SETUP_FEE,
 };
 

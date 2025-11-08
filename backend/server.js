@@ -6,7 +6,7 @@ const bcrypt = require('bcryptjs');
 const { v4: uuid } = require('uuid');
 const Stripe = require('stripe');
 const { readData, writeData } = require('./storage');
-const { calculateOrderPricing } = require('./orderPricing');
+const { calculateOrderPricing, DELIVERY_METHODS } = require('./orderPricing');
 const shapeCatalog = require('../shared/catalog/shapes.json');
 
 const PORT = process.env.PORT || 4000;
@@ -87,11 +87,14 @@ function sanitizeOrder(order) {
       requiresFollowUp: !rest.designImage,
     };
     rest.nailSets = [legacySet];
-    rest.fulfillment = rest.fulfillment || {
+    const fallbackFulfillment = normalizeFulfillment({
       method: rest.deliveryMethod || 'pickup',
       speed: rest.deliverySpeed || 'standard',
-      address: null,
-    };
+      address: rest.address || null,
+    });
+    rest.fulfillment = rest.fulfillment
+      ? normalizeFulfillment(rest.fulfillment)
+      : fallbackFulfillment;
     rest.customerSizes = rest.customerSizes || { mode: 'standard', values: rest.sizes || {} };
     rest.orderNotes = rest.notes || '';
   }
@@ -119,10 +122,13 @@ function normalizeSizesPayload(payload) {
 }
 
 function normalizeFulfillment(payload = {}) {
-  const method = payload.method || 'pickup';
-  const speed = payload.speed || 'standard';
+  const methodConfig = DELIVERY_METHODS[payload.method] || DELIVERY_METHODS.pickup;
+  const speed =
+    payload.speed && methodConfig.speedOptions[payload.speed]
+      ? payload.speed
+      : methodConfig.defaultSpeed;
   const address =
-    method === 'shipping' || method === 'delivery'
+    methodConfig.id === 'shipping' || methodConfig.id === 'delivery'
       ? {
           name: payload.address?.name || '',
           line1: payload.address?.line1 || '',
@@ -134,7 +140,7 @@ function normalizeFulfillment(payload = {}) {
       : null;
 
   return {
-    method,
+    method: methodConfig.id,
     speed,
     address,
   };

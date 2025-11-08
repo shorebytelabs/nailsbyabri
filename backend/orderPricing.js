@@ -2,22 +2,53 @@ const path = require('path');
 
 const shapeCatalog = require(path.join(__dirname, '..', 'shared', 'catalog', 'shapes.json'));
 
-const SPEED_RULES = {
-  standard: { label: 'Standard Speed', days: 7, fee: 0 },
-  priority: { label: 'Priority Speed', days: 5, fee: 18 },
-  rush: { label: 'Rush Speed', days: 3, fee: 35 },
-};
-
-const DELIVERY_RULES = {
-  pickup: { label: 'Studio Pickup', fee: 0 },
-  delivery: { label: 'Local Delivery', fee: 10 },
-  shipping: { label: 'Standard Shipping', fee: 7 },
-};
-
 const DESIGN_SETUP_FEE = 10;
+
+const DELIVERY_METHODS = {
+  pickup: {
+    id: 'pickup',
+    label: 'Pick Up',
+    description: 'Ready in 10 days in 92127',
+    baseFee: 0,
+    speedOptions: {
+      standard: { label: 'Standard', description: '10–14 days', fee: 0, days: 12 },
+      priority: { label: 'Priority', description: '3–5 days', fee: 5, days: 4 },
+      rush: { label: 'Rush', description: 'Next day', fee: 10, days: 1 },
+    },
+    defaultSpeed: 'standard',
+  },
+  delivery: {
+    id: 'delivery',
+    label: 'Local Delivery',
+    description: 'Ready in 10 days in 92127',
+    baseFee: 10,
+    speedOptions: {
+      standard: { label: 'Standard', description: '10–14 days', fee: 0, days: 12 },
+      priority: { label: 'Priority', description: '3–5 days', fee: 10, days: 4 },
+      rush: { label: 'Rush', description: 'Next day', fee: 15, days: 1 },
+    },
+    defaultSpeed: 'standard',
+  },
+  shipping: {
+    id: 'shipping',
+    label: 'Shipping',
+    description: 'Ready to ship in 10–14 days',
+    baseFee: 7,
+    speedOptions: {
+      standard: { label: 'Standard', description: '10–14 days', fee: 0, days: 12 },
+      priority: { label: 'Priority', description: '3–5 days', fee: 15, days: 4 },
+      rush: { label: 'Rush', description: 'Next day', fee: 20, days: 1 },
+    },
+    defaultSpeed: 'standard',
+  },
+};
 
 function getShapeById(shapeId) {
   return shapeCatalog.find((shape) => shape.id === shapeId);
+}
+
+function getMethodConfig(method) {
+  return DELIVERY_METHODS[method] || DELIVERY_METHODS.pickup;
 }
 
 function normalizeSizes(sizes) {
@@ -140,24 +171,24 @@ function calculateOrderPricing({
     });
   });
 
-  const deliveryMethod = fulfillment.method || 'pickup';
-  const deliverySpeed = fulfillment.speed || 'standard';
-  const speedRule = SPEED_RULES[deliverySpeed] || SPEED_RULES.standard;
-  const deliveryRule = DELIVERY_RULES[deliveryMethod] || DELIVERY_RULES.pickup;
+  const methodConfig = getMethodConfig(fulfillment.method);
+  const speedConfig =
+    methodConfig.speedOptions[fulfillment.speed] ||
+    methodConfig.speedOptions[methodConfig.defaultSpeed];
 
-  if (deliveryRule.fee > 0) {
+  if (methodConfig.baseFee > 0) {
     lineItems.push({
       id: 'fulfillment',
-      label: deliveryRule.label,
-      amount: deliveryRule.fee,
+      label: methodConfig.label,
+      amount: methodConfig.baseFee,
     });
   }
 
-  if (speedRule.fee > 0) {
+  if (speedConfig.fee > 0) {
     lineItems.push({
       id: 'speed',
-      label: speedRule.label,
-      amount: speedRule.fee,
+      label: `${methodConfig.label} • ${speedConfig.label}`,
+      amount: speedConfig.fee,
     });
   }
 
@@ -183,16 +214,21 @@ function calculateOrderPricing({
     subtotal,
     discounts: discount,
     total,
-    estimatedCompletionDays: speedRule.days,
+    estimatedCompletionDays: speedConfig.days,
     summary: setSummaries,
+    fulfillment: {
+      method: methodConfig.id,
+      speed: Object.keys(methodConfig.speedOptions).find(
+        (key) => methodConfig.speedOptions[key] === speedConfig,
+      ),
+    },
   };
 }
 
 module.exports = {
   calculateOrderPricing,
   getShapeById,
-  SPEED_RULES,
-  DELIVERY_RULES,
   DESIGN_SETUP_FEE,
+  DELIVERY_METHODS,
 };
 

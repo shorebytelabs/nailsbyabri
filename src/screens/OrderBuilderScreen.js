@@ -34,18 +34,6 @@ const BASE_SIZE_VALUES = SIZE_KEYS.reduce((acc, key) => {
   return acc;
 }, {});
 
-const SPEED_OPTIONS = [
-  { id: 'standard', label: pricingConstants.SPEED_RULES.standard.label },
-  { id: 'priority', label: pricingConstants.SPEED_RULES.priority.label },
-  { id: 'rush', label: pricingConstants.SPEED_RULES.rush.label },
-];
-
-const DELIVERY_OPTIONS = [
-  { id: 'pickup', label: 'Studio Pickup' },
-  { id: 'delivery', label: 'Local Delivery' },
-  { id: 'shipping', label: 'Ship to Me' },
-];
-
 function createEmptyNailSet(shapes) {
   return {
     id: `temp_${Date.now()}`,
@@ -328,6 +316,7 @@ function OrderBuilderScreen({
   const { theme } = useTheme();
   const { confirmPayment } = useStripe();
   const defaultShapes = getShapeCatalog();
+  const deliveryMethodConfig = pricingConstants.DELIVERY_METHODS;
 
   const [orderId, setOrderId] = useState(initialOrder?.id || null);
   const [shapes, setShapes] = useState(defaultShapes);
@@ -392,6 +381,23 @@ function OrderBuilderScreen({
       }),
     [nailSets, fulfillment, promoCode],
   );
+
+  const selectedMethodConfig =
+    deliveryMethodConfig[fulfillment.method] || deliveryMethodConfig.pickup;
+  const selectedSpeedConfig =
+    selectedMethodConfig.speedOptions[fulfillment.speed] ||
+    selectedMethodConfig.speedOptions[selectedMethodConfig.defaultSpeed];
+
+  useEffect(() => {
+    const methodCfg = deliveryMethodConfig[fulfillment.method] || deliveryMethodConfig.pickup;
+    if (fulfillment.method !== methodCfg.id || !methodCfg.speedOptions[fulfillment.speed]) {
+      setFulfillment((prev) => ({
+        ...prev,
+        method: methodCfg.id,
+        speed: methodCfg.speedOptions[prev.speed] ? prev.speed : methodCfg.defaultSpeed,
+      }));
+    }
+  }, [fulfillment.method, fulfillment.speed]);
 
   const handleAddSet = () => {
     const emptySet = createEmptyNailSet(shapes);
@@ -631,35 +637,35 @@ function OrderBuilderScreen({
           <PrimaryButton label="Create Nail Set" onPress={handleAddSet} style={styles.addSetButton} />
 
           <View style={headerStyles}>
-            <Text style={styles.sectionTitle}>Fulfillment</Text>
+            <Text style={styles.sectionTitle}>Delivery Options</Text>
           </View>
-          <Text style={styles.label}>Delivery Method</Text>
-          <View style={styles.optionRow}>
-            {DELIVERY_OPTIONS.map((option) => {
-              const selected = fulfillment.method === option.id;
+          <Text style={styles.stepLabel}>Step 1 – How you&apos;ll get your nails</Text>
+          <View style={styles.methodGrid}>
+            {Object.values(deliveryMethodConfig).map((method) => {
+              const selected = selectedMethodConfig.id === method.id;
               return (
                 <TouchableOpacity
-                  key={option.id}
+                  key={method.id}
                   style={[
-                    styles.optionButton,
+                    styles.methodCard,
                     selected && { borderColor: theme?.colors?.accent || '#272b75' },
                   ]}
                   onPress={() =>
                     setFulfillment((prev) => ({
                       ...prev,
-                      method: option.id,
+                      method: method.id,
+                      speed: method.defaultSpeed,
                     }))
                   }
                 >
-                  <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
-                    {option.label}
-                  </Text>
+                  <Text style={styles.methodTitle}>{method.label}</Text>
+                  <Text style={styles.methodDescription}>{method.description}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          {fulfillment.method === 'shipping' || fulfillment.method === 'delivery' ? (
+          {selectedMethodConfig.id === 'shipping' || selectedMethodConfig.id === 'delivery' ? (
             <View style={styles.section}>
               <Text style={styles.label}>Shipping Address</Text>
               <TextInput
@@ -735,15 +741,18 @@ function OrderBuilderScreen({
             </View>
           ) : null}
 
-          <Text style={[styles.label, styles.speedLabel]}>Turnaround Speed</Text>
-          <View style={styles.optionRow}>
-            {SPEED_OPTIONS.map((option) => {
-              const selected = fulfillment.speed === option.id;
+          <Text style={styles.stepLabel}>Step 2 – How fast you want them</Text>
+          <Text style={styles.helperText}>{selectedMethodConfig.description}</Text>
+          <View style={styles.speedList}>
+            {Object.values(selectedMethodConfig.speedOptions).map((option) => {
+              const selected = selectedSpeedConfig.id === option.id;
+              const costLabel =
+                option.fee > 0 ? `(+${formatCurrency(option.fee)})` : '(Included)';
               return (
                 <TouchableOpacity
                   key={option.id}
                   style={[
-                    styles.optionButton,
+                    styles.speedCard,
                     selected && { borderColor: theme?.colors?.accent || '#272b75' },
                   ]}
                   onPress={() =>
@@ -753,9 +762,10 @@ function OrderBuilderScreen({
                     }))
                   }
                 >
-                  <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
-                    {option.label}
+                  <Text style={styles.speedTitle}>
+                    {option.label} – {option.description} {costLabel}
                   </Text>
+                  {option.tagline ? <Text style={styles.speedTagline}>{option.tagline}</Text> : null}
                 </TouchableOpacity>
               );
             })}
@@ -877,6 +887,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: '#555',
   },
+  stepLabel: {
+    marginTop: 16,
+    marginBottom: 8,
+    fontWeight: '700',
+    color: '#272b75',
+  },
   emptyState: {
     padding: 16,
   },
@@ -975,6 +991,28 @@ const styles = StyleSheet.create({
   },
   optionTextSelected: {
     color: '#111',
+  },
+  methodGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  methodCard: {
+    flexGrow: 1,
+    minWidth: '45%',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#d9ddff',
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  methodTitle: {
+    fontWeight: '700',
+    color: '#272b75',
+    marginBottom: 6,
+  },
+  methodDescription: {
+    color: '#5c5f8d',
   },
   sizeGrid: {
     flexDirection: 'row',
@@ -1098,6 +1136,25 @@ const styles = StyleSheet.create({
   shapePrice: {
     color: '#555',
     marginTop: 4,
+  },
+  speedList: {
+    marginTop: 12,
+    gap: 12,
+  },
+  speedCard: {
+    borderWidth: 2,
+    borderColor: '#d9ddff',
+    borderRadius: 12,
+    padding: 14,
+    backgroundColor: '#fff',
+  },
+  speedTitle: {
+    fontWeight: '600',
+    color: '#272b75',
+  },
+  speedTagline: {
+    marginTop: 4,
+    color: '#5c5f8d',
   },
   formContainer: {
     position: 'absolute',
