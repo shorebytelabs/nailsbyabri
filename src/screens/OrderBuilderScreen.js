@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,8 +14,12 @@ import { CardField, useStripe } from '@stripe/stripe-react-native';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
 import { useTheme } from '../theme';
-import { calculatePriceBreakdown, formatCurrency, pricingConstants } from '../utils/pricing';
-import shapeCatalogFallback from '../../shared/catalog/shapes.json';
+import {
+  calculatePriceBreakdown,
+  formatCurrency,
+  getShapeCatalog,
+  pricingConstants,
+} from '../utils/pricing';
 import {
   createOrUpdateOrder,
   createPaymentIntent,
@@ -22,13 +27,12 @@ import {
   fetchShapes,
 } from '../services/api';
 
-const DEFAULT_SIZES = {
-  thumb: '',
-  index: '',
-  middle: '',
-  ring: '',
-  pinky: '',
-};
+const SIZE_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
+
+const BASE_SIZE_VALUES = SIZE_KEYS.reduce((acc, key) => {
+  acc[key] = '';
+  return acc;
+}, {});
 
 const SPEED_OPTIONS = [
   { id: 'standard', label: pricingConstants.SPEED_RULES.standard.label },
@@ -39,7 +43,280 @@ const SPEED_OPTIONS = [
 const DELIVERY_OPTIONS = [
   { id: 'pickup', label: 'Studio Pickup' },
   { id: 'delivery', label: 'Local Delivery' },
+  { id: 'shipping', label: 'Ship to Me' },
 ];
+
+function createEmptyNailSet(shapes) {
+  return {
+    id: `temp_${Date.now()}`,
+    name: '',
+    shapeId: shapes[0]?.id || '',
+    quantity: '1',
+    description: '',
+    designUploads: [],
+    setNotes: '',
+    sizes: {
+      mode: 'standard',
+      values: BASE_SIZE_VALUES,
+    },
+    requiresFollowUp: false,
+  };
+}
+
+function transformUploadsForSave(uploads) {
+  return uploads.map((upload) => ({
+    id: upload.id,
+    fileName: upload.fileName || null,
+    data: upload.base64,
+  }));
+}
+
+function validateNailSet(set) {
+  const hasDesign = Array.isArray(set.designUploads) && set.designUploads.length > 0;
+  const hasDescription = Boolean(set.description && set.description.trim().length > 0);
+  return hasDesign || hasDescription || Boolean(set.requiresFollowUp);
+}
+
+function NailSetEditor({
+  visible,
+  shapes,
+  theme,
+  value,
+  onCancel,
+  onSave,
+}) {
+  const [form, setForm] = useState(value);
+
+  useEffect(() => {
+    setForm(value);
+  }, [value]);
+
+  const currentForm = form || value;
+
+  if (!visible || !currentForm) {
+    return null;
+  }
+
+  const handleSelectShape = (shapeId) => {
+    setForm((prev) => ({ ...prev, shapeId }));
+  };
+
+  const handleUploadDesign = async () => {
+    const response = await launchImageLibrary({
+      mediaType: 'photo',
+      includeBase64: true,
+      maxWidth: 1280,
+    });
+
+    if (response.didCancel) {
+      return;
+    }
+    if (response.errorMessage) {
+      Alert.alert('Upload Error', response.errorMessage);
+      return;
+    }
+
+    const asset = response.assets?.[0];
+    if (!asset?.base64) {
+      Alert.alert('Upload Error', 'Unable to read image. Please try again.');
+      return;
+    }
+
+    const upload = {
+      id: `upload_${Date.now()}`,
+      uri: asset.uri,
+      fileName: asset.fileName || 'design-reference.jpg',
+      base64: asset.base64,
+    };
+
+    setForm((prev) => ({
+      ...prev,
+      designUploads: [...prev.designUploads, upload],
+    }));
+  };
+
+  const handleRemoveUpload = (uploadId) => {
+    setForm((prev) => ({
+      ...prev,
+      designUploads: prev.designUploads.filter((item) => item.id !== uploadId),
+    }));
+  };
+
+  const toggleSizeMode = (mode) => {
+    setForm((prev) => ({
+      ...prev,
+      sizes: {
+        mode,
+        values: mode === 'perSet' ? prev.sizes.values : BASE_SIZE_VALUES,
+      },
+    }));
+  };
+
+  return (
+    <View style={styles.formContainer}>
+      <Text style={[styles.formTitle, { color: theme?.colors?.primaryFont || styles.formTitle.color }]}>
+        {value?.id?.startsWith('temp_') ? 'Create Nail Set' : 'Edit Nail Set'}
+      </Text>
+      <ScrollView style={styles.formScroll} contentContainerStyle={styles.formScrollContent}>
+        <Text style={styles.label}>Set Name (optional)</Text>
+        <TextInput
+          style={styles.input}
+        value={currentForm.name}
+          placeholder="e.g. Fuchsia French"
+          onChangeText={(text) => setForm((prev) => ({ ...prev, name: text }))}
+        />
+
+        <Text style={styles.label}>Shape</Text>
+        <View style={styles.shapeGrid}>
+          {shapes.map((shape) => {
+              const selected = shape.id === currentForm.shapeId;
+            return (
+              <TouchableOpacity
+                key={shape.id}
+                style={[
+                  styles.shapeCard,
+                  selected && { borderColor: theme?.colors?.accent || '#272b75' },
+                ]}
+                onPress={() => handleSelectShape(shape.id)}
+              >
+                {shape.imageUrl ? (
+                  <Image source={{ uri: shape.imageUrl }} style={styles.shapeImage} />
+                ) : (
+                  <View style={styles.shapePlaceholder}>
+                    <Text style={styles.shapePlaceholderText}>{shape.name}</Text>
+                  </View>
+                )}
+                <Text style={styles.shapeName}>{shape.name}</Text>
+                <Text style={styles.shapePrice}>{formatCurrency(shape.basePrice)}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text style={styles.label}>Quantity</Text>
+        <TextInput
+          style={styles.input}
+          keyboardType="number-pad"
+          value={currentForm.quantity}
+          onChangeText={(text) => setForm((prev) => ({ ...prev, quantity: text }))}
+          placeholder="1"
+        />
+        <Text style={styles.helperText}>One set = 10 nails (left & right hands).</Text>
+
+        <Text style={styles.label}>Design Uploads</Text>
+        <PrimaryButton label="Add Inspiration Image" onPress={handleUploadDesign} />
+        {currentForm.designUploads.length === 0 ? (
+          <Text style={styles.helperText}>
+            Upload photos of the design or describe it below. If neither, mark for follow-up.
+          </Text>
+        ) : (
+          <View style={styles.uploadGrid}>
+            {currentForm.designUploads.map((upload) => (
+              <View key={upload.id} style={styles.uploadItem}>
+                <Image source={{ uri: upload.uri || `data:image/jpeg;base64,${upload.base64}` }} style={styles.uploadPreview} />
+                <TouchableOpacity onPress={() => handleRemoveUpload(upload.id)}>
+                  <Text style={styles.removeLink}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <Text style={styles.label}>Design Description</Text>
+        <TextInput
+          style={[styles.input, styles.notesInput]}
+          multiline
+          numberOfLines={4}
+          value={currentForm.description}
+          onChangeText={(text) => setForm((prev) => ({ ...prev, description: text }))}
+          placeholder="Describe colors, finishes, decals, etc."
+        />
+
+        <TouchableOpacity
+          style={styles.checkboxRow}
+          onPress={() => setForm((prev) => ({ ...prev, requiresFollowUp: !prev.requiresFollowUp }))}
+        >
+          <View
+          style={[
+            styles.checkbox,
+            currentForm.requiresFollowUp && { backgroundColor: theme?.colors?.accent || '#272b75' },
+          ]}
+          />
+          <Text style={styles.checkboxLabel}>We&apos;ll finalize design details later</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.label}>Sizing</Text>
+        <View style={styles.optionRow}>
+          {['standard', 'perSet'].map((mode) => {
+            const selected = currentForm.sizes.mode === mode;
+            return (
+              <TouchableOpacity
+                key={mode}
+                style={[
+                  styles.optionButton,
+                  selected && { borderColor: theme?.colors?.accent || '#272b75' },
+                ]}
+                onPress={() => toggleSizeMode(mode)}
+              >
+                <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
+                  {mode === 'standard' ? 'Standard Sizes' : 'Enter Sizes'}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {currentForm.sizes.mode === 'perSet' ? (
+          <View style={styles.sizeGrid}>
+            {SIZE_KEYS.map((finger) => (
+              <View key={finger} style={styles.sizeItem}>
+                <Text style={styles.sizeLabel}>{finger.toUpperCase()}</Text>
+                <TextInput
+                  style={styles.input}
+                  value={currentForm.sizes.values[finger]}
+                  onChangeText={(text) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      sizes: {
+                        ...prev.sizes,
+                        values: {
+                          ...prev.sizes.values,
+                          [finger]: text,
+                        },
+                      },
+                    }))
+                  }
+                  placeholder="Size"
+                />
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        <Text style={styles.label}>Set Notes</Text>
+        <TextInput
+          style={[styles.input, styles.notesInput]}
+          value={currentForm.setNotes}
+          onChangeText={(text) => setForm((prev) => ({ ...prev, setNotes: text }))}
+          placeholder="Finish, decals, special instructions..."
+          multiline
+          numberOfLines={3}
+        />
+      </ScrollView>
+
+      <View style={styles.formActions}>
+        <TouchableOpacity onPress={onCancel}>
+          <Text style={styles.secondaryAction}>Cancel</Text>
+        </TouchableOpacity>
+        <PrimaryButton
+          label="Save Nail Set"
+          onPress={() => onSave(currentForm)}
+          disabled={!validateNailSet(currentForm)}
+        />
+      </View>
+    </View>
+  );
+}
 
 function OrderBuilderScreen({
   user,
@@ -50,28 +327,40 @@ function OrderBuilderScreen({
 }) {
   const { theme } = useTheme();
   const { confirmPayment } = useStripe();
-
-  const [step, setStep] = useState('details');
-  const [shapes, setShapes] = useState(shapeCatalogFallback);
-  const [loadingShapes, setLoadingShapes] = useState(false);
+  const defaultShapes = getShapeCatalog();
 
   const [orderId, setOrderId] = useState(initialOrder?.id || null);
-  const [shapeId, setShapeId] = useState(initialOrder?.shapeId || shapeCatalogFallback[0]?.id || '');
-  const [setCount, setSetCount] = useState(String(initialOrder?.setCount || '1'));
-  const [variations, setVariations] = useState(initialOrder?.variations || []);
-  const [sizes, setSizes] = useState(initialOrder?.sizes || DEFAULT_SIZES);
-  const [deliveryMethod, setDeliveryMethod] = useState(initialOrder?.deliveryMethod || 'pickup');
-  const [deliverySpeed, setDeliverySpeed] = useState(initialOrder?.deliverySpeed || 'standard');
-  const [designImage, setDesignImage] = useState(initialOrder?.designImage || null);
-  const [designPreviewUri, setDesignPreviewUri] = useState(
-    initialOrder?.designImage ? `data:image/jpeg;base64,${initialOrder.designImage}` : null,
-  );
-  const [designFileName, setDesignFileName] = useState(initialOrder?.designFileName || null);
-  const [notes, setNotes] = useState(initialOrder?.notes || '');
-
-  const [loading, setLoading] = useState(false);
+  const [shapes, setShapes] = useState(defaultShapes);
+  const [loadingShapes, setLoadingShapes] = useState(false);
+  const [step, setStep] = useState('summary');
+  const [editingSet, setEditingSet] = useState(null);
+  const [isEditorVisible, setEditorVisible] = useState(false);
   const [clientSecret, setClientSecret] = useState(null);
-  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isProcessingPayment, setProcessingPayment] = useState(false);
+
+  const [nailSets, setNailSets] = useState(
+    Array.isArray(initialOrder?.nailSets)
+      ? initialOrder.nailSets.map((set) => ({
+          ...set,
+          quantity: String(set.quantity || 1),
+          designUploads: Array.isArray(set.designUploads)
+            ? set.designUploads.map((upload) => ({
+                id: upload.id || `upload_${Date.now()}`,
+                fileName: upload.fileName || 'design-reference.jpg',
+                uri: upload.uri || null,
+                base64: upload.data || upload.base64 || upload.content || '',
+              }))
+            : [],
+        }))
+      : [],
+  );
+
+  const [fulfillment, setFulfillment] = useState(
+    initialOrder?.fulfillment || { method: 'pickup', speed: 'standard', address: null },
+  );
+  const [orderNotes, setOrderNotes] = useState(initialOrder?.orderNotes || '');
+  const [promoCode, setPromoCode] = useState(initialOrder?.promoCode || '');
 
   useEffect(() => {
     async function loadShapes() {
@@ -80,185 +369,163 @@ function OrderBuilderScreen({
         const catalog = await fetchShapes();
         if (catalog?.length) {
           setShapes(catalog);
-          if (!catalog.find((shape) => shape.id === shapeId)) {
-            setShapeId(catalog[0].id);
-          }
         }
       } catch (error) {
-        console.warn('Falling back to local shapes catalog', error);
+        console.warn('Falling back to bundled shape catalog', error);
       } finally {
         setLoadingShapes(false);
       }
     }
-
     loadShapes();
-  }, [shapeId]);
-
-  useEffect(() => {
-    if (!initialOrder) {
-      return;
-    }
-    setOrderId(initialOrder.id);
-    setShapeId(initialOrder.shapeId || shapeCatalogFallback[0]?.id || '');
-    setSetCount(String(initialOrder.setCount || '1'));
-    setVariations(initialOrder.variations || []);
-    setSizes(initialOrder.sizes || DEFAULT_SIZES);
-    setDeliveryMethod(initialOrder.deliveryMethod || 'pickup');
-    setDeliverySpeed(initialOrder.deliverySpeed || 'standard');
-    setDesignImage(initialOrder.designImage || null);
-    setDesignPreviewUri(
-      initialOrder.designImage ? `data:image/jpeg;base64,${initialOrder.designImage}` : null,
-    );
-    setDesignFileName(initialOrder.designFileName || null);
-    setNotes(initialOrder.notes || '');
-  }, [initialOrder]);
+  }, []);
 
   const priceDetails = useMemo(
     () =>
       calculatePriceBreakdown({
-        shapeId,
-        setCount,
-        variations,
-        sizes,
-        deliveryMethod,
-        deliverySpeed,
+        nailSets: nailSets.map((set) => ({
+          ...set,
+          quantity: Number(set.quantity) || 1,
+          designUploads: transformUploadsForSave(set.designUploads),
+        })),
+        fulfillment,
+        promoCode,
       }),
-    [shapeId, setCount, variations, sizes, deliveryMethod, deliverySpeed],
+    [nailSets, fulfillment, promoCode],
   );
 
-  const selectedShape = useMemo(
-    () => shapes.find((shape) => shape.id === shapeId),
-    [shapeId, shapes],
-  );
+  const handleAddSet = () => {
+    const emptySet = createEmptyNailSet(shapes);
+    setEditingSet(emptySet);
+    setEditorVisible(true);
+  };
 
-  const canContinue =
-    shapeId &&
-    Number(setCount) > 0 &&
-    designImage &&
-    !loadingShapes;
-
-  const handleSelectDesign = async () => {
-    const response = await launchImageLibrary({
-      mediaType: 'photo',
-      includeBase64: true,
-      maxWidth: 1024,
+  const handleEditSet = (setId) => {
+    const target = nailSets.find((set) => set.id === setId);
+    if (!target) {
+      return;
+    }
+    setEditingSet({
+      ...target,
+      designUploads: target.designUploads.map((upload) => ({
+        id: upload.id || `upload_${Date.now()}`,
+        fileName: upload.fileName || 'design-reference.jpg',
+        uri: upload.uri || null,
+        base64: upload.base64 || upload.data || upload.content || '',
+      })),
     });
+    setEditorVisible(true);
+  };
 
-    if (response.didCancel) {
+  const handleDuplicateSet = (setId) => {
+    const target = nailSets.find((set) => set.id === setId);
+    if (!target) {
       return;
     }
-
-    if (response.errorMessage) {
-      Alert.alert('Upload Error', response.errorMessage);
-      return;
-    }
-
-    const asset = response.assets && response.assets[0];
-    if (!asset || !asset.base64) {
-      Alert.alert('Upload Error', 'Unable to read image. Please try again.');
-      return;
-    }
-
-    setDesignImage(asset.base64);
-    setDesignPreviewUri(asset.uri);
-    setDesignFileName(asset.fileName || 'design-reference.jpg');
+    const clone = {
+      ...target,
+      id: `duplicate_${Date.now()}`,
+      name: target.name ? `${target.name} Copy` : null,
+      designUploads: target.designUploads.map((upload) => ({
+        ...upload,
+        id: `upload_${Date.now()}_${Math.random()}`,
+      })),
+    };
+    setNailSets((prev) => [...prev, clone]);
   };
 
-  const handleAddVariation = () => {
-    setVariations((prev) => [
-      ...prev,
-      { id: String(Date.now()), name: '', quantity: '1' },
-    ]);
+  const handleRemoveSet = (setId) => {
+    setNailSets((prev) => prev.filter((set) => set.id !== setId));
   };
 
-  const handleUpdateVariation = (variationId, key, value) => {
-    setVariations((prev) =>
-      prev.map((item) =>
-        item.id === variationId
-          ? { ...item, [key]: value }
-          : item,
-      ),
-    );
+  const handleSaveSet = (formValues) => {
+    const normalizedSet = {
+      ...formValues,
+      quantity: formValues.quantity || '1',
+    };
+
+    setNailSets((prev) => {
+      const exists = prev.some((set) => set.id === normalizedSet.id);
+      if (exists) {
+        return prev.map((set) => (set.id === normalizedSet.id ? normalizedSet : set));
+      }
+      return [...prev, normalizedSet];
+    });
+    setEditorVisible(false);
+    setEditingSet(null);
   };
 
-  const handleRemoveVariation = (variationId) => {
-    setVariations((prev) => prev.filter((item) => item.id !== variationId));
-  };
+  const invalidSets = useMemo(
+    () => nailSets.filter((set) => !validateNailSet(set)),
+    [nailSets],
+  );
+
+  const canProceedToPayment =
+    nailSets.length > 0 && invalidSets.length === 0 && !loadingShapes;
+
+  const buildOrderPayload = useCallback(
+    (status) => ({
+      id: orderId,
+      userId: user.id,
+      nailSets: nailSets.map((set) => ({
+        ...set,
+        quantity: Number(set.quantity) || 1,
+        designUploads: transformUploadsForSave(set.designUploads),
+      })),
+      fulfillment,
+      orderNotes,
+      promoCode: promoCode || null,
+      status,
+    }),
+    [orderId, user.id, nailSets, fulfillment, orderNotes, promoCode],
+  );
 
   const handleSaveDraft = async () => {
     if (!user?.id) {
-      Alert.alert('Unable to save', 'Please log in before saving an order.');
+      Alert.alert('Unable to save', 'Please log in to save your order.');
       return;
     }
-
+    if (!nailSets.length) {
+      Alert.alert('Add a Nail Set', 'Please create at least one nail set before saving.');
+      return;
+    }
+    setIsSaving(true);
     try {
-      setLoading(true);
-      const payload = {
-        id: orderId,
-        userId: user.id,
-        shapeId,
-        setCount: Number(setCount) || 1,
-        variations,
-        sizes,
-        deliveryMethod,
-        deliverySpeed,
-        designImage,
-        designFileName,
-        notes,
-        status: 'draft',
-      };
-      const response = await createOrUpdateOrder(payload);
+      const response = await createOrUpdateOrder(buildOrderPayload('draft'));
       setOrderId(response.order.id);
       onDraftSaved?.(response.order);
-      Alert.alert('Draft Saved', 'Your order draft has been saved.');
+      Alert.alert('Draft saved', 'Your order has been saved as a draft.');
     } catch (error) {
       Alert.alert('Unable to save draft', error.message);
     } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
 
-  const prepareOrderForPayment = async () => {
-    if (!canContinue) {
-      Alert.alert('Missing Details', 'Please complete required fields before continuing.');
+  const handleProceedToPayment = async () => {
+    if (!canProceedToPayment) {
+      Alert.alert('Add Nail Sets', 'Add at least one complete nail set before continuing.');
       return;
     }
-
+    setIsSaving(true);
     try {
-      setLoading(true);
-      const payload = {
-        id: orderId,
-        userId: user.id,
-        shapeId,
-        setCount: Number(setCount) || 1,
-        variations,
-        sizes,
-        deliveryMethod,
-        deliverySpeed,
-        designImage,
-        designFileName,
-        notes,
-        status: 'pending_payment',
-      };
-      const response = await createOrUpdateOrder(payload);
+      const response = await createOrUpdateOrder(buildOrderPayload('pending_payment'));
       setOrderId(response.order.id);
-      const paymentIntentResponse = await createPaymentIntent(response.order.id);
-      setClientSecret(paymentIntentResponse.clientSecret);
+      const intent = await createPaymentIntent(response.order.id);
+      setClientSecret(intent.clientSecret);
       setStep('payment');
     } catch (error) {
       Alert.alert('Unable to proceed', error.message);
     } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
 
   const handleConfirmPayment = async () => {
     if (!clientSecret) {
-      Alert.alert('Payment unavailable', 'Payment setup is incomplete. Please try again.');
+      Alert.alert('Payment Error', 'Payment is not ready yet. Please try again.');
       return;
     }
-    setPaymentProcessing(true);
-
+    setProcessingPayment(true);
     const { paymentIntent, error } = await confirmPayment(clientSecret, {
       paymentMethodType: 'Card',
       paymentMethodData: {
@@ -271,27 +538,23 @@ function OrderBuilderScreen({
 
     if (error) {
       Alert.alert('Payment failed', error.message);
-      setPaymentProcessing(false);
+      setProcessingPayment(false);
       return;
     }
 
     try {
-      const completion = await completeOrder(orderId, {
-        paymentIntentId: paymentIntent?.id,
-      });
+      const completion = await completeOrder(orderId, { paymentIntentId: paymentIntent?.id });
       onPaymentComplete?.(completion.order);
     } catch (completionError) {
       Alert.alert('Order completion failed', completionError.message);
     } finally {
-      setPaymentProcessing(false);
+      setProcessingPayment(false);
     }
   };
 
   const headerStyles = [
     styles.sectionHeader,
-    {
-      backgroundColor: theme?.colors?.secondaryBackground || styles.sectionHeader.backgroundColor,
-    },
+    { backgroundColor: theme?.colors?.secondaryBackground || styles.sectionHeader.backgroundColor },
   ];
 
   return (
@@ -299,189 +562,223 @@ function OrderBuilderScreen({
       <TouchableOpacity onPress={onClose}>
         <Text style={styles.closeLink}>← Back</Text>
       </TouchableOpacity>
-
-      <Text
-        style={[
-          styles.pageTitle,
-          { color: theme?.colors?.primaryFont || styles.pageTitle.color },
-        ]}
-      >
-        {step === 'details' ? 'Build Your Order' : 'Complete Payment'}
+      <Text style={[styles.pageTitle, { color: theme?.colors?.primaryFont || styles.pageTitle.color }]}>
+        {step === 'summary' ? 'Build Your Order' : 'Complete Payment'}
       </Text>
 
-      {step === 'details' ? (
+      {step === 'summary' ? (
         <>
           <View style={headerStyles}>
-            <Text style={styles.sectionTitle}>Choose Shape</Text>
+            <Text style={styles.sectionTitle}>Nail Sets</Text>
+            <Text style={styles.helperText}>Add a set for each unique design or recipient.</Text>
           </View>
-          <View style={styles.shapeGrid}>
-            {shapes.map((shape) => {
-              const selected = shape.id === shapeId;
+
+          {nailSets.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.helperText}>No nail sets yet.</Text>
+            </View>
+          ) : (
+            nailSets.map((set, index) => {
+              const shape = shapes.find((item) => item.id === set.shapeId);
+              const warning = !validateNailSet(set);
+              const preview = set.designUploads[0];
+              return (
+                <View key={set.id} style={styles.setCard}>
+                  <View style={styles.setCardHeader}>
+                    <View style={styles.setCardTitleRow}>
+                      <View style={styles.setThumbnail}>
+                        {preview ? (
+                          <Image
+                            source={{ uri: preview.uri || `data:image/jpeg;base64,${preview.base64}` }}
+                            style={styles.setThumbnailImage}
+                          />
+                        ) : (
+                          <Text style={styles.setThumbnailPlaceholder}>
+                            {shape?.name?.charAt(0) || 'S'}
+                          </Text>
+                        )}
+                      </View>
+                      <View style={styles.setTitleContent}>
+                        <Text style={styles.setTitle}>{set.name || `Set #${index + 1}`}</Text>
+                        <Text style={styles.setSubTitle}>
+                          {shape?.name || 'Shape'} • {set.quantity} set{Number(set.quantity) > 1 ? 's' : ''}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.setActions}>
+                      <TouchableOpacity onPress={() => handleDuplicateSet(set.id)}>
+                        <Text style={styles.secondaryAction}>Duplicate</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleEditSet(set.id)}>
+                        <Text style={styles.secondaryAction}>Edit</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleRemoveSet(set.id)}>
+                        <Text style={[styles.secondaryAction, styles.destructiveAction]}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  {warning ? (
+                    <Text style={styles.warningText}>
+                      No design uploaded or description provided. We&apos;ll need more detail for this set.
+                    </Text>
+                  ) : null}
+                  {set.setNotes ? <Text style={styles.helperText}>Notes: {set.setNotes}</Text> : null}
+                </View>
+              );
+            })
+          )}
+
+          <PrimaryButton label="Create Nail Set" onPress={handleAddSet} style={styles.addSetButton} />
+
+          <View style={headerStyles}>
+            <Text style={styles.sectionTitle}>Fulfillment</Text>
+          </View>
+          <Text style={styles.label}>Delivery Method</Text>
+          <View style={styles.optionRow}>
+            {DELIVERY_OPTIONS.map((option) => {
+              const selected = fulfillment.method === option.id;
               return (
                 <TouchableOpacity
-                  key={shape.id}
+                  key={option.id}
                   style={[
-                    styles.shapeCard,
-                    selected && {
-                      borderColor: theme?.colors?.accent || '#272b75',
-                    },
+                    styles.optionButton,
+                    selected && { borderColor: theme?.colors?.accent || '#272b75' },
                   ]}
-                  onPress={() => setShapeId(shape.id)}
-                  disabled={loadingShapes}
+                  onPress={() =>
+                    setFulfillment((prev) => ({
+                      ...prev,
+                      method: option.id,
+                    }))
+                  }
                 >
-                  {shape.imageUrl ? (
-                    <Image source={{ uri: shape.imageUrl }} style={styles.shapeImage} />
-                  ) : (
-                    <View style={styles.shapePlaceholder}>
-                      <Text style={styles.shapePlaceholderText}>{shape.name}</Text>
-                    </View>
-                  )}
-                  <Text style={styles.shapeName}>{shape.name}</Text>
-                  <Text style={styles.shapePrice}>{formatCurrency(shape.basePrice)}</Text>
+                  <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {fulfillment.method === 'shipping' || fulfillment.method === 'delivery' ? (
+            <View style={styles.section}>
+              <Text style={styles.label}>Shipping Address</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Full Name"
+                value={fulfillment.address?.name || ''}
+                onChangeText={(text) =>
+                  setFulfillment((prev) => ({
+                    ...prev,
+                    address: { ...prev.address, name: text },
+                  }))
+                }
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Address Line 1"
+                value={fulfillment.address?.line1 || ''}
+                onChangeText={(text) =>
+                  setFulfillment((prev) => ({
+                    ...prev,
+                    address: { ...prev.address, line1: text },
+                  }))
+                }
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Address Line 2"
+                value={fulfillment.address?.line2 || ''}
+                onChangeText={(text) =>
+                  setFulfillment((prev) => ({
+                    ...prev,
+                    address: { ...prev.address, line2: text },
+                  }))
+                }
+              />
+              <View style={styles.addressRow}>
+                <TextInput
+                  style={[styles.input, styles.addressHalf]}
+                  placeholder="City"
+                  value={fulfillment.address?.city || ''}
+                  onChangeText={(text) =>
+                    setFulfillment((prev) => ({
+                      ...prev,
+                      address: { ...prev.address, city: text },
+                    }))
+                  }
+                />
+                <TextInput
+                  style={[styles.input, styles.addressQuarter]}
+                  placeholder="State"
+                  autoCapitalize="characters"
+                  value={fulfillment.address?.state || ''}
+                  onChangeText={(text) =>
+                    setFulfillment((prev) => ({
+                      ...prev,
+                      address: { ...prev.address, state: text },
+                    }))
+                  }
+                />
+                <TextInput
+                  style={[styles.input, styles.addressQuarter]}
+                  placeholder="ZIP"
+                  keyboardType="number-pad"
+                  value={fulfillment.address?.postalCode || ''}
+                  onChangeText={(text) =>
+                    setFulfillment((prev) => ({
+                      ...prev,
+                      address: { ...prev.address, postalCode: text },
+                    }))
+                  }
+                />
+              </View>
+            </View>
+          ) : null}
+
+          <Text style={[styles.label, styles.speedLabel]}>Turnaround Speed</Text>
+          <View style={styles.optionRow}>
+            {SPEED_OPTIONS.map((option) => {
+              const selected = fulfillment.speed === option.id;
+              return (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[
+                    styles.optionButton,
+                    selected && { borderColor: theme?.colors?.accent || '#272b75' },
+                  ]}
+                  onPress={() =>
+                    setFulfillment((prev) => ({
+                      ...prev,
+                      speed: option.id,
+                    }))
+                  }
+                >
+                  <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
+                    {option.label}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
           </View>
 
           <View style={headerStyles}>
-            <Text style={styles.sectionTitle}>Design Details</Text>
+            <Text style={styles.sectionTitle}>Order Notes & Promo</Text>
           </View>
-          <View style={styles.section}>
-            <Text style={styles.label}>Number of Sets</Text>
-            <TextInput
-              style={styles.input}
-              keyboardType="number-pad"
-              value={setCount}
-              onChangeText={setSetCount}
-              placeholder="1"
-            />
-            <Text style={styles.label}>Design Variations</Text>
-            {variations.map((variation) => (
-              <View key={variation.id} style={styles.variationRow}>
-                <TextInput
-                  style={[styles.input, styles.variationInput]}
-                  placeholder="Variation name"
-                  value={variation.name}
-                  onChangeText={(value) => handleUpdateVariation(variation.id, 'name', value)}
-                />
-                <TextInput
-                  style={[styles.input, styles.quantityInput]}
-                  placeholder="Qty"
-                  keyboardType="number-pad"
-                  value={variation.quantity}
-                  onChangeText={(value) => handleUpdateVariation(variation.id, 'quantity', value)}
-                />
-                <TouchableOpacity onPress={() => handleRemoveVariation(variation.id)}>
-                  <Text style={styles.removeVariation}>Remove</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-            <TouchableOpacity onPress={handleAddVariation}>
-              <Text style={styles.addLink}>+ Add variation</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={headerStyles}>
-            <Text style={styles.sectionTitle}>Upload Design</Text>
-          </View>
-          <View style={styles.section}>
-            <PrimaryButton label="Upload Inspiration" onPress={handleSelectDesign} />
-            {designPreviewUri ? (
-              <Image source={{ uri: designPreviewUri }} style={styles.designPreview} />
-            ) : (
-              <Text style={styles.helperText}>Upload your inspiration photo to guide the design.</Text>
-            )}
-          </View>
-
-          <View style={headerStyles}>
-            <Text style={styles.sectionTitle}>Custom Sizes</Text>
-          </View>
-          <View style={styles.section}>
-            <Text style={styles.helperText}>Enter custom measurements if you have them.</Text>
-            <View style={styles.sizeGrid}>
-              {Object.keys(DEFAULT_SIZES).map((finger) => (
-                <View key={finger} style={styles.sizeItem}>
-                  <Text style={styles.sizeLabel}>{finger.toUpperCase()}</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={sizes[finger]}
-                    onChangeText={(value) =>
-                      setSizes((prev) => ({
-                        ...prev,
-                        [finger]: value,
-                      }))
-                    }
-                    placeholder="Size"
-                  />
-                </View>
-              ))}
-            </View>
-          </View>
-
-          <View style={headerStyles}>
-            <Text style={styles.sectionTitle}>Fulfillment</Text>
-          </View>
-          <View style={styles.section}>
-            <Text style={styles.label}>Delivery Method</Text>
-            <View style={styles.optionRow}>
-              {DELIVERY_OPTIONS.map((option) => {
-                const selected = deliveryMethod === option.id;
-                return (
-                  <TouchableOpacity
-                    key={option.id}
-                    style={[
-                      styles.optionButton,
-                      selected && {
-                        borderColor: theme?.colors?.accent || '#272b75',
-                      },
-                    ]}
-                    onPress={() => setDeliveryMethod(option.id)}
-                  >
-                    <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <Text style={[styles.label, styles.speedLabel]}>Turnaround Speed</Text>
-            <View style={styles.optionRow}>
-              {SPEED_OPTIONS.map((option) => {
-                const selected = deliverySpeed === option.id;
-                return (
-                  <TouchableOpacity
-                    key={option.id}
-                    style={[
-                      styles.optionButton,
-                      selected && {
-                        borderColor: theme?.colors?.accent || '#272b75',
-                      },
-                    ]}
-                    onPress={() => setDeliverySpeed(option.id)}
-                  >
-                    <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          <View style={headerStyles}>
-            <Text style={styles.sectionTitle}>Notes</Text>
-          </View>
-          <View style={styles.section}>
-            <TextInput
-              style={[styles.input, styles.notesInput]}
-              placeholder="Add any extra details or inspo links..."
-              multiline
-              numberOfLines={4}
-              value={notes}
-              onChangeText={setNotes}
-            />
-          </View>
+          <TextInput
+            style={[styles.input, styles.notesInput]}
+            placeholder="Any global notes? e.g. Gift wrap please."
+            value={orderNotes}
+            onChangeText={setOrderNotes}
+            multiline
+            numberOfLines={3}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Promo code"
+            autoCapitalize="characters"
+            value={promoCode}
+            onChangeText={setPromoCode}
+          />
 
           <View style={headerStyles}>
             <Text style={styles.sectionTitle}>Price Breakdown</Text>
@@ -494,34 +791,34 @@ function OrderBuilderScreen({
               </View>
             ))}
             <View style={styles.breakdownTotalRow}>
-              <Text style={styles.breakdownTotalLabel}>Total Due</Text>
+              <Text style={styles.breakdownTotalLabel}>Total</Text>
               <Text style={styles.breakdownTotalAmount}>{formatCurrency(priceDetails.total)}</Text>
             </View>
+            <Text style={styles.helperText}>
+              Estimated completion: {priceDetails.estimatedCompletionDays} business days after payment.
+            </Text>
           </View>
 
           <View style={styles.actionRow}>
-            <TouchableOpacity onPress={handleSaveDraft} disabled={loading}>
+            <TouchableOpacity onPress={handleSaveDraft} disabled={isSaving}>
               <Text style={styles.secondaryAction}>Save Draft</Text>
             </TouchableOpacity>
             <PrimaryButton
-              label="Continue to Payment"
-              onPress={prepareOrderForPayment}
-              disabled={!canContinue || loading}
-              loading={loading}
+              label="Proceed to Payment"
+              onPress={handleProceedToPayment}
+              disabled={!canProceedToPayment || isSaving}
+              loading={isSaving}
             />
           </View>
         </>
       ) : (
         <View style={styles.paymentSection}>
           <Text style={styles.helperText}>
-            Enter your payment details below to secure your order. Total due:{' '}
-            <Text style={styles.breakdownTotalAmount}>{formatCurrency(priceDetails.total)}</Text>
+            Total due {formatCurrency(priceDetails.total)}. Enter your payment details to finalize your order.
           </Text>
           <CardField
             postalCodeEnabled
-            placeholders={{
-              number: '4242 4242 4242 4242',
-            }}
+            placeholders={{ number: '4242 4242 4242 4242' }}
             cardStyle={styles.cardField}
             style={styles.cardFieldContainer}
             onCardChange={() => {}}
@@ -529,13 +826,25 @@ function OrderBuilderScreen({
           <PrimaryButton
             label="Pay & Submit Order"
             onPress={handleConfirmPayment}
-            loading={paymentProcessing}
+            loading={isProcessingPayment}
           />
-          <TouchableOpacity onPress={() => setStep('details')} style={styles.backLink}>
-            <Text style={styles.secondaryAction}>← Back to details</Text>
+          <TouchableOpacity onPress={() => setStep('summary')} style={styles.backLink}>
+            <Text style={styles.secondaryAction}>← Back to order details</Text>
           </TouchableOpacity>
         </View>
       )}
+
+      <NailSetEditor
+        visible={isEditorVisible}
+        value={editingSet}
+        shapes={shapes}
+        theme={theme}
+        onCancel={() => {
+          setEditorVisible(false);
+          setEditingSet(null);
+        }}
+        onSave={handleSaveSet}
+      />
     </ScreenContainer>
   );
 }
@@ -564,15 +873,196 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#272b75',
   },
-  section: {
+  helperText: {
+    marginTop: 8,
+    color: '#555',
+  },
+  emptyState: {
+    padding: 16,
+  },
+  setCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e1e4ff',
     marginTop: 12,
-    paddingHorizontal: 4,
+  },
+  setCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  setCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  setThumbnail: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: '#f1f1f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  setThumbnailImage: {
+    width: '100%',
+    height: '100%',
+  },
+  setThumbnailPlaceholder: {
+    color: '#272b75',
+    fontWeight: '700',
+    fontSize: 18,
+  },
+  setTitleContent: {
+    flex: 1,
+  },
+  setTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#272b75',
+  },
+  setSubTitle: {
+    marginTop: 4,
+    color: '#5c5f8d',
+  },
+  setActions: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  warningText: {
+    color: '#b00020',
+    marginTop: 12,
+  },
+  addSetButton: {
+    marginTop: 16,
+  },
+  label: {
+    marginTop: 16,
+    marginBottom: 8,
+    fontWeight: '600',
+    color: '#272b75',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#111',
+    backgroundColor: '#fff',
+    marginBottom: 8,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  optionButton: {
+    borderWidth: 2,
+    borderColor: '#d9ddff',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+  },
+  optionText: {
+    color: '#272b75',
+    fontWeight: '600',
+  },
+  optionTextSelected: {
+    color: '#111',
+  },
+  sizeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 8,
+  },
+  sizeItem: {
+    width: '30%',
+  },
+  sizeLabel: {
+    marginBottom: 4,
+    fontWeight: '600',
+    color: '#272b75',
+  },
+  notesInput: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  addressRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  addressHalf: {
+    flex: 1,
+  },
+  addressQuarter: {
+    width: '30%',
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  breakdownLabel: {
+    color: '#272b75',
+  },
+  breakdownAmount: {
+    color: '#272b75',
+    fontWeight: '600',
+  },
+  breakdownTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#d9ddff',
+  },
+  breakdownTotalLabel: {
+    fontWeight: '700',
+    color: '#272b75',
+  },
+  breakdownTotalAmount: {
+    fontWeight: '700',
+    color: '#272b75',
+  },
+  actionRow: {
+    marginTop: 24,
+    gap: 16,
+  },
+  secondaryAction: {
+    color: '#272b75',
+    fontWeight: '600',
+  },
+  destructiveAction: {
+    color: '#b00020',
+  },
+  paymentSection: {
+    marginTop: 16,
+    gap: 20,
+  },
+  cardField: {
+    backgroundColor: '#fff',
+    textColor: '#000',
+  },
+  cardFieldContainer: {
+    height: 50,
+    marginVertical: 20,
+  },
+  backLink: {
+    alignItems: 'center',
   },
   shapeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
-    marginTop: 16,
+    marginTop: 12,
   },
   shapeCard: {
     width: '47%',
@@ -609,146 +1099,74 @@ const styles = StyleSheet.create({
     color: '#555',
     marginTop: 4,
   },
-  label: {
-    marginTop: 16,
-    marginBottom: 8,
-    fontWeight: '600',
-    color: '#272b75',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: '#111',
-    backgroundColor: '#fff',
-  },
-  variationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  variationInput: {
-    flex: 1,
-    marginRight: 8,
-  },
-  quantityInput: {
-    width: 60,
-    marginRight: 8,
-  },
-  removeVariation: {
-    color: '#b00020',
-  },
-  addLink: {
-    marginTop: 8,
-    color: '#272b75',
-    fontWeight: '600',
-  },
-  designPreview: {
-    width: '100%',
-    height: 180,
-    borderRadius: 12,
-    marginTop: 12,
-  },
-  helperText: {
-    marginTop: 12,
-    color: '#555',
-  },
-  sizeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 12,
-  },
-  sizeItem: {
-    width: '30%',
-  },
-  sizeLabel: {
-    marginBottom: 4,
-    fontWeight: '600',
-    color: '#272b75',
-  },
-  optionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 8,
-  },
-  optionButton: {
-    borderWidth: 2,
-    borderColor: '#d9ddff',
-    borderRadius: 20,
-    paddingVertical: 10,
+  formContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     paddingHorizontal: 16,
+    justifyContent: 'center',
+  },
+  formScroll: {
     backgroundColor: '#fff',
+    borderRadius: 16,
+    maxHeight: '75%',
   },
-  optionText: {
+  formScrollContent: {
+    padding: 20,
+  },
+  formTitle: {
+    fontSize: 20,
+    fontWeight: '700',
     color: '#272b75',
-    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
   },
-  optionTextSelected: {
-    color: '#111',
-  },
-  speedLabel: {
-    marginTop: 24,
-  },
-  notesInput: {
-    minHeight: 120,
-    textAlignVertical: 'top',
-  },
-  breakdownRow: {
+  formActions: {
+    backgroundColor: '#fff',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'center',
   },
-  breakdownLabel: {
-    color: '#272b75',
-  },
-  breakdownAmount: {
-    color: '#272b75',
-    fontWeight: '600',
-  },
-  breakdownTotalRow: {
+  uploadGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 12,
     marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#d9ddff',
   },
-  breakdownTotalLabel: {
-    fontWeight: '700',
-    color: '#272b75',
+  uploadItem: {
+    width: 90,
   },
-  breakdownTotalAmount: {
-    fontWeight: '700',
-    color: '#272b75',
+  uploadPreview: {
+    width: 90,
+    height: 90,
+    borderRadius: 12,
   },
-  actionRow: {
-    marginTop: 24,
+  removeLink: {
+    color: '#b00020',
+    marginTop: 6,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
     gap: 12,
   },
-  secondaryAction: {
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#272b75',
+  },
+  checkboxLabel: {
     color: '#272b75',
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  paymentSection: {
-    marginTop: 16,
-    gap: 20,
-  },
-  cardField: {
-    backgroundColor: '#fff',
-    textColor: '#000',
-  },
-  cardFieldContainer: {
-    height: 50,
-    marginVertical: 20,
-  },
-  backLink: {
-    alignItems: 'center',
   },
 });
 

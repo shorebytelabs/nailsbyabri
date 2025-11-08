@@ -13,8 +13,15 @@ function OrderConfirmationScreen({ order, onDone }) {
   const estimatedDate = order?.estimatedFulfillmentDate
     ? new Date(order.estimatedFulfillmentDate).toLocaleDateString()
     : null;
-  const shapeName =
-    shapeCatalog.find((shape) => shape.id === order?.shapeId)?.name || order?.shapeId || '—';
+  const fulfillmentMethod =
+    order?.fulfillment?.method === 'delivery'
+      ? 'Local Delivery'
+      : order?.fulfillment?.method === 'shipping'
+      ? 'Shipping'
+      : 'Studio Pickup';
+  const fulfillmentSpeed = order?.fulfillment?.speed
+    ? capitalize(order.fulfillment.speed)
+    : 'Standard';
 
   return (
     <ScreenContainer>
@@ -47,24 +54,68 @@ function OrderConfirmationScreen({ order, onDone }) {
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Order Summary</Text>
         <InfoRow label="Order ID" value={order?.id} />
-        <InfoRow label="Shape" value={shapeName} />
-        <InfoRow label="Sets" value={String(order?.setCount || 1)} />
-        <InfoRow
-          label="Delivery Method"
-          value={order?.deliveryMethod === 'delivery' ? 'Delivery' : 'Pickup'}
-        />
-        <InfoRow
-          label="Speed"
-          value={order?.deliverySpeed ? capitalize(order.deliverySpeed) : 'Standard'}
-        />
+        {order?.nailSets?.map((set, index) => {
+          const shapeName =
+            shapeCatalog.find((shape) => shape.id === set.shapeId)?.name || set.shapeId || '—';
+          return (
+            <InfoRow
+              key={set.id || index}
+              label={`${set.name || `Set #${index + 1}`} (${shapeName})`}
+              value={`${set.quantity} set${set.quantity > 1 ? 's' : ''}`}
+            />
+          );
+        })}
+        <InfoRow label="Fulfillment" value={fulfillmentMethod} />
+        <InfoRow label="Speed" value={fulfillmentSpeed} />
         <InfoRow
           label="Total Paid"
           value={order?.pricing ? formatCurrency(order.pricing.total) : '—'}
         />
-        {estimatedDate ? (
-          <InfoRow label="Estimated Ready" value={estimatedDate} />
-        ) : null}
+        {estimatedDate ? <InfoRow label="Estimated Ready" value={estimatedDate} /> : null}
+        {order?.orderNotes ? <InfoRow label="Order Notes" value={order.orderNotes} /> : null}
       </View>
+
+      {order?.fulfillment?.address ? (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Ship To</Text>
+          <Text style={styles.bodyText}>{order.fulfillment.address.name}</Text>
+          <Text style={styles.bodyText}>{order.fulfillment.address.line1}</Text>
+          {order.fulfillment.address.line2 ? (
+            <Text style={styles.bodyText}>{order.fulfillment.address.line2}</Text>
+          ) : null}
+          <Text style={styles.bodyText}>
+            {order.fulfillment.address.city}, {order.fulfillment.address.state}{' '}
+            {order.fulfillment.address.postalCode}
+          </Text>
+        </View>
+      ) : null}
+
+      {order?.nailSets?.length ? (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Nail Sets</Text>
+          {order.nailSets.map((set, index) => {
+            const shapeName =
+              shapeCatalog.find((shape) => shape.id === set.shapeId)?.name || set.shapeId || '—';
+            return (
+              <View key={set.id || index} style={styles.setRow}>
+                <Text style={styles.infoLabel}>
+                  {set.name || `Set #${index + 1}`} • {shapeName}
+                </Text>
+                <Text style={styles.bodyText}>
+                  Quantity: {set.quantity} · Size Mode:{' '}
+                  {set.sizes?.mode === 'perSet' ? 'Custom' : 'Standard'}
+                </Text>
+                {set.setNotes ? <Text style={styles.bodyText}>Notes: {set.setNotes}</Text> : null}
+                {set.requiresFollowUp ? (
+                  <Text style={styles.warningText}>
+                    No art uploaded — we&apos;ll contact you to clarify design.
+                  </Text>
+                ) : null}
+              </View>
+            );
+          })}
+        </View>
+      ) : null}
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Next Steps</Text>
@@ -144,6 +195,13 @@ const styles = StyleSheet.create({
   bodyText: {
     color: '#333',
     lineHeight: 20,
+  },
+  setRow: {
+    marginBottom: 12,
+  },
+  warningText: {
+    color: '#b00020',
+    marginTop: 4,
   },
 });
 

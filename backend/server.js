@@ -62,11 +62,139 @@ function publicConsentLog(log) {
 
 function sanitizeOrder(order) {
   const { paymentIntentClientSecret, ...rest } = order;
+
+  if (!rest.nailSets && rest.shapeId) {
+    const legacySet = {
+      id: `${rest.id || 'order'}_legacy`,
+      name: rest.notes || null,
+      shapeId: rest.shapeId,
+      quantity: rest.setCount || 1,
+      description: rest.notes || '',
+      setNotes: rest.notes || '',
+      designUploads: rest.designImage
+        ? [
+            {
+              id: `${rest.id || 'legacy'}_upload`,
+              fileName: rest.designFileName || null,
+              data: rest.designImage,
+            },
+          ]
+        : [],
+      sizes: {
+        mode: 'standard',
+        values: rest.sizes || {},
+      },
+      requiresFollowUp: !rest.designImage,
+    };
+    rest.nailSets = [legacySet];
+    rest.fulfillment = rest.fulfillment || {
+      method: rest.deliveryMethod || 'pickup',
+      speed: rest.deliverySpeed || 'standard',
+      address: null,
+    };
+    rest.customerSizes = rest.customerSizes || { mode: 'standard', values: rest.sizes || {} };
+    rest.orderNotes = rest.notes || '';
+  }
+
   return rest;
 }
 
 function findOrderById(state, orderId) {
   return state.orders.find((item) => item.id === orderId);
+}
+
+function normalizeSizesPayload(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return { mode: 'unset', values: {} };
+  }
+  const mode = payload.mode === 'perSet' || payload.mode === 'custom' ? 'perSet' : 'standard';
+  const values =
+    payload.values && typeof payload.values === 'object'
+      ? Object.entries(payload.values).reduce((acc, [finger, value]) => {
+          acc[finger] = typeof value === 'string' ? value : '';
+          return acc;
+        }, {})
+      : {};
+  return { mode, values };
+}
+
+function normalizeFulfillment(payload = {}) {
+  const method = payload.method || 'pickup';
+  const speed = payload.speed || 'standard';
+  const address =
+    method === 'shipping' || method === 'delivery'
+      ? {
+          name: payload.address?.name || '',
+          line1: payload.address?.line1 || '',
+          line2: payload.address?.line2 || '',
+          city: payload.address?.city || '',
+          state: payload.address?.state || '',
+          postalCode: payload.address?.postalCode || '',
+        }
+      : null;
+
+  return {
+    method,
+    speed,
+    address,
+  };
+}
+
+function normalizeNailSetPayload(setPayload = {}) {
+  if (!setPayload.shapeId) {
+    return null;
+  }
+  const designUploads = Array.isArray(setPayload.designUploads)
+    ? setPayload.designUploads
+        .map((upload) => {
+          if (!upload) {
+            return null;
+          }
+          if (typeof upload === 'string') {
+            return { id: uuid(), fileName: null, data: upload };
+          }
+          const data = upload.data || upload.base64 || upload.content || null;
+          if (!data) {
+            return null;
+          }
+          return {
+            id: upload.id || uuid(),
+            fileName: upload.fileName || null,
+            data,
+          };
+        })
+        .filter(Boolean)
+    : [];
+
+  return {
+    id: setPayload.id || uuid(),
+    name: typeof setPayload.name === 'string' && setPayload.name.trim() ? setPayload.name.trim() : null,
+    shapeId: setPayload.shapeId,
+    quantity: Math.max(1, Number(setPayload.quantity) || 1),
+    description: typeof setPayload.description === 'string' ? setPayload.description.trim() : '',
+    setNotes: typeof setPayload.setNotes === 'string' ? setPayload.setNotes.trim() : '',
+    designUploads,
+    sizes: normalizeSizesPayload(setPayload.sizes),
+    requiresFollowUp: Boolean(setPayload.requiresFollowUp),
+  };
+}
+
+function createProductionJobs(order) {
+  if (!order || !Array.isArray(order.nailSets)) {
+    return [];
+  }
+  return order.nailSets.map((set) => ({
+    id: `${order.id}_${set.id}`,
+    orderId: order.id,
+    nailSetId: set.id,
+    quantity: set.quantity,
+    shapeId: set.shapeId,
+    name: set.name,
+    description: set.description,
+    designUploads: set.designUploads,
+    setNotes: set.setNotes,
+    sizes: set.sizes,
+  }));
 }
 
 app.post('/auth/signup', async (req, res) => {
@@ -256,33 +384,46 @@ app.post('/orders', (req, res) => {
   const {
     id: orderId,
     userId,
-    shapeId,
-    setCount,
-    variations,
-    sizes,
-    deliveryMethod,
-    deliverySpeed,
-    designImage,
-    designFileName,
-    notes,
+    nailSets,
+    fulfillment,
+    customerSizes,
+    orderNotes,
+    promoCode,
     status,
   } = req.body || {};
 
   if (!userId) {
     return res.status(400).json({ error: 'userId is required to create an order' });
   }
-  if (!shapeId) {
-    return res.status(400).json({ error: 'shapeId is required to create an order' });
+
+  const normalizedSets = Array.isArray(nailSets)
+    ? nailSets
+        .map((set) => normalizeNailSetPayload(set))
+        .filter(Boolean)
+    : [];
+
+  if (!normalizedSets.length) {
+    return res.status(400).json({ error: 'At least one nail set is required' });
+  }
+
+  const missingDesign = normalizedSets.some(
+    (set) =>
+      (!set.designUploads || set.designUploads.length === 0) &&
+      (!set.description || set.description.length === 0) &&
+      !set.requiresFollowUp,
+  );
+
+  if (missingDesign) {
+    return res.status(400).json({
+      error: 'Each nail set must include a design upload, description, or be marked for follow-up',
+    });
   }
 
   try {
     const pricing = calculateOrderPricing({
-      shapeId,
-      setCount,
-      variations,
-      sizes,
-      deliveryMethod,
-      deliverySpeed,
+      nailSets: normalizedSets,
+      fulfillment,
+      promoCode,
     });
 
     const state = readData();
@@ -302,15 +443,11 @@ app.post('/orders', (req, res) => {
 
     Object.assign(order, {
       userId,
-      shapeId,
-      setCount,
-      variations: Array.isArray(variations) ? variations : [],
-      sizes: sizes && typeof sizes === 'object' ? sizes : {},
-      deliveryMethod: deliveryMethod || 'pickup',
-      deliverySpeed: deliverySpeed || 'standard',
-      designImage: designImage || null,
-      designFileName: designFileName || null,
-      notes: notes || '',
+      nailSets: normalizedSets,
+      fulfillment: normalizeFulfillment(fulfillment),
+      customerSizes: normalizeSizesPayload(customerSizes),
+      orderNotes: typeof orderNotes === 'string' ? orderNotes.trim() : '',
+      promoCode: promoCode || null,
       status: normalizedStatus,
       pricing,
       updatedAt: now,
@@ -414,6 +551,7 @@ app.post('/orders/:orderId/complete', (req, res) => {
   order.paidAt = new Date().toISOString();
   order.estimatedFulfillmentDate = estimated.toISOString();
   order.updatedAt = order.paidAt;
+  order.productionJobs = createProductionJobs(order);
 
   writeData(state);
 
@@ -463,6 +601,7 @@ app.post('/payments/webhook', (req, res) => {
       order.paidAt = new Date().toISOString();
       order.estimatedFulfillmentDate = estimated.toISOString();
       order.updatedAt = order.paidAt;
+      order.productionJobs = createProductionJobs(order);
       writeData(state);
     }
   }
