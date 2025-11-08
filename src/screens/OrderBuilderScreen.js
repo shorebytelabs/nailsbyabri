@@ -80,6 +80,7 @@ function NailSetEditor({
   }, [value]);
 
   const currentForm = form || value;
+  const isNewSet = !currentForm?.id || currentForm.id.startsWith('temp_');
 
   if (!visible || !currentForm) {
     return null;
@@ -143,7 +144,7 @@ function NailSetEditor({
   return (
     <View style={styles.formContainer}>
       <Text style={[styles.formTitle, { color: theme?.colors?.primaryFont || styles.formTitle.color }]}>
-        {value?.id?.startsWith('temp_') ? 'Create Nail Set' : 'Edit Nail Set'}
+        {isNewSet ? 'Create Your Nail Set' : 'Edit Nail Set'}
       </Text>
       <ScrollView style={styles.formScroll} contentContainerStyle={styles.formScrollContent}>
         <Text style={styles.label}>Set Name (optional)</Text>
@@ -312,6 +313,7 @@ function OrderBuilderScreen({
   onDraftSaved,
   onPaymentComplete,
   initialOrder,
+  startInCreateMode = false,
 }) {
   const { theme } = useTheme();
   const { confirmPayment } = useStripe();
@@ -345,6 +347,7 @@ function OrderBuilderScreen({
       : [],
   );
   const previousNailSetCount = useRef(nailSets.length);
+  const hasOpenedInitialSet = useRef(false);
 
   const [fulfillment, setFulfillment] = useState(
     initialOrder?.fulfillment || { method: 'pickup', speed: 'standard', address: null },
@@ -428,11 +431,18 @@ function OrderBuilderScreen({
     selectedMethodConfig.speedOptions[fulfillment.speed] ||
     selectedMethodConfig.speedOptions[selectedMethodConfig.defaultSpeed];
 
-  const handleAddSet = () => {
+  const handleAddSet = useCallback(() => {
     const emptySet = createEmptyNailSet(shapes);
     setEditingSet(emptySet);
     setEditorVisible(true);
-  };
+  }, [shapes]);
+
+  useEffect(() => {
+    if (startInCreateMode && !hasOpenedInitialSet.current && nailSets.length === 0 && !isEditorVisible) {
+      hasOpenedInitialSet.current = true;
+      handleAddSet();
+    }
+  }, [startInCreateMode, nailSets.length, isEditorVisible, handleAddSet]);
 
   const handleEditSet = (setId) => {
     const target = nailSets.find((set) => set.id === setId);
@@ -682,9 +692,9 @@ function OrderBuilderScreen({
 
       {step === 'summary' ? (
         <>
-          <View style={styles.section}>
-            <Text style={styles.helperText}>Add a nail set for each unique design.</Text>
-            {nailSets.length === 0 ? (
+          {nailSets.length === 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.helperText}>Add a nail set for each unique design.</Text>
               <View style={styles.emptyStateBox}>
                 <Text style={styles.emptyStateIcon}>💅</Text>
                 <Text style={styles.emptyStateText}>
@@ -702,8 +712,8 @@ function OrderBuilderScreen({
                   ]}
                 />
               </View>
-            ) : null}
-          </View>
+            </View>
+          ) : null}
 
           {showDetails ? (
             <>

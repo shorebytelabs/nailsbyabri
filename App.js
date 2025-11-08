@@ -342,6 +342,7 @@ function AppContent() {
             onDraftSaved={handleDraftSaved}
             onPaymentComplete={handleOrderComplete}
             initialOrder={state.activeOrder}
+            startInCreateMode={!state.activeOrder}
           />
         ) : null}
 
