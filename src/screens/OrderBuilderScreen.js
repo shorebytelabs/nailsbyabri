@@ -694,7 +694,6 @@ function OrderBuilderScreen({
         <>
           {nailSets.length === 0 ? (
             <View style={styles.section}>
-              <Text style={styles.helperText}>Add a nail set for each unique design.</Text>
               <View style={styles.emptyStateBox}>
                 <Text style={styles.emptyStateIcon}>💅</Text>
                 <Text style={styles.emptyStateText}>
@@ -1091,27 +1090,31 @@ function OrderBuilderScreen({
             </>
           ) : null}
 
-          <View style={styles.actionRow}>
-            <TouchableOpacity onPress={handleSaveDraft} disabled={isSaving}>
-              <Text style={styles.secondaryAction}>Save Draft</Text>
-            </TouchableOpacity>
-            <PrimaryButton
-              label="Proceed to Payment"
-              onPress={handleProceedToPayment}
-              disabled={!canProceedToPayment || isSaving}
-              loading={isSaving}
-            />
-          </View>
-          {proceedHelperText ? (
-            <Text
-              style={[
-                styles.helperText,
-                styles.proceedHelper,
-                { color: theme?.colors?.secondaryFont || styles.helperText.color },
-              ]}
-            >
-              {proceedHelperText}
-            </Text>
+          {showDetails ? (
+            <>
+              <View style={styles.actionRow}>
+                <TouchableOpacity onPress={handleSaveDraft} disabled={isSaving}>
+                  <Text style={styles.secondaryAction}>Save Draft</Text>
+                </TouchableOpacity>
+                <PrimaryButton
+                  label="Proceed to Payment"
+                  onPress={handleProceedToPayment}
+                  disabled={!canProceedToPayment || isSaving}
+                  loading={isSaving}
+                />
+              </View>
+              {proceedHelperText ? (
+                <Text
+                  style={[
+                    styles.helperText,
+                    styles.proceedHelper,
+                    { color: theme?.colors?.secondaryFont || styles.helperText.color },
+                  ]}
+                >
+                  {proceedHelperText}
+                </Text>
+              ) : null}
+            </>
           ) : null}
         </>
       ) : (
