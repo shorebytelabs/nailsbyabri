@@ -2,6 +2,14 @@ import shapeCatalog from '../../shared/catalog/shapes.json';
 
 const DESIGN_SETUP_FEE = 0;
 
+function computeCompletionDate(days = 0) {
+  const baseline = new Date();
+  baseline.setHours(0, 0, 0, 0);
+  const safeDays = Number.isFinite(Number(days)) ? Number(days) : 0;
+  baseline.setDate(baseline.getDate() + safeDays);
+  return baseline.toISOString();
+}
+
 export const DELIVERY_METHODS = {
   pickup: {
     id: 'pickup',
@@ -9,8 +17,8 @@ export const DELIVERY_METHODS = {
     description: 'Ready in 10 to 14 days in 92127',
     baseFee: 0,
     speedOptions: {
-      standard: { id: 'standard', label: 'Standard', description: '10 to 14 days', fee: 0, days: 12, tagline: 'Included' },
-      priority: { id: 'priority', label: 'Priority', description: '3 to 5 days', fee: 5, days: 4, tagline: 'Get your nails faster!' },
+      standard: { id: 'standard', label: 'Standard', description: '10 to 14 days', fee: 0, days: 14, tagline: 'Included' },
+      priority: { id: 'priority', label: 'Priority', description: '3 to 5 days', fee: 5, days: 5, tagline: 'Get your nails faster!' },
       rush: { id: 'rush', label: 'Rush', description: 'Next day', fee: 10, days: 1, tagline: 'Fast-track your order!' },
     },
     defaultSpeed: 'standard',
@@ -21,8 +29,8 @@ export const DELIVERY_METHODS = {
     description: 'Ready in 10 to 14 days in 92127',
     baseFee: 0,
     speedOptions: {
-      standard: { id: 'standard', label: 'Standard', description: '10 to 14 days', fee: 5, days: 12, tagline: 'Included' },
-      priority: { id: 'priority', label: 'Priority', description: '3 to 5 days', fee: 10, days: 4, tagline: 'Get your nails faster!' },
+      standard: { id: 'standard', label: 'Standard', description: '10 to 14 days', fee: 5, days: 14, tagline: 'Included' },
+      priority: { id: 'priority', label: 'Priority', description: '3 to 5 days', fee: 10, days: 5, tagline: 'Get your nails faster!' },
       rush: { id: 'rush', label: 'Rush', description: 'Next day', fee: 15, days: 1, tagline: 'Fast-track your order!' },
     },
     defaultSpeed: 'standard',
@@ -33,8 +41,8 @@ export const DELIVERY_METHODS = {
     description: 'Ready to ship in 10 to 14 days',
     baseFee: 0,
     speedOptions: {
-      standard: { id: 'standard', label: 'Standard', description: '10 to 14 days', fee: 7, days: 12, tagline: 'Included' },
-      priority: { id: 'priority', label: 'Priority', description: '3 to 5 days', fee: 15, days: 4, tagline: 'Get your nails faster!' },
+      standard: { id: 'standard', label: 'Standard', description: '10 to 14 days', fee: 7, days: 14, tagline: 'Included' },
+      priority: { id: 'priority', label: 'Priority', description: '3 to 5 days', fee: 15, days: 5, tagline: 'Get your nails faster!' },
       rush: { id: 'rush', label: 'Rush', description: 'Next day', fee: 20, days: 1, tagline: 'Fast-track your order!' },
     },
     defaultSpeed: 'standard',
@@ -98,14 +106,16 @@ export function calculatePriceBreakdown({
   const normalizedSets = normalizeNailSets(nailSets);
 
   if (!normalizedSets.length) {
+    const methodConfig = getMethodConfig(fulfillment.method);
+    const speedOption =
+      methodConfig.speedOptions[fulfillment.speed] || methodConfig.speedOptions[methodConfig.defaultSpeed];
     return {
       lineItems: [],
       subtotal: 0,
       discounts: 0,
       total: 0,
-      estimatedCompletionDays: getMethodConfig(fulfillment.method).speedOptions[
-        fulfillment.speed || getMethodConfig(fulfillment.method).defaultSpeed
-      ].days,
+      estimatedCompletionDays: speedOption.days,
+      estimatedCompletionDate: computeCompletionDate(speedOption.days),
       summary: [],
     };
   }
@@ -175,6 +185,7 @@ export function calculatePriceBreakdown({
     discounts: discount,
     total: subtotal,
     estimatedCompletionDays: speedConfig.days,
+    estimatedCompletionDate: computeCompletionDate(speedConfig.days),
     summary: setSummaries,
   };
 }

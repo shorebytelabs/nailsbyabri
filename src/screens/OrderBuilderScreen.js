@@ -664,6 +664,21 @@ function OrderBuilderScreen({
     return `${setCount} nail set${setCount > 1 ? 's' : ''} • Total ${formatCurrency(priceDetails.total)}`;
   }, [nailSets.length, priceDetails.total]);
 
+  const estimatedCompletionLabel = useMemo(() => {
+    if (!priceDetails.estimatedCompletionDate) {
+      return null;
+    }
+    const date = new Date(priceDetails.estimatedCompletionDate);
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+    return date.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }, [priceDetails.estimatedCompletionDate]);
+
   const nailSetsSummary = useMemo(() => {
     if (!nailSets.length) {
       return 'No nail sets added yet.';
@@ -1083,7 +1098,10 @@ function OrderBuilderScreen({
                     <Text style={styles.breakdownTotalAmount}>{formatCurrency(priceDetails.total)}</Text>
                   </View>
                   <Text style={styles.helperText}>
-                    Estimated completion: {priceDetails.estimatedCompletionDays} business days after payment.
+                      Estimated completion:{' '}
+                      {estimatedCompletionLabel
+                        ? `${estimatedCompletionLabel} (order today)`
+                        : `${priceDetails.estimatedCompletionDays} business days after payment.`}
                   </Text>
                 </View>
               </View>

@@ -4,6 +4,14 @@ const shapeCatalog = require(path.join(__dirname, '..', 'shared', 'catalog', 'sh
 
 const DESIGN_SETUP_FEE = 0;
 
+function computeCompletionDate(days = 0) {
+  const baseline = new Date();
+  baseline.setHours(0, 0, 0, 0);
+  const safeDays = Number.isFinite(Number(days)) ? Number(days) : 0;
+  baseline.setDate(baseline.getDate() + safeDays);
+  return baseline.toISOString();
+}
+
 const DELIVERY_METHODS = {
   pickup: {
     id: 'pickup',
@@ -11,8 +19,8 @@ const DELIVERY_METHODS = {
     description: 'Ready in 10 days in 92127',
     baseFee: 0,
     speedOptions: {
-      standard: { label: 'Standard', description: '10 to 14 days', fee: 0, days: 12 },
-      priority: { label: 'Priority', description: '3 to 5 days', fee: 5, days: 4 },
+      standard: { label: 'Standard', description: '10 to 14 days', fee: 0, days: 14 },
+      priority: { label: 'Priority', description: '3 to 5 days', fee: 5, days: 5 },
       rush: { label: 'Rush', description: 'Next day', fee: 10, days: 1 },
     },
     defaultSpeed: 'standard',
@@ -23,8 +31,8 @@ const DELIVERY_METHODS = {
     description: 'Ready in 10 days in 92127',
     baseFee: 0,
     speedOptions: {
-      standard: { label: 'Standard', description: '10 to 14 days', fee: 5, days: 12 },
-      priority: { label: 'Priority', description: '3 to 5 days', fee: 10, days: 4 },
+      standard: { label: 'Standard', description: '10 to 14 days', fee: 5, days: 14 },
+      priority: { label: 'Priority', description: '3 to 5 days', fee: 10, days: 5 },
       rush: { label: 'Rush', description: 'Next day', fee: 15, days: 1 },
     },
     defaultSpeed: 'standard',
@@ -35,8 +43,8 @@ const DELIVERY_METHODS = {
     description: 'Ready to ship in 10 to 14 days',
     baseFee: 0,
     speedOptions: {
-      standard: { label: 'Standard', description: '10 to 14 days', fee: 7, days: 12 },
-      priority: { label: 'Priority', description: '3 to 5 days', fee: 15, days: 4 },
+      standard: { label: 'Standard', description: '10 to 14 days', fee: 7, days: 14 },
+      priority: { label: 'Priority', description: '3 to 5 days', fee: 15, days: 5 },
       rush: { label: 'Rush', description: 'Next day', fee: 20, days: 1 },
     },
     defaultSpeed: 'standard',
@@ -198,6 +206,7 @@ function calculateOrderPricing({
   }
 
   const total = subtotal;
+  const estimatedCompletionDate = computeCompletionDate(speedConfig.days);
 
   return {
     lineItems,
@@ -205,6 +214,7 @@ function calculateOrderPricing({
     discounts: discount,
     total,
     estimatedCompletionDays: speedConfig.days,
+    estimatedCompletionDate,
     summary: setSummaries,
     fulfillment: {
       method: methodConfig.id,

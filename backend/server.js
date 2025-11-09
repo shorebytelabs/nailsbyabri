@@ -546,12 +546,18 @@ app.post('/orders/:orderId/complete', (req, res) => {
 
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-  const estimated = new Date(now);
-  const daysToAdd =
-    order.pricing && order.pricing.estimatedCompletionDays
-      ? Number(order.pricing.estimatedCompletionDays)
-      : 7;
-  estimated.setDate(estimated.getDate() + daysToAdd);
+  let estimated =
+    order.pricing && order.pricing.estimatedCompletionDate
+      ? new Date(order.pricing.estimatedCompletionDate)
+      : null;
+  if (!estimated || Number.isNaN(estimated.getTime())) {
+    estimated = new Date(now);
+    const daysToAdd =
+      order.pricing && order.pricing.estimatedCompletionDays
+        ? Number(order.pricing.estimatedCompletionDays)
+        : 7;
+    estimated.setDate(estimated.getDate() + daysToAdd);
+  }
 
   order.status = 'paid';
   order.paidAt = new Date().toISOString();
@@ -596,12 +602,18 @@ app.post('/payments/webhook', (req, res) => {
     if (order) {
       const now = new Date();
       now.setHours(0, 0, 0, 0);
-      const estimated = new Date(now);
-      const daysToAdd =
-        order.pricing && order.pricing.estimatedCompletionDays
-          ? Number(order.pricing.estimatedCompletionDays)
-          : 7;
-      estimated.setDate(estimated.getDate() + daysToAdd);
+      let estimated =
+        order.pricing && order.pricing.estimatedCompletionDate
+          ? new Date(order.pricing.estimatedCompletionDate)
+          : null;
+      if (!estimated || Number.isNaN(estimated.getTime())) {
+        estimated = new Date(now);
+        const daysToAdd =
+          order.pricing && order.pricing.estimatedCompletionDays
+            ? Number(order.pricing.estimatedCompletionDays)
+            : 7;
+        estimated.setDate(estimated.getDate() + daysToAdd);
+      }
 
       order.status = 'paid';
       order.paidAt = new Date().toISOString();
