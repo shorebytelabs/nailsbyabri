@@ -5,6 +5,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
 import { signup } from '../services/api';
 import { useTheme } from '../theme';
+import { withOpacity } from '../utils/color';
 
 function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   const [name, setName] = useState('');
@@ -18,6 +19,15 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   const [error, setError] = useState(null);
 
   const { theme } = useTheme();
+  const colors = theme?.colors || {};
+  const primaryFontColor = colors.primaryFont || '#220707';
+  const secondaryFontColor = colors.secondaryFont || '#5C5F5D';
+  const surfaceColor = colors.surface || '#FFFFFF';
+  const surfaceMutedColor = colors.surfaceMuted || withOpacity(surfaceColor, 0.4);
+  const secondaryBackgroundColor = colors.secondaryBackground || '#E7D8CA';
+  const borderColor = colors.border || '#D9C8A9';
+  const accentColor = colors.accent || '#6F171F';
+  const errorColor = colors.error || '#B33A3A';
 
   const age = useMemo(() => calculateAge(dob), [dob]);
   const isMinor = typeof age === 'number' && age < 18;
@@ -52,19 +62,11 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
 
   return (
     <ScreenContainer>
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: theme?.colors?.secondaryBackground || styles.header.backgroundColor,
-            borderRadius: 12,
-          },
-        ]}
-      >
+      <View style={[styles.header, { backgroundColor: secondaryBackgroundColor }]}>
         <Text
           style={[
             styles.title,
-            { color: theme?.colors?.primaryFont || styles.title.color },
+            { color: primaryFontColor },
           ]}
         >
           Create Your Account
@@ -72,7 +74,7 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
         <Text
           style={[
             styles.subtitle,
-            { color: theme?.colors?.secondaryFont || styles.subtitle.color },
+            { color: secondaryFontColor },
           ]}
         >
           Enter your details to continue. We will request parental consent if you are a minor.
@@ -109,12 +111,12 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
           keyboardType="numbers-and-punctuation"
         />
 
-        <View style={styles.noticeContainer}>
+        <View style={[styles.noticeContainer, { backgroundColor: surfaceMutedColor }]}>
           {typeof age === 'number' ? (
             <Text
               style={[
                 styles.noticeText,
-                { color: theme?.colors?.primaryFont || styles.noticeText.color },
+                { color: primaryFontColor },
               ]}
             >
               Your age is calculated as {age}.{' '}
@@ -124,7 +126,7 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
             <Text
               style={[
                 styles.noticeText,
-                { color: theme?.colors?.primaryFont || styles.noticeText.color },
+                { color: primaryFontColor },
               ]}
             >
               Enter your date of birth to verify if parental consent is required.
@@ -132,8 +134,15 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
           )}
         </View>
 
-        <View style={styles.guardianSection}>
-          <Text style={styles.guardianTitle}>Parent or Guardian Contact</Text>
+        <View
+          style={[
+            styles.guardianSection,
+            { borderColor, backgroundColor: surfaceColor },
+          ]}
+        >
+          <Text style={[styles.guardianTitle, { color: primaryFontColor }]}>
+            Parent or Guardian Contact
+          </Text>
           <FormField
             label="Parent Email"
             value={parentEmail}
@@ -148,13 +157,13 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
             placeholder="+1 555-555-5555"
             keyboardType="phone-pad"
           />
-          <Text style={styles.guardianHint}>
+          <Text style={[styles.guardianHint, { color: secondaryFontColor }]}>
             Provide at least one contact method if the child is under 18.
           </Text>
         </View>
       </View>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={[styles.error, { color: errorColor }]}>{error}</Text> : null}
 
       <PrimaryButton
         label="Sign Up"
@@ -164,8 +173,10 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
       />
 
       <TouchableOpacity onPress={onSwitchToLogin} style={styles.switchRow}>
-        <Text style={styles.switchText}>Already have an account? </Text>
-        <Text style={styles.switchLink}>Log in</Text>
+        <Text style={[styles.switchText, { color: secondaryFontColor }]}>
+          Already have an account?{' '}
+        </Text>
+        <Text style={[styles.switchLink, { color: accentColor }]}>Log in</Text>
       </TouchableOpacity>
     </ScreenContainer>
   );
@@ -195,15 +206,14 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 24,
     padding: 16,
+    borderRadius: 12,
   },
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#15133d',
   },
   subtitle: {
     marginTop: 8,
-    color: '#484b7a',
     fontSize: 15,
     lineHeight: 20,
   },
@@ -214,32 +224,25 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 12,
     borderRadius: 8,
-    backgroundColor: '#eef2ff',
   },
   noticeText: {
-    color: '#272b75',
     fontSize: 14,
   },
   guardianSection: {
     marginTop: 8,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#d9ddff',
     borderRadius: 10,
-    backgroundColor: '#f8f9ff',
   },
   guardianTitle: {
     fontWeight: '600',
-    color: '#272b75',
     marginBottom: 12,
   },
   guardianHint: {
     marginTop: 8,
-    color: '#5c5f8d',
     fontSize: 13,
   },
   error: {
-    color: '#b00020',
     marginBottom: 16,
     fontSize: 14,
   },
@@ -249,10 +252,8 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   switchText: {
-    color: '#333',
   },
   switchLink: {
-    color: '#272b75',
     fontWeight: '600',
   },
 });

@@ -12,6 +12,7 @@ import Icon from '../icons/Icon';
 import { useAppState } from '../context/AppContext';
 import { logEvent } from '../utils/analytics';
 import { useTheme } from '../theme';
+import { withOpacity } from '../utils/color';
 
 const Tab = createBottomTabNavigator();
 
@@ -38,14 +39,30 @@ export default function MainTabs() {
     <View style={styles.root}>
       <SafeAreaView
         edges={['top', 'left', 'right']}
-        style={[styles.brandHeaderSafe, { backgroundColor: colors.primaryBackground || '#F7F7FB' }]}
+        style={[
+          styles.brandHeaderSafe,
+          {
+            backgroundColor: colors.primaryBackground,
+            borderBottomColor: withOpacity(colors.shadow, 0.08),
+          },
+        ]}
       >
         <View style={styles.brandHeader}>
-          <View style={styles.logoMark} accessibilityRole="image" accessibilityLabel="Nails by Abri logo">
-            <Text style={[styles.logoInitials, { color: colors.surface || '#FFFFFF' }]}>NBA</Text>
+          <View
+            style={[
+              styles.logoMark,
+              {
+                backgroundColor: colors.accent,
+                shadowColor: colors.shadow,
+              },
+            ]}
+            accessibilityRole="image"
+            accessibilityLabel="Nails by Abri logo"
+          >
+            <Text style={[styles.logoInitials, { color: colors.accentContrast }]}>NBA</Text>
           </View>
           <View style={styles.brandTextGroup}>
-            <Text style={[styles.brandSubtitle, { color: colors.secondaryFont || '#5C5F5D' }]}>Nails by Abri</Text>
+            <Text style={[styles.brandSubtitle, { color: colors.secondaryFont }]}>Nails by Abri</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -116,7 +133,6 @@ const styles = StyleSheet.create({
   },
   brandHeaderSafe: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.08)',
   },
   brandHeader: {
     flexDirection: 'row',
@@ -130,10 +146,8 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: 'rgba(83,28,34,0.9)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,

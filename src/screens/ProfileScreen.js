@@ -13,6 +13,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
 import { logEvent } from '../utils/analytics';
+import { withOpacity } from '../utils/color';
 
 function ProfileScreen() {
   const { theme } = useTheme();
@@ -24,6 +25,34 @@ function ProfileScreen() {
     refreshConsentLogs,
   } = useAppState();
   const colors = theme?.colors || {};
+  const {
+    primaryBackground,
+    secondaryBackground,
+    surface,
+    surfaceMuted,
+    primaryFont,
+    secondaryFont,
+    accent,
+    accentContrast,
+    border,
+    divider,
+    success,
+    error,
+    warning,
+    shadow,
+  } = colors;
+
+  const primaryBackgroundColor = primaryBackground || '#F4EBE3';
+  const secondaryBackgroundColor = secondaryBackground || '#BF9B7A';
+  const surfaceColor = surface || '#FFFFFF';
+  const primaryFontColor = primaryFont || '#220707';
+  const secondaryFontColor = secondaryFont || '#5C5F5D';
+  const accentColor = accent || '#6F171F';
+  const borderColor = border || '#D9C8A9';
+  const dividerColor = divider || withOpacity('#000000', 0.05);
+  const errorColor = error || '#B33A3A';
+  const shadowColor = shadow || '#000000';
+
   const navigation = useNavigation();
 
   const user = state.currentUser;
@@ -67,19 +96,19 @@ function ProfileScreen() {
     <ScrollView
       contentContainerStyle={[
         styles.container,
-        { backgroundColor: colors.primaryBackground || '#F7F7FB' },
+        { backgroundColor: primaryBackgroundColor },
       ]}
     >
       <View
         style={[
           styles.hero,
-          { backgroundColor: colors.secondaryBackground || '#E7D8CA' },
+          { backgroundColor: secondaryBackgroundColor },
         ]}
       >
         <Text
           style={[
             styles.heroTitle,
-            { color: colors.primaryFont || '#220707' },
+            { color: primaryFontColor },
           ]}
         >
           Welcome back, {user.name}
@@ -87,7 +116,7 @@ function ProfileScreen() {
         <Text
           style={[
             styles.heroSubtitle,
-            { color: colors.secondaryFont || '#5C5F5D' },
+            { color: secondaryFontColor },
           ]}
         >
           Manage your preferences and keep an eye on consent status and saved sets.
@@ -103,7 +132,7 @@ function ProfileScreen() {
           <Text
             style={[
               styles.noticeText,
-              { color: colors.accent || '#531C22' },
+              { color: accentColor },
             ]}
           >
             Parental consent must be approved before placing an order.
@@ -115,45 +144,48 @@ function ProfileScreen() {
         style={[
           styles.card,
           {
-            backgroundColor: colors.surface || '#FFFFFF',
-            borderColor: colors.border || '#D9C8A9',
+            backgroundColor: surfaceColor,
+            borderColor: borderColor,
           },
         ]}
       >
         <Text
           style={[
             styles.cardTitle,
-            { color: colors.primaryFont || '#220707' },
+            { color: primaryFontColor },
           ]}
         >
           Account details
         </Text>
-        <InfoRow label="Email" value={user.email} accent={colors.secondaryFont} />
-        <InfoRow label="Date of birth" value={user.dob} accent={colors.secondaryFont} />
-        <InfoRow label="Age" value={String(user.age)} accent={colors.secondaryFont} />
+        <InfoRow label="Email" value={user.email} accent={secondaryFontColor} dividerColor={withOpacity(shadowColor, 0.08)} />
+        <InfoRow label="Date of birth" value={user.dob} accent={secondaryFontColor} dividerColor={withOpacity(shadowColor, 0.08)} />
+        <InfoRow label="Age" value={String(user.age)} accent={secondaryFontColor} dividerColor={withOpacity(shadowColor, 0.08)} />
         <InfoRow
           label="Consent status"
           value={user.pendingConsent ? 'Pending approval' : 'Approved'}
-          accent={colors.secondaryFont}
+          accent={secondaryFontColor}
+          dividerColor={withOpacity(shadowColor, 0.08)}
         />
         {user.consentedAt ? (
           <InfoRow
             label="Approved at"
             value={formatDate(user.consentedAt)}
-            accent={colors.secondaryFont}
+            accent={secondaryFontColor}
+            dividerColor={withOpacity(shadowColor, 0.08)}
           />
         ) : null}
         {user.consentApprover ? (
           <InfoRow
             label="Approved by"
             value={user.consentApprover}
-            accent={colors.secondaryFont}
+            accent={secondaryFontColor}
+            dividerColor={withOpacity(shadowColor, 0.08)}
           />
         ) : null}
         <PrimaryButton
           label="Log out"
           onPress={handleLogout}
-          style={styles.logoutButton}
+          style={[styles.logoutButton, { backgroundColor: errorColor }]}
           accessibilityLabel="Log out of Nails by Abri"
         />
       </View>
@@ -162,8 +194,8 @@ function ProfileScreen() {
         style={[
           styles.card,
           {
-            backgroundColor: colors.surface || '#FFFFFF',
-            borderColor: colors.border || '#D9C8A9',
+            backgroundColor: surfaceColor,
+            borderColor: borderColor,
           },
         ]}
       >
@@ -171,7 +203,7 @@ function ProfileScreen() {
           <Text
             style={[
               styles.cardTitle,
-              { color: colors.primaryFont || '#220707' },
+              { color: primaryFontColor },
             ]}
           >
             Consent history
@@ -184,7 +216,7 @@ function ProfileScreen() {
             <Text
               style={[
                 styles.refreshText,
-                { color: colors.accent || '#531C22' },
+                { color: accentColor },
               ]}
             >
               Refresh
@@ -195,13 +227,13 @@ function ProfileScreen() {
           <View
             style={[
               styles.consentHighlight,
-              { backgroundColor: `${(colors.accent || '#531C22')}15` },
+              { backgroundColor: withOpacity(accentColor, 0.12) },
             ]}
           >
             <Text
               style={[
                 styles.consentHighlightText,
-                { color: colors.accent || '#531C22' },
+                { color: accentColor },
               ]}
             >
               Latest: {latestConsent.status?.toUpperCase()} via {latestConsent.channel?.toUpperCase()} on {formatDate(latestConsent.createdAt)}
@@ -211,7 +243,7 @@ function ProfileScreen() {
           <Text
             style={[
               styles.placeholderText,
-              { color: colors.secondaryFont || '#5C5F5D' },
+              { color: secondaryFontColor },
             ]}
           >
             No consent history yet.
@@ -219,11 +251,14 @@ function ProfileScreen() {
         )}
         <View style={styles.logList}>
           {consentLogs.slice(0, 4).map((log) => (
-            <View key={log.id} style={styles.logItem}>
+            <View
+              key={log.id}
+              style={[styles.logItem, { borderBottomColor: withOpacity(shadowColor, 0.08) }]}
+            >
               <Text
                 style={[
                   styles.logLine,
-                  { color: colors.secondaryFont || '#5C5F5D' },
+                  { color: secondaryFontColor },
                 ]}
               >
                 {formatDate(log.createdAt)} • {log.status?.toUpperCase()} ({log.channel})
@@ -237,15 +272,15 @@ function ProfileScreen() {
         style={[
           styles.card,
           {
-            backgroundColor: colors.surface || '#FFFFFF',
-            borderColor: colors.border || '#D9C8A9',
+            backgroundColor: surfaceColor,
+            borderColor: borderColor,
           },
         ]}
       >
         <Text
           style={[
             styles.cardTitle,
-            { color: colors.primaryFont || '#220707' },
+            { color: primaryFontColor },
           ]}
         >
           Saved preferences
@@ -268,7 +303,7 @@ function ProfileScreen() {
           <Text
             style={[
               styles.notesLabel,
-              { color: colors.primaryFont || '#220707' },
+              { color: primaryFontColor },
             ]}
           >
             Notes
@@ -277,13 +312,13 @@ function ProfileScreen() {
             value={localPreferences.notes}
             onChangeText={(value) => setLocalPreferences((prev) => ({ ...prev, notes: value }))}
             placeholder="Add inspiration ideas or appointment preferences"
-            placeholderTextColor={colors.secondaryFont || '#5C5F5D'}
+            placeholderTextColor={secondaryFontColor}
             multiline
             style={[
               styles.notesInput,
               {
-                borderColor: colors.border || '#D9C8A9',
-                color: colors.primaryFont || '#220707',
+                borderColor: borderColor,
+                color: primaryFontColor,
               },
             ]}
           />
@@ -299,11 +334,18 @@ function ProfileScreen() {
   );
 }
 
-function InfoRow({ label, value, accent }) {
+function InfoRow({ label, value, accent, dividerColor }) {
+  const { theme } = useTheme();
+  const themeColors = theme?.colors || {};
+  const textColor = accent || themeColors.secondaryFont || '#5C5F5D';
+  const shadowColor = themeColors.shadow || '#000000';
+  const dividerTint = dividerColor || withOpacity(shadowColor, 0.08);
+
   return (
-    <View style={styles.infoRow}>
+    <View style={[styles.infoRow, { borderBottomColor: dividerTint }]}
+    >
       <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={[styles.infoValue, { color: accent || '#5C5F5D' }]}>{value || '—'}</Text>
+      <Text style={[styles.infoValue, { color: textColor }]}>{value || '—'}</Text>
     </View>
   );
 }
@@ -374,7 +416,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
+    borderBottomColor: 'transparent',
   },
   infoLabel: {
     fontSize: 13,
@@ -402,7 +444,6 @@ const styles = StyleSheet.create({
   logItem: {
     paddingVertical: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   logLine: {
     fontSize: 12,
@@ -424,7 +465,6 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     marginTop: 12,
-    backgroundColor: '#B33A3A',
   },
 });
 

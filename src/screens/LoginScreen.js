@@ -12,6 +12,12 @@ function LoginScreen({ onLoginSuccess, onConsentPending, onSwitchToSignup }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { theme } = useTheme();
+  const colors = theme?.colors || {};
+  const primaryFontColor = colors.primaryFont || '#220707';
+  const secondaryFontColor = colors.secondaryFont || '#5C5F5D';
+  const secondaryBackgroundColor = colors.secondaryBackground || '#E7D8CA';
+  const errorColor = colors.error || '#B33A3A';
+  const accentColor = colors.accent || '#6F171F';
 
   const handleSubmit = async () => {
     setError(null);
@@ -37,29 +43,11 @@ function LoginScreen({ onLoginSuccess, onConsentPending, onSwitchToSignup }) {
 
   return (
     <ScreenContainer>
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: theme?.colors?.secondaryBackground || styles.header.backgroundColor,
-            borderRadius: 12,
-          },
-        ]}
-      >
-        <Text
-          style={[
-            styles.title,
-            { color: theme?.colors?.primaryFont || styles.title.color },
-          ]}
-        >
+      <View style={[styles.header, { backgroundColor: secondaryBackgroundColor }]}>
+        <Text style={[styles.title, { color: primaryFontColor }]}>
           Welcome Back
         </Text>
-        <Text
-          style={[
-            styles.subtitle,
-            { color: theme?.colors?.secondaryFont || styles.subtitle.color },
-          ]}
-        >
+        <Text style={[styles.subtitle, { color: secondaryFontColor }]}>
           Log in to manage your appointments and profile.
         </Text>
       </View>
@@ -81,7 +69,7 @@ function LoginScreen({ onLoginSuccess, onConsentPending, onSwitchToSignup }) {
         />
       </View>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={[styles.error, { color: errorColor }]}>{error}</Text> : null}
 
       <PrimaryButton
         label="Log In"
@@ -91,8 +79,10 @@ function LoginScreen({ onLoginSuccess, onConsentPending, onSwitchToSignup }) {
       />
 
       <TouchableOpacity onPress={onSwitchToSignup} style={styles.switchRow}>
-        <Text style={styles.switchText}>Need an account? </Text>
-        <Text style={styles.switchLink}>Sign up</Text>
+        <Text style={[styles.switchText, { color: secondaryFontColor }]}>
+          Need an account?{' '}
+        </Text>
+        <Text style={[styles.switchLink, { color: accentColor }]}>Sign up</Text>
       </TouchableOpacity>
     </ScreenContainer>
   );
@@ -102,15 +92,14 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 24,
     padding: 16,
+    borderRadius: 12,
   },
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#15133d',
   },
   subtitle: {
     marginTop: 8,
-    color: '#484b7a',
     fontSize: 15,
     lineHeight: 20,
   },
@@ -118,7 +107,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   error: {
-    color: '#b00020',
     marginBottom: 16,
     fontSize: 14,
   },
@@ -128,10 +116,8 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   switchText: {
-    color: '#333',
   },
   switchLink: {
-    color: '#272b75',
     fontWeight: '600',
   },
 });

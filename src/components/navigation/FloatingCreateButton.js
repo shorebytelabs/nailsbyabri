@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../theme';
 import Icon from '../../icons/Icon';
+import { withOpacity } from '../../utils/color';
 
 function FloatingCreateButton({
   onPress,
@@ -68,9 +69,9 @@ function FloatingCreateButton({
           styles.button,
           {
             backgroundColor: disabled
-              ? `${(colors.accent || '#6F171F')}33`
-              : colors.accent || '#6F171F',
-            shadowColor: colors.accent || '#6F171F',
+              ? withOpacity(colors.accent, 0.2)
+              : colors.accent,
+            shadowColor: colors.shadow,
             opacity: pressed ? 0.85 : 1,
           },
         ]}
@@ -78,15 +79,18 @@ function FloatingCreateButton({
         onLongPress={handleLongPress}
         onPressOut={handlePressOut}
       >
-        <Icon name="plus" color={disabled ? '#ffffff88' : '#fff'} />
+        <Icon
+          name="plus"
+          color={disabled ? withOpacity(colors.accentContrast, 0.55) : colors.accentContrast}
+        />
       </Pressable>
       {showLabel ? (
         <View
           style={[
             styles.labelBubble,
             {
-              backgroundColor: colors.secondaryBackground || '#E7D8CA',
-              borderColor: colors.border || '#D9C8A9',
+              backgroundColor: colors.surfaceMuted,
+              borderColor: colors.border,
             },
           ]}
         >
@@ -94,7 +98,7 @@ function FloatingCreateButton({
             style={[
               styles.labelText,
               {
-                color: colors.primaryFont || '#220707',
+                color: colors.primaryFont,
               },
             ]}
           >

@@ -4,12 +4,24 @@
   "colors": {
     "primaryBackground": "#F9F3ED",
     "secondaryBackground": "#E7D8CA",
+    "surface": "#FFFFFF",
+    "surfaceMuted": "#F6E6DC",
     "primaryFont": "#220707",
     "secondaryFont": "#AC9185",
+    "onSurface": "#220707",
     "accent": "#531C22",
+    "accentContrast": "#FFFFFF",
     "hover": "#AC9185",
     "border": "#D0B7A3",
-    "success": "#767154"
+    "divider": "#E3D3C3",
+    "success": "#767154",
+    "error": "#B33A3A",
+    "warning": "#C27A3B",
+    "shadow": "#000000",
+    "swatchBase": "#FBE7E9",
+    "swatchTone1": "#F7D1D6",
+    "swatchTone2": "#EDC2C9",
+    "swatchTone3": "#DDB0BB"
   }
 }
 

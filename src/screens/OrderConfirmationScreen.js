@@ -10,6 +10,13 @@ const deliveryMethodConfig = pricingConstants.DELIVERY_METHODS;
 
 function OrderConfirmationScreen({ order, onDone }) {
   const { theme } = useTheme();
+  const colors = theme?.colors || {};
+  const surfaceColor = colors.surface || '#FFFFFF';
+  const secondaryBackgroundColor = colors.secondaryBackground || '#E7D8CA';
+  const primaryFontColor = colors.primaryFont || '#220707';
+  const secondaryFontColor = colors.secondaryFont || '#5C5F5D';
+  const borderColor = colors.border || '#D9C8A9';
+  const errorColor = colors.error || '#B33A3A';
 
   const methodConfig =
     deliveryMethodConfig[order?.fulfillment?.method] || deliveryMethodConfig.pickup;
@@ -26,34 +33,17 @@ function OrderConfirmationScreen({ order, onDone }) {
 
   return (
     <ScreenContainer>
-      <View
-        style={[
-          styles.hero,
-          {
-            backgroundColor: theme?.colors?.secondaryBackground || styles.hero.backgroundColor,
-          },
-        ]}
-      >
-        <Text
-          style={[
-            styles.title,
-            { color: theme?.colors?.primaryFont || styles.title.color },
-          ]}
-        >
+      <View style={[styles.hero, { backgroundColor: secondaryBackgroundColor }]}>
+        <Text style={[styles.title, { color: primaryFontColor }]}>
           Order Confirmed!
         </Text>
-        <Text
-          style={[
-            styles.subtitle,
-            { color: theme?.colors?.secondaryFont || styles.subtitle.color },
-          ]}
-        >
+        <Text style={[styles.subtitle, { color: secondaryFontColor }]}>
           Thank you for your payment. We&apos;ll begin crafting your custom set right away.
         </Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Order Summary</Text>
+      <View style={[styles.card, { backgroundColor: surfaceColor, borderColor }]}>
+        <Text style={[styles.sectionTitle, { color: primaryFontColor }]}>Order Summary</Text>
         <InfoRow label="Order ID" value={order?.id} />
         {order?.nailSets?.map((set, index) => {
           const shapeName =
@@ -76,16 +66,15 @@ function OrderConfirmationScreen({ order, onDone }) {
         {order?.orderNotes ? <InfoRow label="Order Notes" value={order.orderNotes} /> : null}
       </View>
 
-      {(methodConfig.id === 'shipping' || methodConfig.id === 'delivery') &&
-      order?.fulfillment?.address ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Ship To</Text>
-          <Text style={styles.bodyText}>{order.fulfillment.address.name}</Text>
-          <Text style={styles.bodyText}>{order.fulfillment.address.line1}</Text>
+      {(methodConfig.id === 'shipping' || methodConfig.id === 'delivery') && order?.fulfillment?.address ? (
+        <View style={[styles.card, { backgroundColor: surfaceColor, borderColor }]}>
+          <Text style={[styles.sectionTitle, { color: primaryFontColor }]}>Ship To</Text>
+          <Text style={[styles.bodyText, { color: secondaryFontColor }]}>{order.fulfillment.address.name}</Text>
+          <Text style={[styles.bodyText, { color: secondaryFontColor }]}>{order.fulfillment.address.line1}</Text>
           {order.fulfillment.address.line2 ? (
-            <Text style={styles.bodyText}>{order.fulfillment.address.line2}</Text>
+            <Text style={[styles.bodyText, { color: secondaryFontColor }]}>{order.fulfillment.address.line2}</Text>
           ) : null}
-          <Text style={styles.bodyText}>
+          <Text style={[styles.bodyText, { color: secondaryFontColor }]}>
             {order.fulfillment.address.city}, {order.fulfillment.address.state}{' '}
             {order.fulfillment.address.postalCode}
           </Text>
@@ -93,23 +82,27 @@ function OrderConfirmationScreen({ order, onDone }) {
       ) : null}
 
       {order?.nailSets?.length ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Nail Sets</Text>
+        <View style={[styles.card, { backgroundColor: surfaceColor, borderColor }]}>
+          <Text style={[styles.sectionTitle, { color: primaryFontColor }]}>Nail Sets</Text>
           {order.nailSets.map((set, index) => {
             const shapeName =
               shapeCatalog.find((shape) => shape.id === set.shapeId)?.name || set.shapeId || '—';
             return (
               <View key={set.id || index} style={styles.setRow}>
-                <Text style={styles.infoLabel}>
+                <Text style={[styles.infoLabel, { color: secondaryFontColor }]}>
                   {set.name || `Set #${index + 1}`} • {shapeName}
                 </Text>
-                <Text style={styles.bodyText}>
+                <Text style={[styles.bodyText, { color: secondaryFontColor }]}>
                   Quantity: {set.quantity} · Size Mode:{' '}
                   {set.sizes?.mode === 'perSet' ? 'Custom' : 'Standard'}
                 </Text>
-                {set.setNotes ? <Text style={styles.bodyText}>Notes: {set.setNotes}</Text> : null}
+                {set.setNotes ? (
+                  <Text style={[styles.bodyText, { color: secondaryFontColor }]}>
+                    Notes: {set.setNotes}
+                  </Text>
+                ) : null}
                 {set.requiresFollowUp ? (
-                  <Text style={styles.warningText}>
+                  <Text style={[styles.warningText, { color: errorColor }]}>
                     No art uploaded — we&apos;ll contact you to clarify design.
                   </Text>
                 ) : null}
@@ -119,9 +112,9 @@ function OrderConfirmationScreen({ order, onDone }) {
         </View>
       ) : null}
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Next Steps</Text>
-        <Text style={styles.bodyText}>
+      <View style={[styles.card, { backgroundColor: surfaceColor, borderColor }]}>
+        <Text style={[styles.sectionTitle, { color: primaryFontColor }]}>Next Steps</Text>
+        <Text style={[styles.bodyText, { color: secondaryFontColor }]}>
           You&apos;ll receive an email update once your set is ready. If you selected delivery, we&apos;ll
           reach out to confirm address and drop-off details.
         </Text>
@@ -133,10 +126,15 @@ function OrderConfirmationScreen({ order, onDone }) {
 }
 
 function InfoRow({ label, value }) {
+  const { theme } = useTheme();
+  const colors = theme?.colors || {};
+  const labelColor = colors.secondaryFont || '#5C5F5D';
+  const valueColor = colors.primaryFont || '#220707';
+
   return (
     <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value || '—'}</Text>
+      <Text style={[styles.infoLabel, { color: labelColor }]}>{label}</Text>
+      <Text style={[styles.infoValue, { color: valueColor }]}>{value || '—'}</Text>
     </View>
   );
 }
@@ -146,30 +144,24 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 16,
     marginBottom: 24,
-    backgroundColor: '#f1f1f6',
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#15133d',
   },
   subtitle: {
     marginTop: 12,
-    color: '#484b7a',
     fontSize: 15,
     lineHeight: 20,
   },
   card: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#e1e4ff',
   },
   sectionTitle: {
     fontWeight: '700',
-    color: '#272b75',
     marginBottom: 12,
   },
   infoRow: {
@@ -178,24 +170,20 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   infoLabel: {
-    color: '#5c5f8d',
     fontWeight: '600',
   },
   infoValue: {
-    color: '#272b75',
     fontWeight: '600',
     textAlign: 'right',
     maxWidth: '60%',
   },
   bodyText: {
-    color: '#333',
     lineHeight: 20,
   },
   setRow: {
     marginBottom: 12,
   },
   warningText: {
-    color: '#b00020',
     marginTop: 4,
   },
 });

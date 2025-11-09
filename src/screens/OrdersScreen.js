@@ -10,11 +10,29 @@ import {
 import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
 import { logEvent } from '../utils/analytics';
+import { withOpacity } from '../utils/color';
 
 function OrdersScreen() {
   const { theme } = useTheme();
   const { state, refreshConsentLogs } = useAppState();
   const colors = theme?.colors || {};
+  const {
+    primaryBackground,
+    secondaryBackground,
+    surface,
+    primaryFont,
+    secondaryFont,
+    accent,
+    accentContrast,
+    border,
+  } = colors;
+  const accentColor = accent || '#6F171F';
+  const secondaryBackgroundColor = secondaryBackground || '#BF9B7A';
+  const primaryBackgroundColor = primaryBackground || '#F4EBE3';
+  const surfaceColor = surface || '#FFFFFF';
+  const primaryFontColor = primaryFont || '#220707';
+  const secondaryFontColor = secondaryFont || '#5C5F5D';
+  const borderColor = border || '#D9C8A9';
 
   const orders = useMemo(() => {
     const collection = [];
@@ -33,14 +51,14 @@ function OrdersScreen() {
       keyExtractor={(item) => item.id}
       contentContainerStyle={[
         styles.container,
-        { backgroundColor: colors.primaryBackground || '#F7F7FB' },
+        { backgroundColor: primaryBackgroundColor },
       ]}
       ListHeaderComponent={
         <View style={styles.header}>
           <Text
             style={[
               styles.headerTitle,
-              { color: colors.primaryFont || '#220707' },
+              { color: primaryFontColor },
             ]}
           >
             Your orders
@@ -48,7 +66,7 @@ function OrdersScreen() {
           <Text
             style={[
               styles.headerSubtitle,
-              { color: colors.secondaryFont || '#5C5F5D' },
+              { color: secondaryFontColor },
             ]}
           >
             Track drafts, submitted sets, and upcoming deliveries.
@@ -60,8 +78,8 @@ function OrdersScreen() {
           style={[
             styles.card,
             {
-              borderColor: colors.border || '#D9C8A9',
-              backgroundColor: colors.surface || '#FFFFFF',
+              borderColor,
+              backgroundColor: surfaceColor,
             },
           ]}
         >
@@ -69,7 +87,7 @@ function OrdersScreen() {
             <Text
               style={[
                 styles.cardTitle,
-                { color: colors.primaryFont || '#220707' },
+                { color: primaryFontColor },
               ]}
             >
               {item.nailSets?.[0]?.name || 'Custom Set'}
@@ -80,15 +98,15 @@ function OrdersScreen() {
                 {
                   backgroundColor:
                     item.status === 'submitted'
-                      ? `${(colors.accent || '#531C22')}20`
-                      : `${(colors.secondaryBackground || '#E7D8CA')}50`,
+                      ? withOpacity(accentColor, 0.12)
+                      : withOpacity(secondaryBackgroundColor, 0.35),
                 },
               ]}
             >
               <Text
                 style={[
                   styles.statusText,
-                  { color: colors.accent || '#531C22' },
+                  { color: accentColor },
                 ]}
               >
                 {item.status || 'draft'}
@@ -98,7 +116,7 @@ function OrdersScreen() {
           <Text
             style={[
               styles.cardMeta,
-              { color: colors.secondaryFont || '#5C5F5D' },
+              { color: secondaryFontColor },
             ]}
           >
             Updated {item.updatedAt ? new Date(item.updatedAt).toLocaleString() : 'recently'}
@@ -107,7 +125,7 @@ function OrdersScreen() {
             <TouchableOpacity
               style={[
                 styles.linkButton,
-                { borderColor: colors.accent || '#531C22' },
+                { borderColor: accentColor },
               ]}
               onPress={() => {
                 logEvent('tap_order_view', { orderId: item.id });
@@ -116,7 +134,7 @@ function OrdersScreen() {
               <Text
                 style={[
                   styles.linkButtonText,
-                  { color: colors.accent || '#531C22' },
+                  { color: accentColor },
                 ]}
               >
                 View details
@@ -131,7 +149,7 @@ function OrdersScreen() {
               <Text
                 style={[
                   styles.linkInlineText,
-                  { color: colors.secondaryFont || '#5C5F5D' },
+                  { color: secondaryFontColor },
                 ]}
               >
                 Need help?
@@ -145,15 +163,15 @@ function OrdersScreen() {
           style={[
             styles.emptyState,
             {
-              borderColor: colors.border || '#D9C8A9',
-              backgroundColor: colors.surface || '#FFFFFF',
+              borderColor,
+              backgroundColor: surfaceColor,
             },
           ]}
         >
           <Text
             style={[
               styles.emptyTitle,
-              { color: colors.primaryFont || '#220707' },
+              { color: primaryFontColor },
             ]}
           >
             No orders yet
@@ -161,7 +179,7 @@ function OrdersScreen() {
           <Text
             style={[
               styles.emptySubtitle,
-              { color: colors.secondaryFont || '#5C5F5D' },
+              { color: secondaryFontColor },
             ]}
           >
             Tap the Create button to start your first custom set and track it here.
@@ -170,7 +188,7 @@ function OrdersScreen() {
       }
       refreshControl={
         <RefreshControl
-          tintColor={colors.accent || '#531C22'}
+          tintColor={accentColor}
           refreshing={state.loadingConsentLogs}
           onRefresh={() => {
             if (state.currentUser) {

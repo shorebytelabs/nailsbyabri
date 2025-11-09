@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useTheme } from '../theme';
+import { withOpacity } from '../utils/color';
 
 function PrimaryButton({
   label,
@@ -15,15 +16,17 @@ function PrimaryButton({
   style,
 }) {
   const { theme } = useTheme();
+  const colors = theme?.colors || {};
   const isDisabled = disabled || loading;
-  const backgroundColor = theme?.colors?.accent || styles.button.backgroundColor;
-  const disabledColor = theme?.colors?.hover || styles.disabled.backgroundColor;
+  const accentColor = colors.accent || '#6F171F';
+  const accentContrast = colors.accentContrast || '#FFFFFF';
+  const disabledColor = colors.hover || withOpacity(accentColor, 0.4);
 
   return (
     <TouchableOpacity
       style={[
         styles.button,
-        { backgroundColor },
+        { backgroundColor: accentColor },
         isDisabled && { backgroundColor: disabledColor },
         style,
       ]}
@@ -32,14 +35,17 @@ function PrimaryButton({
       activeOpacity={0.85}
       accessibilityRole="button"
     >
-      {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.label}>{label}</Text>}
+      {loading ? (
+        <ActivityIndicator color={accentContrast} />
+      ) : (
+        <Text style={[styles.label, { color: accentContrast }]}>{label}</Text>
+      )}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#272b75',
     paddingVertical: 16,
     paddingHorizontal: 16,
     minHeight: 52,
@@ -47,11 +53,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  disabled: {
-    backgroundColor: '#a0a3c2',
-  },
   label: {
-    color: '#fff',
     fontWeight: '700',
     fontSize: 16,
   },

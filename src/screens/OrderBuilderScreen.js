@@ -14,6 +14,7 @@ import { CardField, useStripe } from '@stripe/stripe-react-native';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
 import { useTheme } from '../theme';
+import { withOpacity } from '../utils/color';
 import {
   calculatePriceBreakdown,
   formatCurrency,
@@ -164,7 +165,7 @@ function NailSetEditor({
                 key={shape.id}
                 style={[
                   styles.shapeCard,
-                  selected && { borderColor: theme?.colors?.accent || '#272b75' },
+                  selected && { borderColor: accentColor },
                 ]}
                 onPress={() => handleSelectShape(shape.id)}
               >
@@ -228,7 +229,7 @@ function NailSetEditor({
           <View
           style={[
             styles.checkbox,
-            currentForm.requiresFollowUp && { backgroundColor: theme?.colors?.accent || '#272b75' },
+            currentForm.requiresFollowUp && { backgroundColor: accentColor },
           ]}
           />
           <Text style={styles.checkboxLabel}>We&apos;ll finalize design details later</Text>
@@ -243,7 +244,7 @@ function NailSetEditor({
                 key={mode}
                 style={[
                   styles.optionButton,
-                  selected && { borderColor: theme?.colors?.accent || '#272b75' },
+                  selected && { borderColor: accentColor },
                 ]}
                 onPress={() => toggleSizeMode(mode)}
               >
@@ -319,6 +320,42 @@ function OrderBuilderScreen({
   const { confirmPayment } = useStripe();
   const defaultShapes = getShapeCatalog();
   const deliveryMethodConfig = pricingConstants.DELIVERY_METHODS;
+  const colors = theme?.colors || {};
+  const accentColor = colors.accent || '#6F171F';
+  const primaryFontColor = colors.primaryFont || '#220707';
+  const secondaryFontColor = colors.secondaryFont || '#5C5F5D';
+  const surfaceColor = colors.surface || '#FFFFFF';
+  const surfaceMutedColor = colors.surfaceMuted || withOpacity(surfaceColor, 0.4);
+  const borderColor = colors.border || '#D9C8A9';
+  const dividerColor = colors.divider || withOpacity(borderColor, 0.6);
+  const shadowColor = colors.shadow || '#000000';
+  const errorColor = colors.error || '#B33A3A';
+
+  const styles = useMemo(
+    () =>
+      createStyles({
+        accentColor,
+        primaryFontColor,
+        secondaryFontColor,
+        surfaceColor,
+        surfaceMutedColor,
+        borderColor,
+        dividerColor,
+        shadowColor,
+        errorColor,
+      }),
+    [
+      accentColor,
+      primaryFontColor,
+      secondaryFontColor,
+      surfaceColor,
+      surfaceMutedColor,
+      borderColor,
+      dividerColor,
+      shadowColor,
+      errorColor,
+    ],
+  );
 
   const [orderId, setOrderId] = useState(initialOrder?.id || null);
   const [shapes, setShapes] = useState(defaultShapes);
@@ -1173,453 +1210,476 @@ function OrderBuilderScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  closeLink: {
-    color: '#272b75',
-    marginBottom: 16,
-    fontWeight: '600',
-  },
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#15133d',
-    marginBottom: 12,
-  },
-  sectionHeader: {
-    marginTop: 24,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: '#f1f1f6',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionHeaderTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#272b75',
-  },
-  sectionHeaderIcon: {
-    fontSize: 16,
-    color: '#272b75',
-  },
-  helperText: {
-    marginTop: 8,
-    color: '#555',
-  },
-  section: {
-    marginTop: 12,
-    paddingHorizontal: 4,
-  },
-  stepLabel: {
-    marginTop: 16,
-    marginBottom: 8,
-    fontWeight: '700',
-    color: '#272b75',
-  },
-  sectionSubheader: {
-    marginTop: 12,
-    marginBottom: 8,
-    fontWeight: '600',
-    color: '#272b75',
-  },
-  emptyStateBox: {
-    marginTop: 12,
-    padding: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#d9ddff',
-    borderStyle: 'dashed',
-    backgroundColor: '#fff',
-    alignItems: 'center',
-  },
-  emptyStateIcon: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    color: '#5c5f8d',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  summarySection: {
-    marginTop: 24,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#d9ddff',
-    backgroundColor: '#fff',
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  summaryHeaderText: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  summaryTitle: {
-    fontWeight: '700',
-    fontSize: 18,
-    color: '#272b75',
-  },
-  summarySubtitle: {
-    marginTop: 4,
-    color: '#5c5f8d',
-  },
-  summaryAction: {
-    fontWeight: '600',
-    color: '#272b75',
-  },
-  editPanel: {
-    marginTop: 16,
-  },
-  subSection: {
-    marginTop: 16,
-  },
-  setCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e1e4ff',
-    marginTop: 12,
-  },
-  setCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  setCardTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  setThumbnail: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: '#f1f1f6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    overflow: 'hidden',
-  },
-  setThumbnailImage: {
-    width: '100%',
-    height: '100%',
-  },
-  setThumbnailPlaceholder: {
-    color: '#272b75',
-    fontWeight: '700',
-    fontSize: 18,
-  },
-  setTitleContent: {
-    flex: 1,
-  },
-  setTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#272b75',
-  },
-  setSubTitle: {
-    marginTop: 4,
-    color: '#5c5f8d',
-  },
-  setActions: {
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  warningText: {
-    color: '#b00020',
-    marginTop: 12,
-  },
-  addSetButton: {
-    marginTop: 16,
-  },
-  label: {
-    marginTop: 16,
-    marginBottom: 8,
-    fontWeight: '600',
-    color: '#272b75',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: '#111',
-    backgroundColor: '#fff',
-    marginBottom: 8,
-  },
-  optionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  optionButton: {
-    borderWidth: 2,
-    borderColor: '#d9ddff',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: '#fff',
-  },
-  optionText: {
-    color: '#272b75',
-    fontWeight: '600',
-  },
-  optionTextSelected: {
-    color: '#111',
-  },
-  methodGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  methodCard: {
-    flexGrow: 1,
-    minWidth: '45%',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#d9ddff',
-    padding: 16,
-    backgroundColor: '#fff',
-  },
-  methodTitle: {
-    fontWeight: '700',
-    color: '#272b75',
-    marginBottom: 6,
-  },
-  methodDescription: {
-    color: '#5c5f8d',
-  },
-  sizeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 8,
-  },
-  sizeItem: {
-    width: '30%',
-  },
-  sizeLabel: {
-    marginBottom: 4,
-    fontWeight: '600',
-    color: '#272b75',
-  },
-  notesInput: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  addressRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  addressHalf: {
-    flex: 1,
-  },
-  addressQuarter: {
-    width: '30%',
-  },
-  breakdownRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  breakdownLabel: {
-    color: '#272b75',
-  },
-  breakdownAmount: {
-    color: '#272b75',
-    fontWeight: '600',
-  },
-  breakdownTotalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#d9ddff',
-  },
-  breakdownTotalLabel: {
-    fontWeight: '700',
-    color: '#272b75',
-  },
-  breakdownTotalAmount: {
-    fontWeight: '700',
-    color: '#272b75',
-  },
-  actionRow: {
-    marginTop: 24,
-    gap: 16,
-  },
-  inlineActions: {
-    marginTop: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  secondaryAction: {
-    color: '#272b75',
-    fontWeight: '600',
-  },
-  destructiveAction: {
-    color: '#b00020',
-  },
-  paymentSection: {
-    marginTop: 16,
-    gap: 20,
-  },
-  cardField: {
-    backgroundColor: '#fff',
-    textColor: '#000',
-  },
-  cardFieldContainer: {
-    height: 50,
-    marginVertical: 20,
-  },
-  backLink: {
-    alignItems: 'center',
-  },
-  proceedHelper: {
-    marginTop: 12,
-    textAlign: 'center',
-  },
-  shapeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 12,
-  },
-  shapeCard: {
-    width: '47%',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#d9ddff',
-    padding: 12,
-    backgroundColor: '#fff',
-  },
-  shapeImage: {
-    width: '100%',
-    height: 120,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  shapePlaceholder: {
-    width: '100%',
-    height: 120,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  shapePlaceholderText: {
-    color: '#555',
-    fontWeight: '600',
-  },
-  shapeName: {
-    fontWeight: '600',
-    color: '#272b75',
-  },
-  shapePrice: {
-    color: '#555',
-    marginTop: 4,
-  },
-  speedList: {
-    marginTop: 12,
-    gap: 12,
-  },
-  speedCard: {
-    borderWidth: 2,
-    borderColor: '#d9ddff',
-    borderRadius: 12,
-    padding: 14,
-    backgroundColor: '#fff',
-  },
-  speedTitle: {
-    fontWeight: '600',
-    color: '#272b75',
-  },
-  speedTagline: {
-    marginTop: 4,
-    color: '#5c5f8d',
-  },
-  formContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    top: 0,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-  },
-  formScroll: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    maxHeight: '75%',
-  },
-  formScrollContent: {
-    padding: 20,
-  },
-  formTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#272b75',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  formActions: {
-    backgroundColor: '#fff',
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  uploadGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 12,
-  },
-  uploadItem: {
-    width: 90,
-  },
-  uploadPreview: {
-    width: 90,
-    height: 90,
-    borderRadius: 12,
-  },
-  removeLink: {
-    color: '#b00020',
-    marginTop: 6,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    gap: 12,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#272b75',
-  },
-  checkboxLabel: {
-    color: '#272b75',
-  },
-});
+function createStyles({
+  accentColor,
+  primaryFontColor,
+  secondaryFontColor,
+  surfaceColor,
+  surfaceMutedColor,
+  borderColor,
+  dividerColor,
+  shadowColor,
+  errorColor,
+}) {
+  const dashedBorderColor = withOpacity(borderColor, 0.6);
+  const subtleBorderColor = withOpacity(borderColor, 0.4);
+  const overlayBackdrop = withOpacity(shadowColor, 0.35);
+
+  return StyleSheet.create({
+    closeLink: {
+      marginBottom: 16,
+      fontWeight: '600',
+      color: accentColor,
+    },
+    pageTitle: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: primaryFontColor,
+      marginBottom: 12,
+    },
+    sectionHeader: {
+      marginTop: 24,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      backgroundColor: surfaceMutedColor,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: subtleBorderColor,
+    },
+    sectionHeaderTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: primaryFontColor,
+    },
+    sectionHeaderIcon: {
+      fontSize: 16,
+      color: accentColor,
+    },
+    helperText: {
+      marginTop: 8,
+      color: secondaryFontColor,
+    },
+    section: {
+      marginTop: 12,
+      paddingHorizontal: 4,
+    },
+    stepLabel: {
+      marginTop: 16,
+      marginBottom: 8,
+      fontWeight: '700',
+      color: primaryFontColor,
+    },
+    sectionSubheader: {
+      marginTop: 12,
+      marginBottom: 8,
+      fontWeight: '600',
+      color: primaryFontColor,
+    },
+    emptyStateBox: {
+      marginTop: 12,
+      padding: 20,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: dashedBorderColor,
+      borderStyle: 'dashed',
+      backgroundColor: surfaceColor,
+      alignItems: 'center',
+    },
+    emptyStateIcon: {
+      fontSize: 24,
+      marginBottom: 8,
+      color: accentColor,
+    },
+    emptyStateText: {
+      color: secondaryFontColor,
+      textAlign: 'center',
+      lineHeight: 20,
+      marginBottom: 16,
+    },
+    summarySection: {
+      marginTop: 24,
+      padding: 16,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: dashedBorderColor,
+      backgroundColor: surfaceColor,
+    },
+    summaryHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+    },
+    summaryHeaderText: {
+      flex: 1,
+      paddingRight: 12,
+    },
+    summaryTitle: {
+      fontWeight: '700',
+      fontSize: 18,
+      color: primaryFontColor,
+    },
+    summarySubtitle: {
+      marginTop: 4,
+      color: secondaryFontColor,
+    },
+    summaryAction: {
+      fontWeight: '600',
+      color: accentColor,
+    },
+    editPanel: {
+      marginTop: 16,
+    },
+    subSection: {
+      marginTop: 16,
+    },
+    setCard: {
+      backgroundColor: surfaceColor,
+      borderRadius: 12,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: dashedBorderColor,
+      marginTop: 12,
+    },
+    setCardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    setCardTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    setThumbnail: {
+      width: 56,
+      height: 56,
+      borderRadius: 12,
+      backgroundColor: surfaceMutedColor,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+      overflow: 'hidden',
+    },
+    setThumbnailImage: {
+      width: '100%',
+      height: '100%',
+    },
+    setThumbnailPlaceholder: {
+      color: accentColor,
+      fontWeight: '700',
+      fontSize: 18,
+    },
+    setTitleContent: {
+      flex: 1,
+    },
+    setTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: primaryFontColor,
+    },
+    setSubTitle: {
+      marginTop: 4,
+      color: secondaryFontColor,
+    },
+    setActions: {
+      alignItems: 'flex-end',
+      gap: 8,
+    },
+    warningText: {
+      color: errorColor,
+      marginTop: 12,
+    },
+    addSetButton: {
+      marginTop: 16,
+    },
+    label: {
+      marginTop: 16,
+      marginBottom: 8,
+      fontWeight: '600',
+      color: primaryFontColor,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 16,
+      color: primaryFontColor,
+      backgroundColor: surfaceColor,
+      marginBottom: 8,
+    },
+    optionRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    optionButton: {
+      borderWidth: 2,
+      borderColor: dashedBorderColor,
+      borderRadius: 20,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      backgroundColor: surfaceColor,
+    },
+    optionText: {
+      color: primaryFontColor,
+      fontWeight: '600',
+    },
+    optionTextSelected: {
+      color: accentColor,
+    },
+    methodGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    methodCard: {
+      flexGrow: 1,
+      minWidth: '45%',
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: dashedBorderColor,
+      padding: 16,
+      backgroundColor: surfaceColor,
+    },
+    methodTitle: {
+      fontWeight: '700',
+      color: primaryFontColor,
+      marginBottom: 6,
+    },
+    methodDescription: {
+      color: secondaryFontColor,
+    },
+    sizeGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+      marginTop: 8,
+    },
+    sizeItem: {
+      width: '30%',
+    },
+    sizeLabel: {
+      marginBottom: 4,
+      fontWeight: '600',
+      color: secondaryFontColor,
+    },
+    notesInput: {
+      minHeight: 100,
+      textAlignVertical: 'top',
+    },
+    addressRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    addressHalf: {
+      flex: 1,
+    },
+    addressQuarter: {
+      width: '30%',
+    },
+    breakdownRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+    },
+    breakdownLabel: {
+      color: secondaryFontColor,
+    },
+    breakdownAmount: {
+      color: primaryFontColor,
+      fontWeight: '600',
+    },
+    breakdownTotalRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: dividerColor,
+    },
+    breakdownTotalLabel: {
+      fontWeight: '700',
+      color: primaryFontColor,
+    },
+    breakdownTotalAmount: {
+      fontWeight: '700',
+      color: accentColor,
+    },
+    actionRow: {
+      marginTop: 24,
+      gap: 16,
+    },
+    inlineActions: {
+      marginTop: 12,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    secondaryAction: {
+      color: accentColor,
+      fontWeight: '600',
+    },
+    destructiveAction: {
+      color: errorColor,
+    },
+    paymentSection: {
+      marginTop: 16,
+      gap: 20,
+    },
+    cardField: {
+      backgroundColor: surfaceColor,
+      textColor: primaryFontColor,
+    },
+    cardFieldContainer: {
+      height: 50,
+      marginVertical: 20,
+    },
+    backLink: {
+      alignItems: 'center',
+    },
+    proceedHelper: {
+      marginTop: 12,
+      textAlign: 'center',
+      color: secondaryFontColor,
+    },
+    shapeGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+      marginTop: 12,
+    },
+    shapeCard: {
+      width: '47%',
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: dashedBorderColor,
+      padding: 12,
+      backgroundColor: surfaceColor,
+    },
+    shapeImage: {
+      width: '100%',
+      height: 120,
+      borderRadius: 8,
+      marginBottom: 8,
+    },
+    shapePlaceholder: {
+      width: '100%',
+      height: 120,
+      borderRadius: 8,
+      backgroundColor: surfaceMutedColor,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 8,
+    },
+    shapePlaceholderText: {
+      color: secondaryFontColor,
+      fontWeight: '600',
+    },
+    shapeName: {
+      fontWeight: '600',
+      color: primaryFontColor,
+    },
+    shapePrice: {
+      color: secondaryFontColor,
+      marginTop: 4,
+    },
+    speedList: {
+      marginTop: 12,
+      gap: 12,
+    },
+    speedCard: {
+      borderWidth: 2,
+      borderColor: dashedBorderColor,
+      borderRadius: 12,
+      padding: 14,
+      backgroundColor: surfaceColor,
+    },
+    speedTitle: {
+      fontWeight: '600',
+      color: primaryFontColor,
+    },
+    speedTagline: {
+      marginTop: 4,
+      color: secondaryFontColor,
+    },
+    formContainer: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      top: 0,
+      backgroundColor: overlayBackdrop,
+      paddingHorizontal: 16,
+      justifyContent: 'center',
+    },
+    formScroll: {
+      backgroundColor: surfaceColor,
+      borderRadius: 16,
+      maxHeight: '75%',
+    },
+    formScrollContent: {
+      padding: 20,
+    },
+    formTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: primaryFontColor,
+      marginBottom: 12,
+      textAlign: 'center',
+    },
+    formActions: {
+      backgroundColor: surfaceColor,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: dividerColor,
+    },
+    uploadGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+      marginTop: 12,
+    },
+    uploadItem: {
+      width: 90,
+    },
+    uploadPreview: {
+      width: 90,
+      height: 90,
+      borderRadius: 12,
+    },
+    removeLink: {
+      color: errorColor,
+      marginTop: 6,
+    },
+    checkboxRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 12,
+      gap: 12,
+    },
+    checkbox: {
+      width: 20,
+      height: 20,
+      borderRadius: 4,
+      borderWidth: 1,
+      borderColor,
+      backgroundColor: surfaceColor,
+    },
+    checkboxLabel: {
+      color: primaryFontColor,
+    },
+  });
+}
 
 export default OrderBuilderScreen;
 

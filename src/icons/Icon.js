@@ -9,7 +9,7 @@ const iconRenderers = {
       width={ICON_SIZE}
       height={ICON_SIZE}
       viewBox="0 0 24 24"
-      color={props.color || '#111'}
+      color={props.color || 'currentColor'}
       {...props}
     >
       <Path
@@ -27,7 +27,7 @@ const iconRenderers = {
       width={ICON_SIZE}
       height={ICON_SIZE}
       viewBox="0 0 24 24"
-      color={props.color || '#111'}
+      color={props.color || 'currentColor'}
       {...props}
     >
       <Path
@@ -51,7 +51,7 @@ const iconRenderers = {
       width={ICON_SIZE}
       height={ICON_SIZE}
       viewBox="0 0 24 24"
-      color={props.color || '#111'}
+      color={props.color || 'currentColor'}
       {...props}
     >
       <Path
@@ -76,7 +76,7 @@ const iconRenderers = {
       width={ICON_SIZE}
       height={ICON_SIZE}
       viewBox="0 0 24 24"
-      color={props.color || '#111'}
+      color={props.color || 'currentColor'}
       {...props}
     >
       <Path
@@ -93,7 +93,7 @@ const iconRenderers = {
       width={ICON_SIZE}
       height={ICON_SIZE}
       viewBox="0 0 24 24"
-      color={props.color || '#111'}
+      color={props.color || 'currentColor'}
       {...props}
     >
       <Path
@@ -110,7 +110,7 @@ const iconRenderers = {
       width={56}
       height={56}
       viewBox="0 0 56 56"
-      color={props.color || '#111'}
+      color={props.color || 'currentColor'}
       {...props}
     >
       <Circle cx={28} cy={28} r={26} fill="currentColor" opacity={0.12} />
@@ -134,7 +134,7 @@ const iconRenderers = {
   ),
 };
 
-export function Icon({ name, color = '#000', size = ICON_SIZE, ...rest }) {
+export function Icon({ name, color, size = ICON_SIZE, ...rest }) {
   const Renderer = iconRenderers[name];
   if (!Renderer) {
     return null;

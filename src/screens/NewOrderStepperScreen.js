@@ -20,6 +20,7 @@ import { fetchShapes, createOrUpdateOrder } from '../services/api';
 import { calculatePriceBreakdown, pricingConstants } from '../utils/pricing';
 import PrimaryButton from '../components/PrimaryButton';
 import { logEvent } from '../utils/analytics';
+import { withOpacity } from '../utils/color';
 import { launchImageLibrary } from 'react-native-image-picker';
 
 const STEP_DEFINITIONS = [
@@ -52,6 +53,22 @@ function NewOrderStepperScreen() {
   const { width } = useWindowDimensions();
 
   const colors = theme?.colors || {};
+  const {
+    primaryBackground,
+    secondaryBackground,
+    surface,
+    surfaceMuted,
+    primaryFont,
+    secondaryFont,
+    accent,
+    accentContrast,
+    border,
+    divider,
+    success,
+    error: errorColor,
+    warning: warningColor,
+    shadow,
+  } = colors;
   const horizontalSpacing = Math.max(16, Math.min(28, width * 0.06));
   const isCompact = width < 900;
 
@@ -316,7 +333,7 @@ function NewOrderStepperScreen() {
     <SafeAreaView
       style={[
         styles.safeArea,
-        { backgroundColor: colors.primaryBackground || '#F7F7FB' },
+        { backgroundColor: primaryBackground },
       ]}
       edges={['top', 'left', 'right']}
     >
@@ -339,7 +356,7 @@ function NewOrderStepperScreen() {
               style={[
                 styles.progressFill,
                 {
-                  backgroundColor: colors.accent || '#531C22',
+                  backgroundColor: accent,
                   width: `${((currentStep + 1) / STEP_DEFINITIONS.length) * 100}%`,
                 },
               ]}
@@ -348,7 +365,7 @@ function NewOrderStepperScreen() {
           <Text
             style={[
               styles.progressLabel,
-              { color: colors.secondaryFont || '#5C5F5D' },
+              { color: secondaryFont },
             ]}
           >
             Step {currentStep + 1} of {STEP_DEFINITIONS.length}
@@ -379,7 +396,7 @@ function NewOrderStepperScreen() {
             <Text
               style={[
                 styles.previewTitle,
-                { color: colors.secondaryFont || '#5C5F5D' },
+                { color: secondaryFont },
               ]}
             >
               Mini preview
@@ -388,15 +405,15 @@ function NewOrderStepperScreen() {
               style={[
                 styles.previewCard,
                 {
-                  backgroundColor: colors.surface || '#FFFFFF',
-                  borderColor: colors.border || '#D9C8A9',
+                  borderColor: border,
+                  backgroundColor: surface,
                 },
               ]}
             >
               <Text
                 style={[
                   styles.previewHeading,
-                  { color: colors.primaryFont || '#220707' },
+                  { color: primaryFont },
                 ]}
               >
                 {selectedShape?.name || 'Shape'}
@@ -404,7 +421,7 @@ function NewOrderStepperScreen() {
               <Text
                 style={[
                   styles.previewDetail,
-                  { color: colors.secondaryFont || '#5C5F5D' },
+                  { color: secondaryFont },
                 ]}
               >
                 {form.designDescription || 'Design description will appear here.'}
@@ -413,7 +430,7 @@ function NewOrderStepperScreen() {
                 <Text
                   style={[
                     styles.previewMetaText,
-                    { color: colors.secondaryFont || '#5C5F5D' },
+                    { color: secondaryFont },
                   ]}
                 >
                   Inspiration images: {form.designUploads?.length || 0}
@@ -421,7 +438,7 @@ function NewOrderStepperScreen() {
                 <Text
                   style={[
                     styles.previewMetaText,
-                    { color: colors.secondaryFont || '#5C5F5D' },
+                    { color: secondaryFont },
                   ]}
                 >
                   Follow-up: {form.requiresFollowUp ? 'Requested' : 'Not needed'}
@@ -440,7 +457,7 @@ function NewOrderStepperScreen() {
             <Text
               style={[
                 styles.stepTitle,
-                { color: colors.primaryFont || '#220707' },
+                { color: primaryFont },
               ]}
             >
               {STEP_DEFINITIONS[currentStep].title}
@@ -448,7 +465,7 @@ function NewOrderStepperScreen() {
             <Text
               style={[
                 styles.stepSubtitle,
-                { color: colors.secondaryFont || '#5C5F5D' },
+                { color: secondaryFont },
               ]}
             >
               {STEP_DEFINITIONS[currentStep].subtitle}
@@ -458,7 +475,7 @@ function NewOrderStepperScreen() {
               <Text
                 style={[
                   styles.errorText,
-                  { color: colors.accent || '#531C22' },
+                  { color: accent },
                 ]}
               >
                 {error}
@@ -577,7 +594,7 @@ function NewOrderStepperScreen() {
             <Text
               style={[
                 styles.backText,
-                { color: colors.secondaryFont || '#5C5F5D' },
+                { color: secondaryFont },
               ]}
             >
               Back
@@ -595,7 +612,7 @@ function NewOrderStepperScreen() {
               <TouchableOpacity
                 style={[
                   styles.secondaryButton,
-                  { borderColor: colors.accent || '#531C22' },
+                  { borderColor: accent },
                 ]}
                 onPress={handleSaveDraft}
                 disabled={savingDraft}
@@ -603,12 +620,12 @@ function NewOrderStepperScreen() {
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 {savingDraft ? (
-                  <ActivityIndicator color={colors.accent || '#531C22'} />
+                  <ActivityIndicator color={accent} />
                 ) : (
                   <Text
                     style={[
                       styles.secondaryButtonText,
-                      { color: colors.accent || '#531C22' },
+                      { color: accent },
                     ]}
                   >
                     Save draft
@@ -631,10 +648,18 @@ function NewOrderStepperScreen() {
 }
 
 function ShapeStep({ colors, shapes, selectedShapeId, onSelect, loading }) {
+  const {
+    accent = '#6F171F',
+    border = '#D9C8A9',
+    surface = '#FFFFFF',
+    primaryFont = '#220707',
+    secondaryFont = '#5C5F5D',
+  } = colors || {};
+
   if (loading) {
     return (
       <View style={styles.loader}>
-        <ActivityIndicator color={colors.accent || '#531C22'} />
+        <ActivityIndicator color={accent} />
       </View>
     );
   }
@@ -650,9 +675,9 @@ function ShapeStep({ colors, shapes, selectedShapeId, onSelect, loading }) {
               styles.shapeCard,
               {
                 borderColor: isSelected
-                  ? colors.accent || '#531C22'
-                  : colors.border || '#D9C8A9',
-                backgroundColor: isSelected ? `${(colors.accent || '#531C22')}10` : '#FFFFFF',
+                  ? accent
+                  : border,
+                backgroundColor: isSelected ? withOpacity(accent, 0.06) : surface,
               },
             ]}
             onPress={() => onSelect(shape.id)}
@@ -661,7 +686,7 @@ function ShapeStep({ colors, shapes, selectedShapeId, onSelect, loading }) {
             <Text
               style={[
                 styles.shapeName,
-                { color: colors.primaryFont || '#220707' },
+                { color: primaryFont },
               ]}
             >
               {shape.name}
@@ -669,7 +694,7 @@ function ShapeStep({ colors, shapes, selectedShapeId, onSelect, loading }) {
             <Text
               style={[
                 styles.shapeDescription,
-                { color: colors.secondaryFont || '#5C5F5D' },
+                { color: secondaryFont },
               ]}
             >
               Base £{Number(shape.basePrice || 0).toFixed(2)}
@@ -691,6 +716,15 @@ function DesignStep({
   onRemoveUpload,
   onToggleFollowUp,
 }) {
+  const {
+    primaryFont = '#220707',
+    secondaryFont = '#5C5F5D',
+    accent = '#6F171F',
+    border = '#D9C8A9',
+    surface = '#FFFFFF',
+    secondaryBackground = '#BF9B7A',
+  } = colors || {};
+
   const uploads = Array.isArray(designUploads) ? designUploads : [];
   const uploadCount = uploads.length;
 
@@ -700,8 +734,8 @@ function DesignStep({
         style={[
           styles.designUploadCard,
           {
-            borderColor: colors.border || '#D9C8A9',
-            backgroundColor: colors.surface || '#FFFFFF',
+            borderColor: border,
+            backgroundColor: surface,
           },
         ]}
       >
@@ -709,7 +743,7 @@ function DesignStep({
           <Text
             style={[
               styles.sectionLabel,
-              { color: colors.primaryFont || '#220707' },
+              { color: primaryFont },
             ]}
           >
             Design uploads
@@ -718,7 +752,7 @@ function DesignStep({
             <Text
               style={[
                 styles.designUploadCount,
-                { color: colors.secondaryFont || '#5C5F5D' },
+                { color: secondaryFont },
               ]}
             >
               {uploadCount} {uploadCount === 1 ? 'image' : 'images'} added
@@ -745,8 +779,8 @@ function DesignStep({
                   style={[
                     styles.designUploadItem,
                     {
-                      borderColor: colors.border || '#D9C8A9',
-                      backgroundColor: colors.surface || '#FFFFFF',
+                      borderColor: border,
+                      backgroundColor: surface,
                     },
                   ]}
                 >
@@ -756,13 +790,13 @@ function DesignStep({
                     <View
                       style={[
                         styles.designUploadEmpty,
-                        { backgroundColor: `${(colors.secondaryBackground || '#E7D8CA')}80` },
+                        { backgroundColor: withOpacity(secondaryBackground, 0.5) },
                       ]}
                     >
                       <Text
                         style={[
                           styles.designUploadEmptyText,
-                          { color: colors.primaryFont || '#220707' },
+                          { color: primaryFont },
                         ]}
                       >
                         No preview
@@ -773,7 +807,7 @@ function DesignStep({
                     <Text
                       style={[
                         styles.designUploadRemove,
-                        { color: colors.accent || '#531C22' },
+                        { color: accent },
                       ]}
                     >
                       Remove
@@ -787,7 +821,7 @@ function DesignStep({
           <Text
             style={[
               styles.designUploadHint,
-              { color: colors.secondaryFont || '#5C5F5D' },
+              { color: secondaryFont },
             ]}
           >
             Upload photos of the designs or describe it below. If neither, mark for follow-up.
@@ -799,7 +833,7 @@ function DesignStep({
         <Text
           style={[
             styles.sectionLabel,
-            { color: colors.primaryFont || '#220707' },
+            { color: primaryFont },
           ]}
         >
           Design description
@@ -808,14 +842,14 @@ function DesignStep({
           value={description}
           onChangeText={onChangeDescription}
           placeholder="Describe colour, finish, art placement or upload instructions…"
-          placeholderTextColor={colors.secondaryFont || '#5C5F5D'}
+          placeholderTextColor={secondaryFont}
           multiline
           style={[
             styles.designInput,
             {
-              borderColor: colors.border || '#D9C8A9',
-              color: colors.primaryFont || '#220707',
-              backgroundColor: colors.surface || '#FFFFFF',
+              borderColor: border,
+              color: primaryFont,
+              backgroundColor: surface,
             },
           ]}
         />
@@ -826,7 +860,7 @@ function DesignStep({
           <Text
             style={[
               styles.sectionLabel,
-              { color: colors.primaryFont || '#220707' },
+              { color: primaryFont },
             ]}
           >
             Need design help?
@@ -834,7 +868,7 @@ function DesignStep({
           <Text
             style={[
               styles.designUploadHint,
-              { color: colors.secondaryFont || '#5C5F5D' },
+              { color: secondaryFont },
             ]}
           >
             Mark for follow-up and we’ll contact you to finalise details.
@@ -844,8 +878,8 @@ function DesignStep({
           value={requiresFollowUp}
           onValueChange={onToggleFollowUp}
           trackColor={{
-            false: `${(colors.secondaryBackground || '#E7D8CA')}70`,
-            true: colors.accent || '#531C22',
+            false: withOpacity(secondaryBackground, 0.44),
+            true: accent,
           }}
         />
       </View>
@@ -862,12 +896,20 @@ function SizingStep({
   onSelectSizeMode,
   onChangeSizes,
 }) {
+  const {
+    primaryFont = '#220707',
+    secondaryFont = '#5C5F5D',
+    accent = '#6F171F',
+    border = '#D9C8A9',
+    surface = '#FFFFFF',
+  } = colors || {};
+
   return (
     <View style={styles.sizingContainer}>
       <Text
         style={[
           styles.sectionLabel,
-          { color: colors.primaryFont || '#220707' },
+          { color: primaryFont },
         ]}
       >
         Quantity
@@ -876,7 +918,7 @@ function SizingStep({
         <TouchableOpacity
           style={[
             styles.quantityButton,
-            { borderColor: colors.border || '#D9C8A9' },
+            { borderColor: border },
           ]}
           onPress={() =>
             onChangeQuantity(String(Math.max(1, Number(quantity || 1) - 1)))
@@ -891,15 +933,15 @@ function SizingStep({
           style={[
             styles.quantityInput,
             {
-              borderColor: colors.border || '#D9C8A9',
-              color: colors.primaryFont || '#220707',
+              borderColor: border,
+              color: primaryFont,
             },
           ]}
         />
         <TouchableOpacity
           style={[
             styles.quantityButton,
-            { borderColor: colors.border || '#D9C8A9' },
+            { borderColor: border },
           ]}
           onPress={() => onChangeQuantity(String(Number(quantity || 1) + 1))}
         >
@@ -910,7 +952,7 @@ function SizingStep({
       <Text
         style={[
           styles.sectionLabel,
-          { color: colors.primaryFont || '#220707' },
+          { color: primaryFont },
         ]}
       >
         Sizing
@@ -923,9 +965,9 @@ function SizingStep({
               styles.modeChip,
               {
                 borderColor:
-                  sizeMode === mode ? colors.accent || '#531C22' : colors.border || '#D9C8A9',
+                  sizeMode === mode ? accent : border,
                 backgroundColor:
-                  sizeMode === mode ? `${(colors.accent || '#531C22')}12` : '#FFFFFF',
+                  sizeMode === mode ? withOpacity(accent, 0.07) : surface,
               },
             ]}
             onPress={() => onSelectSizeMode(mode)}
@@ -935,7 +977,7 @@ function SizingStep({
                 styles.modeLabel,
                 {
                   color:
-                    sizeMode === mode ? colors.accent || '#531C22' : colors.secondaryFont || '#5C5F5D',
+                    sizeMode === mode ? accent : secondaryFont,
                 },
               ]}
             >
@@ -952,7 +994,7 @@ function SizingStep({
               <Text
                 style={[
                   styles.sizeLabel,
-                  { color: colors.secondaryFont || '#5C5F5D' },
+                  { color: secondaryFont },
                 ]}
               >
                 {finger.toUpperCase()}
@@ -961,12 +1003,12 @@ function SizingStep({
                 value={sizes[finger]}
                 onChangeText={(value) => onChangeSizes({ [finger]: value })}
                 placeholder="Size"
-                placeholderTextColor={colors.secondaryFont || '#5C5F5D'}
+                placeholderTextColor={secondaryFont}
                 style={[
                   styles.sizeInput,
                   {
-                    borderColor: colors.border || '#D9C8A9',
-                    color: colors.primaryFont || '#220707',
+                    borderColor: border,
+                    color: primaryFont,
                   },
                 ]}
               />
@@ -979,12 +1021,20 @@ function SizingStep({
 }
 
 function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, onChangeAddress }) {
+  const {
+    primaryFont = '#220707',
+    secondaryFont = '#5C5F5D',
+    accent = '#6F171F',
+    border = '#D9C8A9',
+    surface = '#FFFFFF',
+  } = colors || {};
+
   return (
     <View style={styles.fulfillmentContainer}>
       <Text
         style={[
           styles.sectionLabel,
-          { color: colors.primaryFont || '#220707' },
+          { color: primaryFont },
         ]}
       >
         Delivery method
@@ -999,9 +1049,9 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
                 styles.methodCard,
                 {
                   borderColor: isActive
-                    ? colors.accent || '#531C22'
-                    : colors.border || '#D9C8A9',
-                  backgroundColor: isActive ? `${(colors.accent || '#531C22')}12` : '#FFFFFF',
+                    ? accent
+                    : border,
+                  backgroundColor: isActive ? withOpacity(accent, 0.07) : surface,
                 },
               ]}
               onPress={() => onChangeMethod(method.id)}
@@ -1009,7 +1059,7 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
               <Text
                 style={[
                   styles.methodTitle,
-                  { color: colors.primaryFont || '#220707' },
+                  { color: primaryFont },
                 ]}
               >
                 {method.label}
@@ -1017,7 +1067,7 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
               <Text
                 style={[
                   styles.methodDescription,
-                  { color: colors.secondaryFont || '#5C5F5D' },
+                  { color: secondaryFont },
                 ]}
               >
                 {method.description}
@@ -1030,7 +1080,7 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
       <Text
         style={[
           styles.sectionLabel,
-          { color: colors.primaryFont || '#220707' },
+          { color: primaryFont },
         ]}
       >
         Delivery timing
@@ -1047,9 +1097,9 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
                 styles.speedCard,
                 {
                   borderColor: isActive
-                    ? colors.accent || '#531C22'
-                    : colors.border || '#D9C8A9',
-                  backgroundColor: isActive ? `${(colors.accent || '#531C22')}10` : '#FFFFFF',
+                    ? accent
+                    : border,
+                  backgroundColor: isActive ? withOpacity(accent, 0.06) : surface,
                 },
               ]}
               onPress={() => onChangeSpeed(speed.id)}
@@ -1057,7 +1107,7 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
               <Text
                 style={[
                   styles.speedTitle,
-                  { color: colors.primaryFont || '#220707' },
+                  { color: primaryFont },
                 ]}
               >
                 {speed.label}
@@ -1065,7 +1115,7 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
               <Text
                 style={[
                   styles.speedDescription,
-                  { color: colors.secondaryFont || '#5C5F5D' },
+                  { color: secondaryFont },
                 ]}
               >
                 {speed.description}
@@ -1073,7 +1123,7 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
               <Text
                 style={[
                   styles.speedFee,
-                  { color: colors.accent || '#531C22' },
+                  { color: accent },
                 ]}
               >
                 £{Number(speed.fee || 0).toFixed(2)}
@@ -1088,7 +1138,7 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
           <Text
             style={[
               styles.sectionLabel,
-              { color: colors.primaryFont || '#220707' },
+              { color: primaryFont },
             ]}
           >
             Delivery address
@@ -1097,12 +1147,12 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
             value={fulfillment.address.name}
             onChangeText={(value) => onChangeAddress({ name: value })}
             placeholder="Full name"
-            placeholderTextColor={colors.secondaryFont || '#5C5F5D'}
+            placeholderTextColor={secondaryFont}
             style={[
               styles.addressInput,
               {
-                borderColor: colors.border || '#D9C8A9',
-                color: colors.primaryFont || '#220707',
+                borderColor: border,
+                color: primaryFont,
               },
             ]}
           />
@@ -1110,12 +1160,12 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
             value={fulfillment.address.line1}
             onChangeText={(value) => onChangeAddress({ line1: value })}
             placeholder="Address line 1"
-            placeholderTextColor={colors.secondaryFont || '#5C5F5D'}
+            placeholderTextColor={secondaryFont}
             style={[
               styles.addressInput,
               {
-                borderColor: colors.border || '#D9C8A9',
-                color: colors.primaryFont || '#220707',
+                borderColor: border,
+                color: primaryFont,
               },
             ]}
           />
@@ -1123,12 +1173,12 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
             value={fulfillment.address.line2}
             onChangeText={(value) => onChangeAddress({ line2: value })}
             placeholder="Address line 2 (optional)"
-            placeholderTextColor={colors.secondaryFont || '#5C5F5D'}
+            placeholderTextColor={secondaryFont}
             style={[
               styles.addressInput,
               {
-                borderColor: colors.border || '#D9C8A9',
-                color: colors.primaryFont || '#220707',
+                borderColor: border,
+                color: primaryFont,
               },
             ]}
           />
@@ -1137,12 +1187,12 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
               value={fulfillment.address.city}
               onChangeText={(value) => onChangeAddress({ city: value })}
               placeholder="City"
-              placeholderTextColor={colors.secondaryFont || '#5C5F5D'}
+              placeholderTextColor={secondaryFont}
               style={[
                 styles.addressInputHalf,
                 {
-                  borderColor: colors.border || '#D9C8A9',
-                  color: colors.primaryFont || '#220707',
+                  borderColor: border,
+                  color: primaryFont,
                 },
               ]}
             />
@@ -1150,13 +1200,13 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
               value={fulfillment.address.state}
               onChangeText={(value) => onChangeAddress({ state: value })}
               placeholder="State"
-              placeholderTextColor={colors.secondaryFont || '#5C5F5D'}
+              placeholderTextColor={secondaryFont}
               autoCapitalize="characters"
               style={[
                 styles.addressInputQuarter,
                 {
-                  borderColor: colors.border || '#D9C8A9',
-                  color: colors.primaryFont || '#220707',
+                  borderColor: border,
+                  color: primaryFont,
                 },
               ]}
             />
@@ -1164,12 +1214,12 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
               value={fulfillment.address.postalCode}
               onChangeText={(value) => onChangeAddress({ postalCode: value })}
               placeholder="Postcode"
-              placeholderTextColor={colors.secondaryFont || '#5C5F5D'}
+              placeholderTextColor={secondaryFont}
               style={[
                 styles.addressInputQuarter,
                 {
-                  borderColor: colors.border || '#D9C8A9',
-                  color: colors.primaryFont || '#220707',
+                  borderColor: border,
+                  color: primaryFont,
                 },
               ]}
             />
@@ -1181,12 +1231,20 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
 }
 
 function ReviewStep({ colors, priceDetails, variantText, onOpenAdvancedBuilder, openingLegacy }) {
+  const {
+    primaryFont = '#220707',
+    secondaryFont = '#5C5F5D',
+    accent = '#6F171F',
+    border = '#D9C8A9',
+    surface = '#FFFFFF',
+  } = colors || {};
+
   return (
     <View style={styles.reviewContainer}>
       <Text
         style={[
           styles.reviewHeading,
-          { color: colors.primaryFont || '#220707' },
+          { color: primaryFont },
         ]}
       >
         Summary
@@ -1197,7 +1255,7 @@ function ReviewStep({ colors, priceDetails, variantText, onOpenAdvancedBuilder, 
             <Text
               style={[
                 styles.priceLabel,
-                { color: colors.secondaryFont || '#5C5F5D' },
+                { color: secondaryFont },
               ]}
             >
               {item.label}
@@ -1205,7 +1263,7 @@ function ReviewStep({ colors, priceDetails, variantText, onOpenAdvancedBuilder, 
             <Text
               style={[
                 styles.priceValue,
-                { color: colors.primaryFont || '#220707' },
+                { color: primaryFont },
               ]}
             >
               £{Number(item.amount || 0).toFixed(2)}
@@ -1217,7 +1275,7 @@ function ReviewStep({ colors, priceDetails, variantText, onOpenAdvancedBuilder, 
         <Text
           style={[
             styles.totalLabel,
-            { color: colors.primaryFont || '#220707' },
+            { color: primaryFont },
           ]}
         >
           Total
@@ -1225,7 +1283,7 @@ function ReviewStep({ colors, priceDetails, variantText, onOpenAdvancedBuilder, 
         <Text
           style={[
             styles.totalValue,
-            { color: colors.accent || '#531C22' },
+            { color: accent },
           ]}
         >
           £{Number(priceDetails.total || 0).toFixed(2)}
@@ -1234,7 +1292,7 @@ function ReviewStep({ colors, priceDetails, variantText, onOpenAdvancedBuilder, 
       <Text
         style={[
           styles.etaText,
-          { color: colors.secondaryFont || '#5C5F5D' },
+          { color: secondaryFont },
         ]}
       >
         Estimated completion: {priceDetails.estimatedCompletionDate ? new Date(priceDetails.estimatedCompletionDate).toLocaleDateString() : `${priceDetails.estimatedCompletionDays} business days`}
@@ -1243,7 +1301,7 @@ function ReviewStep({ colors, priceDetails, variantText, onOpenAdvancedBuilder, 
         <Text
           style={[
             styles.variantTitle,
-            { color: colors.primaryFont || '#220707' },
+            { color: primaryFont },
           ]}
         >
           Playful CTA variants
@@ -1253,7 +1311,7 @@ function ReviewStep({ colors, priceDetails, variantText, onOpenAdvancedBuilder, 
             key={variant}
             style={[
               styles.variantText,
-              { color: colors.secondaryFont || '#5C5F5D' },
+              { color: secondaryFont },
             ]}
           >
             • {variant}
@@ -1264,15 +1322,15 @@ function ReviewStep({ colors, priceDetails, variantText, onOpenAdvancedBuilder, 
         style={[
           styles.advancedCard,
           {
-            borderColor: colors.border || '#D9C8A9',
-            backgroundColor: colors.surface || '#FFFFFF',
+            borderColor: border,
+            backgroundColor: surface,
           },
         ]}
       >
         <Text
           style={[
             styles.advancedTitle,
-            { color: colors.primaryFont || '#220707' },
+            { color: primaryFont },
           ]}
         >
           Need advanced options?
@@ -1280,7 +1338,7 @@ function ReviewStep({ colors, priceDetails, variantText, onOpenAdvancedBuilder, 
         <Text
           style={[
             styles.advancedHint,
-            { color: colors.secondaryFont || '#5C5F5D' },
+            { color: secondaryFont },
           ]}
         >
           Add multiple nail sets, upload inspiration photos, or tweak fulfilment in detail.
@@ -1288,19 +1346,19 @@ function ReviewStep({ colors, priceDetails, variantText, onOpenAdvancedBuilder, 
         <TouchableOpacity
           style={[
             styles.advancedButton,
-            { borderColor: colors.accent || '#531C22' },
+            { borderColor: accent },
           ]}
           onPress={onOpenAdvancedBuilder}
           disabled={openingLegacy}
           accessibilityLabel="Open advanced nail set builder"
         >
           {openingLegacy ? (
-            <ActivityIndicator color={colors.accent || '#531C22'} />
+            <ActivityIndicator color={accent} />
           ) : (
             <Text
               style={[
                 styles.advancedButtonText,
-                { color: colors.accent || '#531C22' },
+                { color: accent },
               ]}
             >
               Open advanced builder
@@ -1451,7 +1509,6 @@ const styles = StyleSheet.create({
     padding: 6,
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FFFFFF',
   },
   designUploadImage: {
     width: 80,

@@ -2,15 +2,17 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
+import { withOpacity } from '../../utils/color';
 
 function BottomTabBar({ state, descriptors, navigation }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const colors = theme?.colors || {};
-
-  const activeColor = colors.accent || '#531C22';
+  const accentColor = colors.accent || '#531C22';
   const inactiveColor = colors.secondaryFont || '#8A8A8A';
   const backgroundColor = colors.primaryBackground || '#FFFFFF';
+  const shadowColor = colors.shadow || '#000000';
+  const borderColor = colors.border || '#D9C8A9';
 
   return (
     <View
@@ -19,7 +21,8 @@ function BottomTabBar({ state, descriptors, navigation }) {
         {
           paddingBottom: Math.max(insets.bottom, 16),
           backgroundColor,
-          shadowColor: colors.border || '#000000',
+          shadowColor,
+          borderTopColor: withOpacity(borderColor, 0.35),
         },
       ]}
     >
@@ -35,7 +38,7 @@ function BottomTabBar({ state, descriptors, navigation }) {
         const isFocused = state.index === index;
         const icon =
           typeof options.tabBarIcon === 'function'
-            ? options.tabBarIcon({ focused: isFocused, color: isFocused ? activeColor : inactiveColor })
+            ? options.tabBarIcon({ focused: isFocused, color: isFocused ? accentColor : inactiveColor })
             : null;
 
         const onPress = () => {
@@ -78,7 +81,7 @@ function BottomTabBar({ state, descriptors, navigation }) {
               style={[
                 styles.label,
                 {
-                  color: isFocused ? activeColor : inactiveColor,
+                  color: isFocused ? accentColor : inactiveColor,
                 },
               ]}
             >
@@ -99,7 +102,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 72,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.1)',
     shadowOpacity: 0.08,
     shadowOffset: { width: 0, height: -4 },
     shadowRadius: 12,

@@ -13,6 +13,7 @@ import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
 import Icon from '../icons/Icon';
 import { logEvent } from '../utils/analytics';
+import { withOpacity } from '../utils/color';
 
 const CTA_LABEL = 'Create Nail Set';
 
@@ -27,6 +28,9 @@ function HomeDashboardScreen() {
   const horizontalPadding = Math.max(16, Math.min(28, width * 0.06));
   const isCompact = width < 780;
   const cardWidth = Math.min(240, width * 0.65);
+
+  const accentColor = colors.accent || '#6F171F';
+  const accentContrastColor = colors.accentContrast || '#FFFFFF';
 
   const activeOrders = useMemo(() => {
     const list = [];
@@ -104,7 +108,7 @@ function HomeDashboardScreen() {
         {
           paddingBottom: Math.max(insets.bottom + 24, 36),
           paddingHorizontal: horizontalPadding,
-          backgroundColor: colors.primaryBackground || '#F7F7FB',
+          backgroundColor: colors.primaryBackground,
         },
       ]}
       keyboardShouldPersistTaps="handled"
@@ -114,7 +118,7 @@ function HomeDashboardScreen() {
           style={[
             styles.heroCard,
             {
-              backgroundColor: colors.secondaryBackground || '#E7D8CA',
+              backgroundColor: colors.secondaryBackground,
               flexDirection: 'row',
               alignItems: 'flex-start',
               flexWrap: 'nowrap',
@@ -125,7 +129,7 @@ function HomeDashboardScreen() {
             <Text
               style={[
                 styles.heroTitle,
-                { color: colors.primaryFont || '#220707' },
+                { color: colors.primaryFont },
               ]}
             >
               Your perfect nails, your way
@@ -133,7 +137,7 @@ function HomeDashboardScreen() {
             <Text
               style={[
                 styles.heroSubtitle,
-                { color: colors.secondaryFont || '#5C5F5D' },
+                { color: colors.secondaryFont },
               ]}
             >
               Pick your shape, design, and sizing in minutes
@@ -141,21 +145,21 @@ function HomeDashboardScreen() {
             <TouchableOpacity
               style={[
                 styles.heroButton,
-                { backgroundColor: colors.accent || '#531C22' },
+                { backgroundColor: accentColor },
               ]}
               onPress={handleCreatePress}
               accessibilityLabel="Create new custom nail set"
               accessibilityRole="button"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Text style={styles.heroButtonText}>{CTA_LABEL}</Text>
+              <Text style={[styles.heroButtonText, { color: accentContrastColor }]}>{CTA_LABEL}</Text>
             </TouchableOpacity>
           </View>
           <View
             style={[
               styles.heroSwatches,
               {
-                backgroundColor: colors.surface || '#FFFFFF',
+                backgroundColor: colors.surface,
                 alignSelf: 'flex-start',
                 flexBasis: isCompact ? 88 : 110,
                 width: isCompact ? 88 : 110,
@@ -164,13 +168,12 @@ function HomeDashboardScreen() {
               },
             ]}
           >
-            <View
-              style={[styles.swatchHeader, { borderColor: colors.border || '#D9C8A9' }]}
+            <View style={[styles.swatchHeader, { borderColor: colors.divider }]}
             >
               <Text
                 style={[
                   styles.swatchTitle,
-                  { color: colors.primaryFont || '#220707' },
+                  { color: colors.primaryFont },
                 ]}
               >
                 Most-loved shape
@@ -181,21 +184,31 @@ function HomeDashboardScreen() {
                 style={[
                   styles.swatchNail,
                   {
-                    backgroundColor: '#FCE9E3',
-                    borderColor: colors.border || '#D9C8A9',
+                    backgroundColor: colors.swatchBase,
+                    borderColor: colors.border,
+                    shadowColor: colors.shadow,
                   },
                 ]}
               />
               <View style={styles.swatchPaletteRow}>
-                {['#F8D9DD', '#E5C7DA', '#D7B4C2'].map((tone) => (
-                  <View key={tone} style={[styles.swatchDot, { backgroundColor: tone }]} />
+                {[colors.swatchTone1, colors.swatchTone2, colors.swatchTone3].map((tone) => (
+                  <View
+                    key={tone}
+                    style={[
+                      styles.swatchDot,
+                      {
+                        backgroundColor: tone,
+                        borderColor: withOpacity(colors.shadow, 0.06),
+                      },
+                    ]}
+                  />
                 ))}
               </View>
             </View>
             <Text
               style={[
                 styles.swatchCaption,
-                { color: colors.secondaryFont || '#5C5F5D' },
+                { color: colors.secondaryFont },
               ]}
               numberOfLines={2}
             >
@@ -208,7 +221,7 @@ function HomeDashboardScreen() {
           <Text
             style={[
               styles.sectionTitle,
-              { color: colors.primaryFont || '#220707' },
+              { color: colors.primaryFont },
             ]}
           >
             Active orders
@@ -221,7 +234,7 @@ function HomeDashboardScreen() {
             <Text
               style={[
                 styles.sectionAction,
-                { color: colors.accent || '#531C22' },
+                { color: accentColor },
               ]}
             >
               View all
@@ -238,8 +251,8 @@ function HomeDashboardScreen() {
               style={[
                 styles.orderCard,
                 {
-                  borderColor: colors.border || '#D9C8A9',
-                  backgroundColor: colors.surface || '#FFFFFF',
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
                   width: cardWidth,
                 },
               ]}
@@ -247,7 +260,7 @@ function HomeDashboardScreen() {
               <Text
                 style={[
                   styles.orderName,
-                  { color: colors.primaryFont || '#220707' },
+                  { color: colors.primaryFont },
                 ]}
               >
                 No active orders
@@ -255,7 +268,7 @@ function HomeDashboardScreen() {
               <Text
                 style={[
                   styles.orderMeta,
-                  { color: colors.secondaryFont || '#5C5F5D' },
+                  { color: colors.secondaryFont },
                 ]}
               >
                 Start your first custom set to track it here.
@@ -268,8 +281,8 @@ function HomeDashboardScreen() {
                 style={[
                   styles.orderCard,
                   {
-                    borderColor: colors.border || '#D9C8A9',
-                    backgroundColor: colors.surface || '#FFFFFF',
+                    borderColor: colors.border,
+                    backgroundColor: colors.surface,
                     width: cardWidth,
                   },
                 ]}
@@ -277,7 +290,7 @@ function HomeDashboardScreen() {
                 <Text
                   style={[
                     styles.orderName,
-                    { color: colors.primaryFont || '#220707' },
+                    { color: colors.primaryFont },
                   ]}
                 >
                   {order.name}
@@ -288,15 +301,15 @@ function HomeDashboardScreen() {
                     {
                       backgroundColor:
                         order.status === 'submitted'
-                          ? `${(colors.accent || '#531C22')}15`
-                          : `${(colors.secondaryBackground || '#E7D8CA')}60`,
+                          ? withOpacity(accentColor, 0.1)
+                          : withOpacity(colors.secondaryBackground, 0.38),
                     },
                   ]}
                 >
                   <Text
                     style={[
                       styles.statusText,
-                      { color: colors.accent || '#531C22' },
+                      { color: accentColor },
                     ]}
                   >
                     {order.status || 'draft'}
@@ -305,7 +318,7 @@ function HomeDashboardScreen() {
                 <Text
                   style={[
                     styles.orderMeta,
-                    { color: colors.secondaryFont || '#5C5F5D' },
+                    { color: colors.secondaryFont },
                   ]}
                 >
                   Updated {order.submittedAt ? new Date(order.submittedAt).toLocaleDateString() : 'today'}
@@ -319,7 +332,7 @@ function HomeDashboardScreen() {
           <Text
             style={[
               styles.sectionTitle,
-              { color: colors.primaryFont || '#220707' },
+              { color: colors.primaryFont },
             ]}
           >
             Tips & inspiration
@@ -332,7 +345,7 @@ function HomeDashboardScreen() {
             <Text
               style={[
                 styles.sectionAction,
-                { color: colors.accent || '#531C22' },
+                { color: accentColor },
               ]}
             >
               Sizing guide
@@ -346,8 +359,8 @@ function HomeDashboardScreen() {
               style={[
                 styles.tipCard,
                 {
-                  backgroundColor: colors.surface || '#FFFFFF',
-                  borderColor: colors.border || '#D9C8A9',
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
                   flexBasis: isCompact ? '100%' : '48%',
                 },
               ]}
@@ -355,7 +368,7 @@ function HomeDashboardScreen() {
               <Text
                 style={[
                   styles.tipTitle,
-                  { color: colors.primaryFont || '#220707' },
+                  { color: colors.primaryFont },
                 ]}
               >
                 {tip.title}
@@ -363,7 +376,7 @@ function HomeDashboardScreen() {
               <Text
                 style={[
                   styles.tipCopy,
-                  { color: colors.secondaryFont || '#5C5F5D' },
+                  { color: colors.secondaryFont },
                 ]}
               >
                 {tip.copy}
@@ -376,7 +389,7 @@ function HomeDashboardScreen() {
           <Text
             style={[
               styles.sectionTitle,
-              { color: colors.primaryFont || '#220707' },
+              { color: colors.primaryFont },
             ]}
           >
             Notifications
@@ -389,16 +402,16 @@ function HomeDashboardScreen() {
               style={[
                 styles.notificationCard,
                 {
-                  backgroundColor: `${(colors.secondaryBackground || '#E7D8CA')}40`,
-                  borderColor: colors.border || '#D9C8A9',
+                  backgroundColor: withOpacity(colors.secondaryBackground, 0.25),
+                  borderColor: colors.border,
                 },
               ]}
             >
-              <Icon name="orders" color={colors.accent || '#531C22'} size={18} />
+              <Icon name="orders" color={accentColor} size={18} />
               <Text
                 style={[
                   styles.notificationText,
-                  { color: colors.primaryFont || '#220707' },
+                  { color: colors.primaryFont },
                 ]}
               >
                 {note.message}
@@ -446,7 +459,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   heroButtonText: {
-    color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 16,
     letterSpacing: 0.4,
@@ -480,7 +492,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     transform: [{ rotate: '-6deg' }],
-    shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
@@ -498,7 +509,6 @@ const styles = StyleSheet.create({
     height: 9,
     borderRadius: 4.5,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0,0,0,0.05)',
   },
   swatchCaption: {
     fontSize: 10,

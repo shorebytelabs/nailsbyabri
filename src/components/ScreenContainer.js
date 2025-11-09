@@ -28,7 +28,6 @@ function ScreenContainer({ children, style, scroll = true }) {
 const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
-    backgroundColor: '#f7f7fb',
   },
   scrollContent: {
     flexGrow: 1,

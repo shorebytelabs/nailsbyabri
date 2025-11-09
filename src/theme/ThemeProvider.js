@@ -9,6 +9,28 @@ const themeIndex = themeRegistry.reduce((acc, theme) => {
 }, {});
 
 const defaultTheme = themeIndex.classicChristmas || themeRegistry[0];
+const BASE_COLOR_TOKENS = {
+  primaryBackground: '#F4EBE3',
+  secondaryBackground: '#BF9B7A',
+  surface: '#FFFFFF',
+  surfaceMuted: '#F9F3ED',
+  primaryFont: '#354037',
+  secondaryFont: '#767154',
+  onSurface: '#354037',
+  accent: '#6F171F',
+  accentContrast: '#FFFFFF',
+  hover: '#BF9B7A',
+  border: '#D9C8A9',
+  divider: '#E6DCD0',
+  success: '#4B7A57',
+  error: '#B33A3A',
+  warning: '#C27A3B',
+  shadow: '#000000',
+  swatchBase: '#FCE9E3',
+  swatchTone1: '#F8D9DD',
+  swatchTone2: '#E5C7DA',
+  swatchTone3: '#D7B4C2',
+};
 
 const ThemeContext = createContext({
   theme: defaultTheme,
@@ -24,11 +46,22 @@ export function ThemeProvider({ initialThemeId = defaultTheme.id, children }) {
 
   const value = useMemo(() => {
     const theme = themeIndex[themeId] || defaultTheme;
+    const mergedColors = {
+      ...BASE_COLOR_TOKENS,
+      ...(theme.colors || {}),
+    };
+
     return {
-      theme,
+      theme: { ...theme, colors: mergedColors },
       themeId,
       setThemeById: setThemeId,
-      availableThemes: themeRegistry,
+      availableThemes: themeRegistry.map((registeredTheme) => ({
+        ...registeredTheme,
+        colors: {
+          ...BASE_COLOR_TOKENS,
+          ...(registeredTheme.colors || {}),
+        },
+      })),
     };
   }, [themeId]);
 

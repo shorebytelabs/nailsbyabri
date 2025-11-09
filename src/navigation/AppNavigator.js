@@ -12,6 +12,7 @@ import NewOrderStepperScreen from '../screens/NewOrderStepperScreen';
 import { useAppState } from '../context/AppContext';
 import { useTheme } from '../theme';
 import { logEvent } from '../utils/analytics';
+import { withOpacity } from '../utils/color';
 
 const Stack = createNativeStackNavigator();
 
@@ -114,19 +115,22 @@ function OrderConfirmationContainer({ route, navigation }) {
 function StatusOverlay() {
   const { state, clearStatusMessage } = useAppState();
   const { theme } = useTheme();
-  const backgroundColor = `${theme?.colors?.primaryBackground || '#F4EBE3'}f5`;
+  const colors = theme?.colors || {};
+  const overlayBackground = withOpacity(colors.primaryBackground || '#F4EBE3', 0.96);
+  const accentColor = colors.accent || '#6F171F';
+  const primaryFontColor = colors.primaryFont || '#220707';
 
   if (!state.loadingConsentLogs && !state.loadingPreferences) {
     return null;
   }
 
   return (
-    <View style={[styles.overlay, { backgroundColor }]}>
-      <ActivityIndicator size="large" color={theme?.colors?.accent || '#6F171F'} />
+    <View style={[styles.overlay, { backgroundColor: overlayBackground, shadowColor: colors.shadow || '#000000' }]}>
+      <ActivityIndicator size="large" color={accentColor} />
       <Text
         style={[
           styles.overlayText,
-          { color: theme?.colors?.primaryFont || '#220707' },
+          { color: primaryFontColor },
         ]}
       >
         {state.loadingConsentLogs ? 'Refreshing consent history…' : 'Loading preferences…'}
@@ -136,7 +140,7 @@ function StatusOverlay() {
           onPress={clearStatusMessage}
           style={[
             styles.overlayDismiss,
-            { color: theme?.colors?.accent || '#6F171F' },
+            { color: accentColor },
           ]}
         >
           Dismiss
@@ -149,6 +153,11 @@ function StatusOverlay() {
 function BannerToast() {
   const { state, clearStatusMessage } = useAppState();
   const { theme } = useTheme();
+  const colors = theme?.colors || {};
+  const surfaceColor = colors.surface || '#FFFFFF';
+  const borderColor = colors.border || '#D9C8A9';
+  const primaryFontColor = colors.primaryFont || '#220707';
+  const accentColor = colors.accent || '#6F171F';
 
   if (!state.statusMessage) {
     return null;
@@ -159,15 +168,15 @@ function BannerToast() {
       style={[
         styles.banner,
         {
-          backgroundColor: theme?.colors?.secondaryBackground || '#E7D8CA',
-          borderColor: theme?.colors?.border || '#D9C8A9',
+          backgroundColor: surfaceColor,
+          borderColor,
         },
       ]}
     >
       <Text
         style={[
           styles.bannerText,
-          { color: theme?.colors?.primaryFont || '#220707' },
+          { color: primaryFontColor },
         ]}
       >
         {state.statusMessage}
@@ -177,7 +186,7 @@ function BannerToast() {
         onPress={clearStatusMessage}
         style={[
           styles.bannerAction,
-          { color: theme?.colors?.accent || '#531C22' },
+          { color: accentColor },
         ]}
       >
         Dismiss
@@ -244,7 +253,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 12,
