@@ -7,7 +7,7 @@ import { withOpacity } from '../../utils/color';
 function FloatingCreateButton({
   onPress,
   disabled = false,
-  bottomInset = 0,
+  topInset = 0,
   labelVariant = 'Create Set',
 }) {
   const { theme } = useTheme();
@@ -57,7 +57,8 @@ function FloatingCreateButton({
         styles.wrapper,
         {
           transform: [{ translateY }],
-          bottom: Math.max(bottomInset + 16, 28),
+          top: Math.max(topInset + 60, 92),
+          right: 20,
         },
       ]}
     >
@@ -113,7 +114,6 @@ function FloatingCreateButton({
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 20,
