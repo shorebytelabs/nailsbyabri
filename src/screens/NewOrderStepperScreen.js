@@ -43,8 +43,6 @@ const DEFAULT_SIZES = {
   pinky: '',
 };
 
-const VARIANT_OPTIONS = ['Create Set', 'Design', 'Make Magic'];
-
 function NewOrderStepperScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
@@ -80,6 +78,7 @@ function NewOrderStepperScreen() {
   const [openingLegacyBuilder, setOpeningLegacyBuilder] = useState(false);
   const [draftOrderId, setDraftOrderId] = useState(null);
   const [error, setError] = useState(null);
+  const isFinalStep = currentStep === STEP_DEFINITIONS.length - 1;
 
   const [form, setForm] = useState({
     shapeId: null,
@@ -376,77 +375,12 @@ function NewOrderStepperScreen() {
           style={[
             styles.contentContainer,
             {
-              flexDirection: isCompact ? 'column' : 'row',
+              flexDirection: 'column',
               gap: isCompact ? 16 : 24,
               paddingHorizontal: horizontalSpacing,
             },
           ]}
         >
-          <View
-            style={[
-              styles.previewPanel,
-              {
-                width: isCompact ? '100%' : 180,
-                flexDirection: 'column',
-                gap: 12,
-                marginBottom: isCompact ? 8 : 0,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.previewTitle,
-                { color: secondaryFont },
-              ]}
-            >
-              Mini preview
-            </Text>
-            <View
-              style={[
-                styles.previewCard,
-                {
-                  borderColor: border,
-                  backgroundColor: surface,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.previewHeading,
-                  { color: primaryFont },
-                ]}
-              >
-                {selectedShape?.name || 'Shape'}
-              </Text>
-              <Text
-                style={[
-                  styles.previewDetail,
-                  { color: secondaryFont },
-                ]}
-              >
-                {form.designDescription || 'Design description will appear here.'}
-              </Text>
-              <View style={styles.previewMeta}>
-                <Text
-                  style={[
-                    styles.previewMetaText,
-                    { color: secondaryFont },
-                  ]}
-                >
-                  Inspiration images: {form.designUploads?.length || 0}
-                </Text>
-                <Text
-                  style={[
-                    styles.previewMetaText,
-                    { color: secondaryFont },
-                  ]}
-                >
-                  Follow-up: {form.requiresFollowUp ? 'Requested' : 'Not needed'}
-                </Text>
-              </View>
-            </View>
-          </View>
-
           <ScrollView
             contentContainerStyle={[
               styles.stepContainer,
@@ -565,13 +499,12 @@ function NewOrderStepperScreen() {
             ) : null}
 
             {currentStep === 4 && priceDetails ? (
-              <ReviewStep
-                colors={colors}
-                priceDetails={priceDetails}
-                variantText={VARIANT_OPTIONS}
-                onOpenAdvancedBuilder={handleOpenLegacyBuilder}
-                openingLegacy={openingLegacyBuilder}
-              />
+            <ReviewStep
+              colors={colors}
+              priceDetails={priceDetails}
+              onOpenAdvancedBuilder={handleOpenLegacyBuilder}
+              openingLegacy={openingLegacyBuilder}
+            />
             ) : null}
           </ScrollView>
         </View>
@@ -585,59 +518,80 @@ function NewOrderStepperScreen() {
             },
           ]}
         >
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={handleBack}
-            accessibilityRole="button"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Text
+          <View style={styles.footerButtonWrapperSmall}>
+            <TouchableOpacity
               style={[
-                styles.backText,
-                { color: secondaryFont },
+                styles.footerButton,
+                {
+                  borderColor: border,
+                  backgroundColor: surface,
+                },
               ]}
+              onPress={handleBack}
+              accessibilityRole="button"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              Back
-            </Text>
-          </TouchableOpacity>
-          {currentStep < STEP_DEFINITIONS.length - 1 ? (
-            <PrimaryButton
-              label="Next"
-              onPress={handleNext}
-              style={styles.nextButton}
-              accessibilityLabel="Go to next step"
-            />
-          ) : (
-            <View style={styles.submitActions}>
-              <TouchableOpacity
+              <Text
+                numberOfLines={1}
+                ellipsizeMode="tail"
                 style={[
-                  styles.secondaryButton,
-                  { borderColor: accent },
+                  styles.footerButtonText,
+                  { color: secondaryFont },
                 ]}
-                onPress={handleSaveDraft}
-                disabled={savingDraft}
-                accessibilityRole="button"
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                {savingDraft ? (
-                  <ActivityIndicator color={accent} />
-                ) : (
-                  <Text
-                    style={[
-                      styles.secondaryButtonText,
-                      { color: accent },
-                    ]}
-                  >
-                    Save draft
-                  </Text>
-                )}
-              </TouchableOpacity>
+                Back
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {isFinalStep ? (
+            <>
+              <View style={styles.footerButtonWrapperLarge}>
+                <TouchableOpacity
+                  style={[
+                    styles.footerButton,
+                    {
+                      borderColor: border,
+                      backgroundColor: surface,
+                    },
+                  ]}
+                  onPress={handleSaveDraft}
+                  disabled={savingDraft}
+                  accessibilityRole="button"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  {savingDraft ? (
+                    <ActivityIndicator color={accent} />
+                  ) : (
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={[
+                        styles.footerButtonText,
+                        { color: accent },
+                      ]}
+                    >
+                      Save draft
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+              <View style={styles.footerButtonWrapperLarge}>
+                <PrimaryButton
+                  label={submitting ? 'Submitting…' : 'Order Now'}
+                  onPress={handleSubmit}
+                  loading={submitting}
+                  style={styles.footerPrimaryButton}
+                  accessibilityLabel="Submit your nail set order"
+                />
+              </View>
+            </>
+          ) : (
+            <View style={styles.footerButtonWrapperLarge}>
               <PrimaryButton
-                label={submitting ? 'Submitting…' : 'Submit order'}
-                onPress={handleSubmit}
-                loading={submitting}
-                style={styles.nextButton}
-                accessibilityLabel="Submit your nail set order"
+                label="Next"
+                onPress={handleNext}
+                style={styles.footerPrimaryButton}
+                accessibilityLabel="Go to next step"
               />
             </View>
           )}
@@ -1230,7 +1184,7 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
   );
 }
 
-function ReviewStep({ colors, priceDetails, variantText, onOpenAdvancedBuilder, openingLegacy }) {
+function ReviewStep({ colors, priceDetails, onOpenAdvancedBuilder, openingLegacy }) {
   const {
     primaryFont = '#220707',
     secondaryFont = '#5C5F5D',
@@ -1297,27 +1251,6 @@ function ReviewStep({ colors, priceDetails, variantText, onOpenAdvancedBuilder, 
       >
         Estimated completion: {priceDetails.estimatedCompletionDate ? new Date(priceDetails.estimatedCompletionDate).toLocaleDateString() : `${priceDetails.estimatedCompletionDays} business days`}
       </Text>
-      <View style={styles.variantBlock}>
-        <Text
-          style={[
-            styles.variantTitle,
-            { color: primaryFont },
-          ]}
-        >
-          Playful CTA variants
-        </Text>
-        {variantText.map((variant) => (
-          <Text
-            key={variant}
-            style={[
-              styles.variantText,
-              { color: secondaryFont },
-            ]}
-          >
-            • {variant}
-          </Text>
-        ))}
-      </View>
       <View
         style={[
           styles.advancedCard,
@@ -1402,36 +1335,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     gap: 20,
-  },
-  previewPanel: {
-    gap: 12,
-  },
-  previewTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  previewCard: {
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 16,
-    gap: 10,
-  },
-  previewHeading: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  previewDetail: {
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  previewMeta: {
-    gap: 4,
-  },
-  previewMetaText: {
-    fontSize: 11,
-    fontWeight: '600',
   },
   stepContainer: {
     flexGrow: 1,
@@ -1735,17 +1638,6 @@ const styles = StyleSheet.create({
   etaText: {
     fontSize: 12,
   },
-  variantBlock: {
-    marginTop: 8,
-    gap: 4,
-  },
-  variantTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  variantText: {
-    fontSize: 12,
-  },
   advancedCard: {
     marginTop: 16,
     borderWidth: StyleSheet.hairlineWidth,
@@ -1776,43 +1668,43 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(0,0,0,0.08)',
     gap: 16,
+    columnGap: 16,
   },
-  backButton: {
+  footerButtonWrapper: {
     flex: 1,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
+    minWidth: 0,
+  },
+  footerButtonWrapperSmall: {
+    flex: 0.7,
+    minWidth: 0,
+  },
+  footerButtonWrapperLarge: {
+    flex: 1.15,
+    minWidth: 0,
+  },
+  footerButton: {
+    flex: 1,
     minHeight: 52,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  nextButton: {
-    flex: 1,
-  },
-  submitActions: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: 12,
-  },
-  secondaryButton: {
-    flex: 1,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
     paddingHorizontal: 12,
+    width: '100%',
   },
-  secondaryButtonText: {
+  footerButtonText: {
     fontSize: 16,
     fontWeight: '700',
+    textAlign: 'center',
+  },
+  footerPrimaryButton: {
+    flex: 1,
+    minHeight: 52,
+    width: '100%',
   },
   legacyBuilderButton: {
     marginTop: 16,

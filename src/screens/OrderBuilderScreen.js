@@ -73,7 +73,14 @@ function NailSetEditor({
   value,
   onCancel,
   onSave,
+  styles: editorStyles,
 }) {
+  const colors = theme?.colors || {};
+  const accentColor = colors.accent || '#6F171F';
+  const primaryFontColor = colors.primaryFont || '#220707';
+  const secondaryFontColor = colors.secondaryFont || '#5C5F5D';
+  const borderColor = colors.border || '#D9C8A9';
+  const surfaceColor = colors.surface || '#FFFFFF';
   const [form, setForm] = useState(value);
 
   useEffect(() => {
@@ -143,78 +150,89 @@ function NailSetEditor({
   };
 
   return (
-    <View style={styles.formContainer}>
-      <Text style={[styles.formTitle, { color: theme?.colors?.primaryFont || styles.formTitle.color }]}>
+    <View style={editorStyles.formContainer}>
+      <Text
+        style={[
+          editorStyles.formTitle,
+          { color: theme?.colors?.primaryFont || editorStyles.formTitle.color },
+        ]}
+      >
         {isNewSet ? 'Create Your Nail Set' : 'Edit Nail Set'}
       </Text>
-      <ScrollView style={styles.formScroll} contentContainerStyle={styles.formScrollContent}>
-        <Text style={styles.label}>Set Name (optional)</Text>
+      <ScrollView
+        style={editorStyles.formScroll}
+        contentContainerStyle={editorStyles.formScrollContent}
+      >
+        <Text style={editorStyles.label}>Set Name (optional)</Text>
         <TextInput
-          style={styles.input}
-        value={currentForm.name}
+          style={editorStyles.input}
+          value={currentForm.name}
           placeholder="e.g. Fuchsia French"
           onChangeText={(text) => setForm((prev) => ({ ...prev, name: text }))}
         />
 
-        <Text style={styles.label}>Shape</Text>
-        <View style={styles.shapeGrid}>
+        <Text style={editorStyles.label}>Shape</Text>
+        <View style={editorStyles.shapeGrid}>
           {shapes.map((shape) => {
-              const selected = shape.id === currentForm.shapeId;
+            const selected = shape.id === currentForm.shapeId;
             return (
               <TouchableOpacity
                 key={shape.id}
                 style={[
-                  styles.shapeCard,
+                  editorStyles.shapeCard,
                   selected && { borderColor: accentColor },
                 ]}
                 onPress={() => handleSelectShape(shape.id)}
               >
                 {shape.imageUrl ? (
-                  <Image source={{ uri: shape.imageUrl }} style={styles.shapeImage} />
+                  <Image source={{ uri: shape.imageUrl }} style={editorStyles.shapeImage} />
                 ) : (
-                  <View style={styles.shapePlaceholder}>
-                    <Text style={styles.shapePlaceholderText}>{shape.name}</Text>
+                  <View style={editorStyles.shapePlaceholder}>
+                    <Text style={editorStyles.shapePlaceholderText}>{shape.name}</Text>
                   </View>
                 )}
-                <Text style={styles.shapeName}>{shape.name}</Text>
-                <Text style={styles.shapePrice}>{formatCurrency(shape.basePrice)}</Text>
+                <Text style={editorStyles.shapeName}>{shape.name}</Text>
+                <Text style={editorStyles.shapePrice}>{formatCurrency(shape.basePrice)}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <Text style={styles.label}>Quantity</Text>
+        <Text style={editorStyles.label}>Quantity</Text>
         <TextInput
-          style={styles.input}
+          style={editorStyles.input}
           keyboardType="number-pad"
           value={currentForm.quantity}
           onChangeText={(text) => setForm((prev) => ({ ...prev, quantity: text }))}
           placeholder="1"
         />
-        <Text style={styles.helperText}>One set = 10 nails (left & right hands).</Text>
+        <Text style={editorStyles.helperText}>One set = 10 nails (left & right hands).</Text>
 
-        <Text style={styles.label}>Design Uploads</Text>
+        <Text style={editorStyles.label}>Design Uploads</Text>
         <PrimaryButton label="Add Inspiration Image" onPress={handleUploadDesign} />
         {currentForm.designUploads.length === 0 ? (
-          <Text style={styles.helperText}>
+          <Text style={editorStyles.helperText}>
             Upload photos of the design or describe it below. If neither, mark for follow-up.
           </Text>
         ) : (
-          <View style={styles.uploadGrid}>
+          <View style={editorStyles.uploadGrid}>
             {currentForm.designUploads.map((upload) => (
-              <View key={upload.id} style={styles.uploadItem}>
-                <Image source={{ uri: upload.uri || `data:image/jpeg;base64,${upload.base64}` }} style={styles.uploadPreview} />
+              <View key={upload.id} style={editorStyles.uploadItem}>
+                <Image
+                  source={{ uri: upload.uri || `data:image/jpeg;base64,${upload.base64}` }}
+                  style={editorStyles.uploadPreview}
+                />
                 <TouchableOpacity onPress={() => handleRemoveUpload(upload.id)}>
-                  <Text style={styles.removeLink}>Remove</Text>
+                  <Text style={editorStyles.removeLink}>Remove</Text>
                 </TouchableOpacity>
               </View>
             ))}
           </View>
         )}
 
-        <Text style={styles.label}>Design Description</Text>
+        <Text style={editorStyles.label}>Design Description</Text>
         <TextInput
-          style={[styles.input, styles.notesInput]}
+          style={[editorStyles.input, editorStyles.notesInput]}
           multiline
           numberOfLines={4}
           value={currentForm.description}
@@ -223,32 +241,34 @@ function NailSetEditor({
         />
 
         <TouchableOpacity
-          style={styles.checkboxRow}
+          style={editorStyles.checkboxRow}
           onPress={() => setForm((prev) => ({ ...prev, requiresFollowUp: !prev.requiresFollowUp }))}
         >
           <View
           style={[
-            styles.checkbox,
+              editorStyles.checkbox,
             currentForm.requiresFollowUp && { backgroundColor: accentColor },
           ]}
           />
-          <Text style={styles.checkboxLabel}>We&apos;ll finalize design details later</Text>
+          <Text style={editorStyles.checkboxLabel}>We&apos;ll finalize design details later</Text>
         </TouchableOpacity>
 
-        <Text style={styles.label}>Sizing</Text>
-        <View style={styles.optionRow}>
+        <Text style={editorStyles.label}>Sizing</Text>
+        <View style={editorStyles.optionRow}>
           {['standard', 'perSet'].map((mode) => {
             const selected = currentForm.sizes.mode === mode;
             return (
               <TouchableOpacity
                 key={mode}
                 style={[
-                  styles.optionButton,
+                  editorStyles.optionButton,
                   selected && { borderColor: accentColor },
                 ]}
                 onPress={() => toggleSizeMode(mode)}
               >
-                <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
+                <Text
+                  style={[editorStyles.optionText, selected && editorStyles.optionTextSelected]}
+                >
                   {mode === 'standard' ? 'Standard Sizes' : 'Enter Sizes'}
                 </Text>
               </TouchableOpacity>
@@ -257,12 +277,12 @@ function NailSetEditor({
         </View>
 
         {currentForm.sizes.mode === 'perSet' ? (
-          <View style={styles.sizeGrid}>
+          <View style={editorStyles.sizeGrid}>
             {SIZE_KEYS.map((finger) => (
-              <View key={finger} style={styles.sizeItem}>
-                <Text style={styles.sizeLabel}>{finger.toUpperCase()}</Text>
+              <View key={finger} style={editorStyles.sizeItem}>
+                <Text style={editorStyles.sizeLabel}>{finger.toUpperCase()}</Text>
                 <TextInput
-                  style={styles.input}
+                  style={editorStyles.input}
                   value={currentForm.sizes.values[finger]}
                   onChangeText={(text) =>
                     setForm((prev) => ({
@@ -283,9 +303,9 @@ function NailSetEditor({
           </View>
         ) : null}
 
-        <Text style={styles.label}>Set Notes</Text>
+        <Text style={editorStyles.label}>Set Notes</Text>
         <TextInput
-          style={[styles.input, styles.notesInput]}
+          style={[editorStyles.input, editorStyles.notesInput]}
           value={currentForm.setNotes}
           onChangeText={(text) => setForm((prev) => ({ ...prev, setNotes: text }))}
           placeholder="Finish, decals, special instructions..."
@@ -294,9 +314,9 @@ function NailSetEditor({
         />
       </ScrollView>
 
-      <View style={styles.formActions}>
+      <View style={editorStyles.formActions}>
         <TouchableOpacity onPress={onCancel}>
-          <Text style={styles.secondaryAction}>Cancel</Text>
+          <Text style={editorStyles.secondaryAction}>Cancel</Text>
         </TouchableOpacity>
         <PrimaryButton
           label="Save Nail Set"
@@ -1200,6 +1220,7 @@ function OrderBuilderScreen({
         value={editingSet}
         shapes={shapes}
         theme={theme}
+        styles={styles}
         onCancel={() => {
           setEditorVisible(false);
           setEditingSet(null);
