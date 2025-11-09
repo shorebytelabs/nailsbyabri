@@ -956,7 +956,7 @@ function OrderBuilderScreen({
                       </View>
                     ) : null}
 
-                    <Text style={styles.stepLabel}>Delivery speed</Text>
+                    <Text style={styles.stepLabel}>Delivery Timing</Text>
                     <View style={styles.speedList}>
                       {Object.values(selectedMethodConfig.speedOptions).map((option) => {
                         const selected = selectedSpeedConfig.id === option.id;
