@@ -24,7 +24,7 @@ if (!STRIPE_SECRET_KEY) {
 const app = express();
 app.use(cors());
 app.use('/payments/webhook', express.raw({ type: 'application/json' }));
-const jsonBodyParser = express.json();
+const jsonBodyParser = express.json({ limit: '10mb' });
 app.use((req, res, next) => {
   if (req.originalUrl === '/payments/webhook') {
     return next();
