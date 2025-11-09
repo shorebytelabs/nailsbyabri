@@ -106,7 +106,6 @@ function HomeDashboardScreen() {
         contentContainerStyle={[
           styles.container,
           {
-            paddingTop: insets.top + 12,
             paddingBottom: Math.max(insets.bottom + 24, 36),
             paddingHorizontal: horizontalPadding,
             backgroundColor: colors.primaryBackground || '#F7F7FB',
@@ -421,7 +420,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
-    gap: 24,
+    gap: 18,
   },
   heroCard: {
     borderRadius: 14,
