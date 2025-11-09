@@ -7,7 +7,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
@@ -98,22 +98,18 @@ function HomeDashboardScreen() {
   };
 
   return (
-    <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: colors.primaryBackground || '#F7F7FB' }]}
-      edges={['top', 'left', 'right']}
+    <ScrollView
+      contentContainerStyle={[
+        styles.container,
+        {
+          paddingBottom: Math.max(insets.bottom + 24, 36),
+          paddingHorizontal: horizontalPadding,
+          backgroundColor: colors.primaryBackground || '#F7F7FB',
+        },
+      ]}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
     >
-      <ScrollView
-        contentContainerStyle={[
-          styles.container,
-          {
-            paddingBottom: Math.max(insets.bottom + 24, 36),
-            paddingHorizontal: horizontalPadding,
-            backgroundColor: colors.primaryBackground || '#F7F7FB',
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
         <View
           style={[
             styles.heroCard,
@@ -410,17 +406,14 @@ function HomeDashboardScreen() {
             </View>
           ))}
         </View>
-      </ScrollView>
-    </SafeAreaView>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
   container: {
     gap: 18,
+    paddingTop: 10,
   },
   heroCard: {
     borderRadius: 14,
