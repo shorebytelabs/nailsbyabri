@@ -56,7 +56,7 @@ function FloatingCreateButton({
         styles.wrapper,
         {
           transform: [{ translateY }],
-          bottom: bottomInset + 32,
+          bottom: Math.max(bottomInset + 16, 28),
         },
       ]}
     >

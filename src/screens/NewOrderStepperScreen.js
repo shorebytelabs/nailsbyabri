@@ -10,7 +10,9 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
@@ -45,8 +47,13 @@ const VARIANT_OPTIONS = ['Create Set', 'Design', 'Make Magic'];
 function NewOrderStepperScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const colors = theme?.colors || {};
   const { state, handleDraftSaved, handleOrderComplete } = useAppState();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+
+  const colors = theme?.colors || {};
+  const horizontalSpacing = Math.max(16, Math.min(28, width * 0.06));
+  const isCompact = width < 900;
 
   const [shapes, setShapes] = useState([]);
   const [loadingShapes, setLoadingShapes] = useState(true);
@@ -306,262 +313,320 @@ function NewOrderStepperScreen() {
   };
 
   return (
-    <View
+    <SafeAreaView
       style={[
-        styles.screen,
-        {
-          backgroundColor: colors.primaryBackground || '#F7F7FB',
-        },
+        styles.safeArea,
+        { backgroundColor: colors.primaryBackground || '#F7F7FB' },
       ]}
+      edges={['top', 'left', 'right']}
     >
-      <View style={styles.progressContainer}>
-        <View style={styles.progressTrack}>
-          <View
-            style={[
-              styles.progressFill,
-              {
-                backgroundColor: colors.accent || '#531C22',
-                width: `${((currentStep + 1) / STEP_DEFINITIONS.length) * 100}%`,
-              },
-            ]}
-          />
-        </View>
-        <Text
+      <View
+        style={[
+          styles.screen,
+          {
+            paddingBottom: Math.max(insets.bottom, 0),
+          },
+        ]}
+      >
+        <View
           style={[
-            styles.progressLabel,
-            { color: colors.secondaryFont || '#5C5F5D' },
+            styles.progressContainer,
+            { paddingHorizontal: horizontalSpacing, paddingTop: Math.max(insets.top, 12) },
           ]}
         >
-          Step {currentStep + 1} of {STEP_DEFINITIONS.length}
-        </Text>
-      </View>
-
-      <View style={styles.contentContainer}>
-        <View style={styles.previewPanel}>
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  backgroundColor: colors.accent || '#531C22',
+                  width: `${((currentStep + 1) / STEP_DEFINITIONS.length) * 100}%`,
+                },
+              ]}
+            />
+          </View>
           <Text
             style={[
-              styles.previewTitle,
+              styles.progressLabel,
               { color: colors.secondaryFont || '#5C5F5D' },
             ]}
           >
-            Mini preview
+            Step {currentStep + 1} of {STEP_DEFINITIONS.length}
           </Text>
+        </View>
+
+        <View
+          style={[
+            styles.contentContainer,
+            {
+              flexDirection: isCompact ? 'column' : 'row',
+              gap: isCompact ? 16 : 24,
+              paddingHorizontal: horizontalSpacing,
+            },
+          ]}
+        >
           <View
             style={[
-              styles.previewCard,
+              styles.previewPanel,
               {
-                backgroundColor: colors.surface || '#FFFFFF',
-                borderColor: colors.border || '#D9C8A9',
+                width: isCompact ? '100%' : 180,
+                flexDirection: 'column',
+                gap: 12,
+                marginBottom: isCompact ? 8 : 0,
               },
             ]}
           >
             <Text
               style={[
-                styles.previewHeading,
-                { color: colors.primaryFont || '#220707' },
-              ]}
-            >
-              {selectedShape?.name || 'Shape'}
-            </Text>
-            <Text
-              style={[
-                styles.previewDetail,
+                styles.previewTitle,
                 { color: colors.secondaryFont || '#5C5F5D' },
               ]}
             >
-              {form.designDescription || 'Design description will appear here.'}
+              Mini preview
             </Text>
-            <View style={styles.previewMeta}>
+            <View
+              style={[
+                styles.previewCard,
+                {
+                  backgroundColor: colors.surface || '#FFFFFF',
+                  borderColor: colors.border || '#D9C8A9',
+                },
+              ]}
+            >
               <Text
                 style={[
-                  styles.previewMetaText,
-                  { color: colors.secondaryFont || '#5C5F5D' },
+                  styles.previewHeading,
+                  { color: colors.primaryFont || '#220707' },
                 ]}
               >
-                Inspiration images: {form.designUploads?.length || 0}
+                {selectedShape?.name || 'Shape'}
               </Text>
               <Text
                 style={[
-                  styles.previewMetaText,
+                  styles.previewDetail,
                   { color: colors.secondaryFont || '#5C5F5D' },
                 ]}
               >
-                Follow-up: {form.requiresFollowUp ? 'Requested' : 'Not needed'}
+                {form.designDescription || 'Design description will appear here.'}
               </Text>
-            </View>
-          </View>
-        </View>
-
-        <ScrollView contentContainerStyle={styles.stepContainer}>
-          <Text
-            style={[
-              styles.stepTitle,
-              { color: colors.primaryFont || '#220707' },
-            ]}
-          >
-            {STEP_DEFINITIONS[currentStep].title}
-          </Text>
-          <Text
-            style={[
-              styles.stepSubtitle,
-              { color: colors.secondaryFont || '#5C5F5D' },
-            ]}
-          >
-            {STEP_DEFINITIONS[currentStep].subtitle}
-          </Text>
-
-          {error ? (
-            <Text
-              style={[
-                styles.errorText,
-                { color: colors.accent || '#531C22' },
-              ]}
-            >
-              {error}
-            </Text>
-          ) : null}
-
-          {currentStep === 0 ? (
-            <ShapeStep
-              colors={colors}
-              shapes={shapes}
-              loading={loadingShapes}
-              selectedShapeId={form.shapeId}
-              onSelect={(shapeId) => setForm((prev) => ({ ...prev, shapeId }))}
-            />
-          ) : null}
-
-          {currentStep === 1 ? (
-            <DesignStep
-              colors={colors}
-              description={form.designDescription}
-              designUploads={form.designUploads}
-              requiresFollowUp={form.requiresFollowUp}
-              onAddUpload={handleAddDesignUpload}
-              onChangeDescription={(designDescription) =>
-                setForm((prev) => ({ ...prev, designDescription }))
-              }
-              onRemoveUpload={handleRemoveDesignUpload}
-              onToggleFollowUp={(requiresFollowUp) =>
-                setForm((prev) => ({ ...prev, requiresFollowUp }))
-              }
-            />
-          ) : null}
-
-          {currentStep === 2 ? (
-            <SizingStep
-              colors={colors}
-              quantity={String(form.quantity)}
-              sizeMode={form.sizeMode}
-              sizes={form.sizes}
-              onChangeQuantity={(quantity) => setForm((prev) => ({ ...prev, quantity }))}
-              onSelectSizeMode={(sizeMode) =>
-                setForm((prev) => ({ ...prev, sizeMode }))
-              }
-              onChangeSizes={(sizes) =>
-                setForm((prev) => ({ ...prev, sizes: { ...prev.sizes, ...sizes } }))
-              }
-            />
-          ) : null}
-
-          {currentStep === 3 ? (
-            <FulfillmentStep
-              colors={colors}
-              fulfillment={form.fulfillment}
-              onChangeMethod={(method) =>
-                setForm((prev) => ({
-                  ...prev,
-                  fulfillment: {
-                    ...prev.fulfillment,
-                    method,
-                    speed:
-                      pricingConstants.DELIVERY_METHODS[method]?.defaultSpeed || 'standard',
-                  },
-                }))
-              }
-              onChangeSpeed={(speed) =>
-                setForm((prev) => ({
-                  ...prev,
-                  fulfillment: {
-                    ...prev.fulfillment,
-                    speed,
-                  },
-                }))
-              }
-              onChangeAddress={(address) =>
-                setForm((prev) => ({
-                  ...prev,
-                  fulfillment: {
-                    ...prev.fulfillment,
-                    address: {
-                      ...prev.fulfillment.address,
-                      ...address,
-                    },
-                  },
-                }))
-              }
-            />
-          ) : null}
-
-          {currentStep === 4 && priceDetails ? (
-            <ReviewStep
-              colors={colors}
-              priceDetails={priceDetails}
-              variantText={VARIANT_OPTIONS}
-              onOpenAdvancedBuilder={handleOpenLegacyBuilder}
-              openingLegacy={openingLegacyBuilder}
-            />
-          ) : null}
-        </ScrollView>
-      </View>
-
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Text
-            style={[
-              styles.backText,
-              { color: colors.secondaryFont || '#5C5F5D' },
-            ]}
-          >
-            Back
-          </Text>
-        </TouchableOpacity>
-        {currentStep < STEP_DEFINITIONS.length - 1 ? (
-          <PrimaryButton label="Next" onPress={handleNext} style={styles.nextButton} />
-        ) : (
-          <View style={styles.submitActions}>
-            <TouchableOpacity
-              style={[
-                styles.secondaryButton,
-                { borderColor: colors.accent || '#531C22' },
-              ]}
-              onPress={handleSaveDraft}
-              disabled={savingDraft}
-            >
-              {savingDraft ? (
-                <ActivityIndicator color={colors.accent || '#531C22'} />
-              ) : (
+              <View style={styles.previewMeta}>
                 <Text
                   style={[
-                    styles.secondaryButtonText,
-                    { color: colors.accent || '#531C22' },
+                    styles.previewMetaText,
+                    { color: colors.secondaryFont || '#5C5F5D' },
                   ]}
                 >
-                  Save draft
+                  Inspiration images: {form.designUploads?.length || 0}
                 </Text>
-              )}
-            </TouchableOpacity>
-            <PrimaryButton
-              label={submitting ? 'Submitting…' : 'Submit order'}
-              onPress={handleSubmit}
-              loading={submitting}
-              style={styles.nextButton}
-              accessibilityLabel="Submit your nail set order"
-            />
+                <Text
+                  style={[
+                    styles.previewMetaText,
+                    { color: colors.secondaryFont || '#5C5F5D' },
+                  ]}
+                >
+                  Follow-up: {form.requiresFollowUp ? 'Requested' : 'Not needed'}
+                </Text>
+              </View>
+            </View>
           </View>
-        )}
+
+          <ScrollView
+            contentContainerStyle={[
+              styles.stepContainer,
+              { paddingBottom: Math.max(insets.bottom + 160, 200) },
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text
+              style={[
+                styles.stepTitle,
+                { color: colors.primaryFont || '#220707' },
+              ]}
+            >
+              {STEP_DEFINITIONS[currentStep].title}
+            </Text>
+            <Text
+              style={[
+                styles.stepSubtitle,
+                { color: colors.secondaryFont || '#5C5F5D' },
+              ]}
+            >
+              {STEP_DEFINITIONS[currentStep].subtitle}
+            </Text>
+
+            {error ? (
+              <Text
+                style={[
+                  styles.errorText,
+                  { color: colors.accent || '#531C22' },
+                ]}
+              >
+                {error}
+              </Text>
+            ) : null}
+
+            {currentStep === 0 ? (
+              <ShapeStep
+                colors={colors}
+                shapes={shapes}
+                loading={loadingShapes}
+                selectedShapeId={form.shapeId}
+                onSelect={(shapeId) => setForm((prev) => ({ ...prev, shapeId }))}
+              />
+            ) : null}
+
+            {currentStep === 1 ? (
+              <DesignStep
+                colors={colors}
+                description={form.designDescription}
+                designUploads={form.designUploads}
+                requiresFollowUp={form.requiresFollowUp}
+                onAddUpload={handleAddDesignUpload}
+                onChangeDescription={(designDescription) =>
+                  setForm((prev) => ({ ...prev, designDescription }))
+                }
+                onRemoveUpload={handleRemoveDesignUpload}
+                onToggleFollowUp={(requiresFollowUp) =>
+                  setForm((prev) => ({ ...prev, requiresFollowUp }))
+                }
+              />
+            ) : null}
+
+            {currentStep === 2 ? (
+              <SizingStep
+                colors={colors}
+                quantity={String(form.quantity)}
+                sizeMode={form.sizeMode}
+                sizes={form.sizes}
+                onChangeQuantity={(quantity) => setForm((prev) => ({ ...prev, quantity }))}
+                onSelectSizeMode={(sizeMode) =>
+                  setForm((prev) => ({ ...prev, sizeMode }))
+                }
+                onChangeSizes={(sizes) =>
+                  setForm((prev) => ({ ...prev, sizes: { ...prev.sizes, ...sizes } }))
+                }
+              />
+            ) : null}
+
+            {currentStep === 3 ? (
+              <FulfillmentStep
+                colors={colors}
+                fulfillment={form.fulfillment}
+                onChangeMethod={(method) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    fulfillment: {
+                      ...prev.fulfillment,
+                      method,
+                      speed:
+                        pricingConstants.DELIVERY_METHODS[method]?.defaultSpeed || 'standard',
+                    },
+                  }))
+                }
+                onChangeSpeed={(speed) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    fulfillment: {
+                      ...prev.fulfillment,
+                      speed,
+                    },
+                  }))
+                }
+                onChangeAddress={(address) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    fulfillment: {
+                      ...prev.fulfillment,
+                      address: {
+                        ...prev.fulfillment.address,
+                        ...address,
+                      },
+                    },
+                  }))
+                }
+              />
+            ) : null}
+
+            {currentStep === 4 && priceDetails ? (
+              <ReviewStep
+                colors={colors}
+                priceDetails={priceDetails}
+                variantText={VARIANT_OPTIONS}
+                onOpenAdvancedBuilder={handleOpenLegacyBuilder}
+                openingLegacy={openingLegacyBuilder}
+              />
+            ) : null}
+          </ScrollView>
+        </View>
+
+        <View
+          style={[
+            styles.footer,
+            {
+              paddingHorizontal: horizontalSpacing,
+              paddingBottom: Math.max(insets.bottom + 12, 28),
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBack}
+            accessibilityRole="button"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text
+              style={[
+                styles.backText,
+                { color: colors.secondaryFont || '#5C5F5D' },
+              ]}
+            >
+              Back
+            </Text>
+          </TouchableOpacity>
+          {currentStep < STEP_DEFINITIONS.length - 1 ? (
+            <PrimaryButton
+              label="Next"
+              onPress={handleNext}
+              style={styles.nextButton}
+              accessibilityLabel="Go to next step"
+            />
+          ) : (
+            <View style={styles.submitActions}>
+              <TouchableOpacity
+                style={[
+                  styles.secondaryButton,
+                  { borderColor: colors.accent || '#531C22' },
+                ]}
+                onPress={handleSaveDraft}
+                disabled={savingDraft}
+                accessibilityRole="button"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                {savingDraft ? (
+                  <ActivityIndicator color={colors.accent || '#531C22'} />
+                ) : (
+                  <Text
+                    style={[
+                      styles.secondaryButtonText,
+                      { color: colors.accent || '#531C22' },
+                    ]}
+                  >
+                    Save draft
+                  </Text>
+                )}
+              </TouchableOpacity>
+              <PrimaryButton
+                label={submitting ? 'Submitting…' : 'Submit order'}
+                onPress={handleSubmit}
+                loading={submitting}
+                style={styles.nextButton}
+                accessibilityLabel="Submit your nail set order"
+              />
+            </View>
+          )}
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -1248,6 +1313,9 @@ function ReviewStep({ colors, priceDetails, variantText, onOpenAdvancedBuilder, 
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   screen: {
     flex: 1,
   },
@@ -1278,7 +1346,6 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   previewPanel: {
-    width: 140,
     gap: 12,
   },
   previewTitle: {
@@ -1506,6 +1573,7 @@ const styles = StyleSheet.create({
   methodRow: {
     flexDirection: 'row',
     gap: 12,
+    flexWrap: 'wrap',
   },
   methodCard: {
     flex: 1,
@@ -1524,6 +1592,7 @@ const styles = StyleSheet.create({
   speedRow: {
     flexDirection: 'row',
     gap: 12,
+    flexWrap: 'wrap',
   },
   speedCard: {
     flex: 1,
@@ -1649,21 +1718,23 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(0,0,0,0.08)',
-    gap: 20,
+    gap: 16,
   },
   backButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    flex: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    minHeight: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   backText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
   },
   nextButton: {
     flex: 1,
@@ -1679,10 +1750,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    minHeight: 52,
+    paddingHorizontal: 12,
   },
   secondaryButtonText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
   },
   legacyBuilderButton: {

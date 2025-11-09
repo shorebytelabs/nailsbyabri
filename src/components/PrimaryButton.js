@@ -30,6 +30,7 @@ function PrimaryButton({
       onPress={onPress}
       disabled={isDisabled}
       activeOpacity={0.85}
+      accessibilityRole="button"
     >
       {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.label}>{label}</Text>}
     </TouchableOpacity>
@@ -39,16 +40,19 @@ function PrimaryButton({
 const styles = StyleSheet.create({
   button: {
     backgroundColor: '#272b75',
-    paddingVertical: 14,
-    borderRadius: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    minHeight: 52,
+    borderRadius: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   disabled: {
     backgroundColor: '#a0a3c2',
   },
   label: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 16,
   },
 });
