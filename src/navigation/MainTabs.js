@@ -16,6 +16,9 @@ import { withOpacity } from '../utils/color';
 
 const Tab = createBottomTabNavigator();
 
+const TAB_ICON_SIZE = 22;
+const TAB_ICON_SIZE_ACTIVE = 24;
+
 export default function MainTabs() {
   const navigation = useNavigation();
   const { handleStartOrder } = useAppState();
@@ -96,7 +99,7 @@ export default function MainTabs() {
           options={{
             tabBarLabel: 'Home',
             tabBarIcon: ({ color, focused }) => (
-              <Icon name="home" color={color} size={focused ? 26 : 24} />
+              <Icon name="home" color={color} size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE} />
             ),
           }}
         />
@@ -106,7 +109,11 @@ export default function MainTabs() {
           options={{
             tabBarLabel: 'Gallery',
             tabBarIcon: ({ color, focused }) => (
-              <Icon name="gallery" color={color} size={focused ? 26 : 24} />
+              <Icon
+                name="gallery"
+                color={color}
+                size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE}
+              />
             ),
           }}
         />
@@ -116,7 +123,7 @@ export default function MainTabs() {
           options={{
             tabBarLabel: 'Orders',
             tabBarIcon: ({ color, focused }) => (
-              <Icon name="orders" color={color} size={focused ? 26 : 24} />
+              <Icon name="orders" color={color} size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE} />
             ),
           }}
         />
@@ -126,7 +133,7 @@ export default function MainTabs() {
           options={{
             tabBarLabel: 'Profile',
             tabBarIcon: ({ color, focused }) => (
-              <Icon name="profile" color={color} size={focused ? 26 : 24} />
+              <Icon name="profile" color={color} size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE} />
             ),
           }}
         />

@@ -38,7 +38,10 @@ function BottomTabBar({ state, descriptors, navigation }) {
         const isFocused = state.index === index;
         const icon =
           typeof options.tabBarIcon === 'function'
-            ? options.tabBarIcon({ focused: isFocused, color: isFocused ? accentColor : inactiveColor })
+            ? options.tabBarIcon({
+                focused: isFocused,
+                color: isFocused ? accentColor : inactiveColor,
+              })
             : null;
 
         const onPress = () => {
@@ -112,10 +115,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    minHeight: 44,
+    minHeight: 48,
+    paddingTop: 30,
   },
   iconWrapper: {
-    height: 24,
+    height: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
