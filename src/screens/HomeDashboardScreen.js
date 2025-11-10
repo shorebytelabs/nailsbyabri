@@ -132,7 +132,7 @@ function HomeDashboardScreen() {
                 { color: colors.primaryFont },
               ]}
             >
-              Your perfect nails, your way
+              Design Your Perfect Nails
             </Text>
             <Text
               style={[
