@@ -31,7 +31,7 @@ const STEP_DEFINITIONS = [
     subtitle: 'Upload inspiration images or describe your art direction.',
   },
   { key: 'sizing', title: 'Sizing & quantity', subtitle: 'Select quantity and sizing mode.' },
-  { key: 'fulfillment', title: 'Fulfilment', subtitle: 'How should we deliver your set?' },
+  { key: 'fulfillment', title: 'Delivery details', subtitle: 'How should we deliver your set?' },
   { key: 'review', title: 'Review & submit', subtitle: 'Double-check everything looks right.' },
 ];
 
