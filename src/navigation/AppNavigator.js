@@ -6,6 +6,7 @@ import SignupScreen from '../screens/SignupScreen';
 import LoginScreen from '../screens/LoginScreen';
 import ConsentScreen from '../screens/ConsentScreen';
 import OrderConfirmationScreen from '../screens/OrderConfirmationScreen';
+import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import OrderBuilderScreen from '../screens/OrderBuilderScreen';
 import MainTabs from './MainTabs';
 import NewOrderStepperScreen from '../screens/NewOrderStepperScreen';
@@ -168,16 +169,12 @@ function OrderConfirmationContainer({ route, navigation }) {
         navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       }}
       onViewOrder={(selectedOrder) => {
+        const targetOrder = selectedOrder || order;
+        if (!targetOrder) {
+          return;
+        }
         handleOrderCancelled();
-        navigation.reset({
-          index: 0,
-          routes: [
-            {
-              name: 'MainTabs',
-              params: { screen: 'Orders', params: selectedOrder ? { orderId: selectedOrder.id } : undefined },
-            },
-          ],
-        });
+        navigation.navigate('OrderDetails', { order: targetOrder });
       }}
     />
   );
@@ -299,6 +296,7 @@ function AppNavigator() {
           options={{ presentation: 'modal' }}
         />
         <Stack.Screen name="OrderConfirmation" component={OrderConfirmationContainer} />
+        <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
       </Stack.Navigator>
       <BannerToast />
       <StatusOverlay />
