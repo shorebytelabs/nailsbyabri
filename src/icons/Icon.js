@@ -375,6 +375,56 @@ const iconRenderers = {
       />
     </Svg>
   ),
+  checkCircle: (props = {}) => (
+    <Svg
+      width={ICON_SIZE}
+      height={ICON_SIZE}
+      viewBox="0 0 24 24"
+      color={props.color || 'currentColor'}
+      {...props}
+    >
+      <Circle
+        cx={12}
+        cy={12}
+        r={10}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+      />
+      <Path
+        d="m8.5 12.5 2.5 2.5 4.5-4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  ),
+  copy: (props = {}) => (
+    <Svg
+      width={ICON_SIZE}
+      height={ICON_SIZE}
+      viewBox="0 0 24 24"
+      color={props.color || 'currentColor'}
+      {...props}
+    >
+      <Path
+        d="M9 9h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M6 15H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+    </Svg>
+  ),
 };
 
 export function Icon({ name, color, size = ICON_SIZE, ...rest }) {

@@ -167,6 +167,18 @@ function OrderConfirmationContainer({ route, navigation }) {
         handleOrderCancelled();
         navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       }}
+      onViewOrder={(selectedOrder) => {
+        handleOrderCancelled();
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'MainTabs',
+              params: { screen: 'Orders', params: selectedOrder ? { orderId: selectedOrder.id } : undefined },
+            },
+          ],
+        });
+      }}
     />
   );
 }

@@ -14,6 +14,7 @@ function PrimaryButton({
   disabled = false,
   loading = false,
   style,
+  ...touchableProps
 }) {
   const { theme } = useTheme();
   const colors = theme?.colors || {};
@@ -34,6 +35,7 @@ function PrimaryButton({
       disabled={isDisabled}
       activeOpacity={0.85}
       accessibilityRole="button"
+      {...touchableProps}
     >
       {loading ? (
         <ActivityIndicator color={accentContrast} />
