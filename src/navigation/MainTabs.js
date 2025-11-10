@@ -21,10 +21,12 @@ const TAB_ICON_SIZE_ACTIVE = 24;
 
 export default function MainTabs() {
   const navigation = useNavigation();
-  const { handleStartOrder } = useAppState();
+  const { state, handleStartOrder } = useAppState();
   const { theme } = useTheme();
   const colors = theme?.colors || {};
   const insets = useSafeAreaInsets();
+
+  const draftBadgeCount = state.activeOrder?.status === 'draft' ? 1 : 0;
 
   const openCreateFlow = useCallback(() => {
     const canProceed = handleStartOrder();
@@ -122,6 +124,7 @@ export default function MainTabs() {
           component={OrdersScreen}
           options={{
             tabBarLabel: 'Orders',
+            tabBarBadge: draftBadgeCount > 0 ? draftBadgeCount : undefined,
             tabBarIcon: ({ color, focused }) => (
               <Icon name="orders" color={color} size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE} />
             ),

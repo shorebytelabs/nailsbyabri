@@ -36,6 +36,7 @@ function BottomTabBar({ state, descriptors, navigation }) {
             : route.name;
 
         const isFocused = state.index === index;
+        const badgeValue = options.tabBarBadge;
         const icon =
           typeof options.tabBarIcon === 'function'
             ? options.tabBarIcon({
@@ -79,7 +80,24 @@ function BottomTabBar({ state, descriptors, navigation }) {
               },
             ]}
           >
-            <View style={styles.iconWrapper}>{icon}</View>
+            <View style={styles.iconWrapper}>
+              {icon}
+              {badgeValue ? (
+                <View
+                  style={[
+                    styles.badge,
+                    {
+                      backgroundColor: accentColor,
+                      borderColor: backgroundColor,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.badgeText, { color: colors.accentContrast || '#FFFFFF' }]}>
+                    {badgeValue}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
             <Text
               style={[
                 styles.label,
@@ -116,18 +134,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     minHeight: 48,
-    paddingTop: 30,
+    paddingTop: 20,
   },
   iconWrapper: {
-    height: 18,
+    height: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
   label: {
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0.3,
     textTransform: 'uppercase',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -12,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
 });
 
