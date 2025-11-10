@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
 import { login } from '../services/api';
 import { useTheme } from '../theme';
 import { withOpacity } from '../utils/color';
+
+const LOGO_SOURCE = require('../../assets/images/NailsByAbriLogo.png');
 
 function LoginScreen({
   authMessage,
@@ -25,8 +27,9 @@ function LoginScreen({
   const secondaryBackgroundColor = colors.secondaryBackground || '#E7D8CA';
   const errorColor = colors.error || '#B33A3A';
   const accentColor = colors.accent || '#6F171F';
-  const noticeBackgroundColor = withOpacity(accentColor, 0.12);
-  const noticeBorderColor = withOpacity(accentColor, 0.24);
+  const surfaceColor = colors.surface || '#FFFFFF';
+  const borderColor = colors.border || withOpacity('#000000', 0.08);
+  const shadowColor = colors.shadow || '#000000';
 
   const handleSubmit = async () => {
     setError(null);
@@ -50,134 +53,244 @@ function LoginScreen({
 
   const isSubmitDisabled = !email.trim() || !password.trim();
 
+  const handleForgotPassword = useCallback(() => {
+    // Placeholder for future integration
+  }, []);
+
   return (
-    <ScreenContainer>
-      {authMessage ? (
-        <View
-          style={[
-            styles.notice,
-            {
-              backgroundColor: noticeBackgroundColor,
-              borderColor: noticeBorderColor,
-            },
-          ]}
-        >
-          <Text style={[styles.noticeTitle, { color: accentColor }]}>Log in required</Text>
-          <Text style={[styles.noticeMessage, { color: primaryFontColor }]}>{authMessage}</Text>
-        </View>
-      ) : null}
-
-      <View style={[styles.header, { backgroundColor: secondaryBackgroundColor }]}>
-        <Text style={[styles.title, { color: primaryFontColor }]}>
-          Welcome Back
-        </Text>
-        <Text style={[styles.subtitle, { color: secondaryFontColor }]}>
-          Log in to manage your appointments and profile.
-        </Text>
-      </View>
-
-      <View style={styles.section}>
-        <FormField
-          label="Email"
-          value={email}
-          onChangeText={setEmail}
-          placeholder="you@example.com"
-          keyboardType="email-address"
-        />
-        <FormField
-          label="Password"
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Enter your password"
-          secureTextEntry
-        />
-      </View>
-
-      {error ? <Text style={[styles.error, { color: errorColor }]}>{error}</Text> : null}
-
-      <PrimaryButton
-        label="Log In"
-        onPress={handleSubmit}
-        loading={loading}
-        disabled={isSubmitDisabled}
+    <ScreenContainer scroll={false} style={styles.screen}>
+      <View
+        style={[
+          styles.ambientAccent,
+          { backgroundColor: withOpacity(accentColor, 0.06) },
+        ]}
       />
-
-      <TouchableOpacity onPress={onSwitchToSignup} style={styles.switchRow}>
-        <Text style={[styles.switchText, { color: secondaryFontColor }]}>
-          Need an account?{' '}
-        </Text>
-        <Text style={[styles.switchLink, { color: accentColor }]}>Sign up</Text>
-      </TouchableOpacity>
 
       <TouchableOpacity
         onPress={onCancel}
-        style={styles.cancelRow}
+        style={styles.backButton}
         accessibilityRole="button"
-        accessibilityLabel="Go back without logging in"
+        accessibilityLabel="Go back to Home"
       >
-        <Text style={[styles.cancelText, { color: secondaryFontColor }]}>Back to Home</Text>
+        <Text
+          style={[styles.backText, { color: withOpacity(primaryFontColor, 0.7) }]}
+        >
+          ← Back to Home
+        </Text>
       </TouchableOpacity>
+
+      <View style={styles.formStack}>
+        <View style={styles.logoWrapper}>
+          <View
+            style={[
+              styles.logoContainer,
+              { backgroundColor: withOpacity(secondaryBackgroundColor, 0.6) },
+            ]}
+          >
+            <Image source={LOGO_SOURCE} style={styles.logo} resizeMode="contain" />
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.formCard,
+            {
+              backgroundColor: surfaceColor,
+              borderColor,
+              shadowColor,
+            },
+          ]}
+        >
+          <View style={styles.formIntro}>
+            <Text
+              style={[
+                styles.welcome,
+                { color: primaryFontColor },
+              ]}
+            >
+              Welcome!
+            </Text>
+            {authMessage ? (
+              <Text
+                style={[
+                  styles.authContext,
+                  { color: withOpacity(primaryFontColor, 0.75) },
+                ]}
+              >
+                {authMessage}
+              </Text>
+            ) : null}
+          </View>
+
+          <View style={styles.section}>
+            <FormField
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              keyboardType="email-address"
+            />
+            <FormField
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Enter your password"
+              secureTextEntry
+            />
+          </View>
+
+          {error ? <Text style={[styles.error, { color: errorColor }]}>{error}</Text> : null}
+
+          <PrimaryButton
+            label="Log In"
+            onPress={handleSubmit}
+            loading={loading}
+            disabled={isSubmitDisabled}
+            style={styles.loginButton}
+          />
+
+          <TouchableOpacity
+            style={styles.forgotRow}
+            accessibilityRole="button"
+            onPress={handleForgotPassword}
+          >
+            <Text
+              style={[
+                styles.forgotText,
+                { color: withOpacity(primaryFontColor, 0.7) },
+              ]}
+            >
+              Forgot password?
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.switchRow}>
+            <Text style={[styles.switchText, { color: secondaryFontColor }]}>
+              Need an account?
+            </Text>
+            <TouchableOpacity onPress={onSwitchToSignup} accessibilityRole="button">
+              <Text style={[styles.switchLink, { color: accentColor }]}> Sign up</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    marginBottom: 24,
-    padding: 16,
-    borderRadius: 12,
+  screen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    gap: 24,
   },
-  notice: {
-    marginBottom: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: 6,
+  backButton: {
+    alignSelf: 'flex-start',
+    marginLeft: 4,
+    marginBottom: 8,
   },
-  noticeTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+  backText: {
+    fontSize: 13,
+    fontWeight: '600',
     letterSpacing: 0.2,
   },
-  noticeMessage: {
+  ambientAccent: {
+    position: 'absolute',
+    top: -120,
+    right: -80,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    transform: [{ rotate: '22deg' }],
+  },
+  formStack: {
+    width: '100%',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    marginTop: -50,
+  },
+  logoWrapper: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: -120,
+  },
+  logoContainer: {
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 28,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 18,
+    elevation: 6,
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
+  },
+  formCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 28,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    gap: 20,
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 12 },
+    shadowRadius: 24,
+    elevation: 12,
+    marginTop: 0,
+  },
+  formIntro: {
+    gap: 10,
+  },
+  welcome: {
+    fontSize: 18,
+    fontWeight: '600',
+    lineHeight: 24,
+  },
+  authContext: {
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '500',
   },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-  },
-  subtitle: {
-    marginTop: 8,
-    fontSize: 15,
-    lineHeight: 20,
-  },
   section: {
     marginBottom: 16,
+    gap: 12,
   },
   error: {
-    marginBottom: 16,
+    marginBottom: 4,
     fontSize: 14,
+  },
+  loginButton: {
+    marginTop: 4,
+  },
+  forgotRow: {
+    alignItems: 'flex-end',
+  },
+  forgotText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   switchRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 16,
+    alignItems: 'center',
+    gap: 4,
   },
   switchText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   switchLink: {
-    fontWeight: '600',
-  },
-  cancelRow: {
-    marginTop: 24,
-    alignItems: 'center',
-  },
-  cancelText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
 
