@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
@@ -19,6 +19,9 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} })
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [emailError, setEmailError] = useState('');
+  const [successPayload, setSuccessPayload] = useState(null);
+  const [successVisible, setSuccessVisible] = useState(false);
 
   const { theme } = useTheme();
   const colors = theme?.colors || {};
@@ -34,8 +37,12 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} })
   const isMinor = typeof age === 'number' && age < 18;
 
   const handleSubmit = async () => {
+    if (loading) {
+      return;
+    }
     setLoading(true);
     setError(null);
+    setEmailError('');
 
     try {
       const response = await signup({
@@ -46,13 +53,15 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} })
         parentEmail: parentEmail || undefined,
         parentPhone: parentPhone || undefined,
       });
-      onSignupSuccess(response);
+      setSuccessPayload(response);
+      setSuccessVisible(true);
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : 'Unable to complete signup, please try again.';
-      setError(message);
+      const message = err instanceof Error ? err.message : 'Unable to complete signup, please try again.';
+      if (message.toLowerCase().includes('account already exists')) {
+        setEmailError('An account already exists for this email. Try logging in or use “Forgot password”.');
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -125,9 +134,15 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} })
               <FormField
                 label="Email"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(value) => {
+                  setEmail(value);
+                  if (emailError) {
+                    setEmailError('');
+                  }
+                }}
                 placeholder="you@example.com"
                 keyboardType="email-address"
+                errorMessage={emailError}
               />
               <FormField
                 label="Password"
@@ -174,7 +189,7 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} })
               label="Sign Up"
               onPress={handleSubmit}
               loading={loading}
-              disabled={isSubmitDisabled}
+              disabled={isSubmitDisabled || loading}
               style={styles.submitButton}
             />
 
@@ -187,6 +202,33 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} })
           </View>
         </View>
       </ScrollView>
+      <Modal visible={successVisible} transparent animationType="fade">
+        <View style={styles.successOverlay}>
+          <View
+            style={[
+              styles.successCard,
+              {
+                backgroundColor: colors.surface || '#FFFFFF',
+                borderColor,
+                shadowColor: colors.shadow || '#000000',
+              },
+            ]}
+          >
+            <Text style={[styles.successTitle, { color: colors.success || '#4B7A57' }]}>Account created</Text>
+            <Text style={[styles.successMessage, { color: withOpacity(primaryFontColor, 0.85) }]}>If account requires parental consent, you’ll be directed to the Consent form now.</Text>
+            <PrimaryButton
+              label="Continue"
+              onPress={() => {
+                setSuccessVisible(false);
+                if (successPayload) {
+                  onSignupSuccess(successPayload);
+                  setSuccessPayload(null);
+                }
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -338,6 +380,33 @@ const styles = StyleSheet.create({
   switchLink: {
     fontSize: 13,
     fontWeight: '700',
+  },
+  successOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  successCard: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 24,
+    gap: 16,
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 12 },
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  successTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  successMessage: {
+    fontSize: 14,
+    lineHeight: 20,
   },
 });
 

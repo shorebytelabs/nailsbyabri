@@ -1,13 +1,13 @@
 import React, { useCallback } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import HomeDashboardScreen from '../screens/HomeDashboardScreen';
 import GalleryScreen from '../screens/GalleryScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import BottomTabBar from '../components/navigation/BottomTabBar';
+import BrandHeader from '../components/navigation/BrandHeader';
 import Icon from '../icons/Icon';
 import { useAppState } from '../context/AppContext';
 import { logEvent } from '../utils/analytics';
@@ -18,8 +18,6 @@ const Tab = createBottomTabNavigator();
 
 const TAB_ICON_SIZE = 22;
 const TAB_ICON_SIZE_ACTIVE = 24;
-const LOGO_SOURCE = require('../../assets/images/NailsByAbriLogo.png');
-
 export default function MainTabs() {
   const navigation = useNavigation();
   const { state, handleStartOrder, ensureAuthenticated } = useAppState();
@@ -38,47 +36,7 @@ export default function MainTabs() {
 
   return (
     <View style={styles.root}>
-      <SafeAreaView
-        edges={['top', 'left', 'right']}
-        style={[
-          styles.brandHeaderSafe,
-          {
-            backgroundColor: colors.primaryBackground,
-            borderBottomColor: withOpacity(colors.shadow, 0.08),
-          },
-        ]}
-      >
-        <View style={styles.brandHeader}>
-          <View style={styles.brandInfo}>
-            <View style={styles.brandLogoFrame}>
-              <Image
-                source={LOGO_SOURCE}
-                style={styles.brandLogo}
-                resizeMode="cover"
-                accessibilityRole="image"
-                accessibilityLabel="Nails by Abri"
-              />
-            </View>
-          </View>
-          <View style={styles.headerActions}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Create new custom nail set"
-              onPress={openCreateFlow}
-              style={({ pressed }) => [
-                styles.headerButton,
-                {
-                  backgroundColor: colors.accent,
-                  shadowColor: colors.shadow,
-                  opacity: pressed ? 0.85 : 1,
-                },
-              ]}
-            >
-              <Icon name="plus" color={colors.accentContrast} />
-            </Pressable>
-          </View>
-        </View>
-      </SafeAreaView>
+      <BrandHeader showCreateButton onPressCreate={openCreateFlow} />
       <Tab.Navigator
         initialRouteName="Home"
         tabBar={(props) => <BottomTabBar {...props} />}
@@ -164,50 +122,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: 'transparent',
-  },
-  brandHeaderSafe: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  brandHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    gap: 8,
-  },
-  brandInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  brandLogoFrame: {
-    height: 56,
-    width: 200,
-    justifyContent: 'center',
-    overflow: 'hidden',
-    marginTop: 4,
-  },
-  brandLogo: {
-    width: '100%',
-    height: 120,
-    marginTop: 50,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  headerButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowOpacity: 0.16,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
   },
 });
 

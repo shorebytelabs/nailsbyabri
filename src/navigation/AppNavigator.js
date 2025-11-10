@@ -128,6 +128,7 @@ function ConsentScreenContainer({ navigation }) {
         navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       }}
       onBackToLogin={() => navigation.replace('Login')}
+      onNavigateBack={() => navigation.goBack()}
     />
   );
 }
