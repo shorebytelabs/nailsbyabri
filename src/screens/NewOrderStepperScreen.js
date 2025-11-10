@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -42,8 +42,73 @@ const DEFAULT_SIZES = {
   ring: '',
   pinky: '',
 };
+const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 
-function NewOrderStepperScreen() {
+function resolveUploadPreview(upload) {
+  if (!upload) {
+    return null;
+  }
+
+  const possible =
+    upload.uri ||
+    upload.url ||
+    upload.preview ||
+    upload.data ||
+    upload.content ||
+    upload.base64 ||
+    null;
+
+  if (!possible || typeof possible !== 'string') {
+    return null;
+  }
+
+  if (upload.uri || upload.url || upload.preview || /^data:/.test(possible)) {
+    return possible;
+  }
+
+  return `data:image/jpeg;base64,${possible}`;
+}
+
+function normalizeDraftSizes(sizes) {
+  const base = { ...DEFAULT_SIZES };
+  if (!sizes) {
+    return base;
+  }
+
+  if (sizes.mode === 'perSet') {
+    if (sizes.values && !Array.isArray(sizes.values)) {
+      return { ...base, ...sizes.values };
+    }
+
+    if (Array.isArray(sizes.values)) {
+      return sizes.values.reduce((acc, value, index) => {
+        const key = FINGER_KEYS[index];
+        if (key) {
+          acc[key] = value || '';
+        }
+        return acc;
+      }, { ...base });
+    }
+
+    if (Array.isArray(sizes.details)) {
+      const next = { ...base };
+      sizes.details.forEach((detail) => {
+        if (detail?.finger) {
+          next[detail.finger] = detail.value || '';
+        }
+      });
+      return next;
+    }
+  }
+
+  if (sizes.values && typeof sizes.values === 'object') {
+    return { ...base, ...sizes.values };
+  }
+
+  return base;
+}
+
+function NewOrderStepperScreen({ route }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const { state, handleDraftSaved, handleOrderComplete } = useAppState();
@@ -78,6 +143,7 @@ function NewOrderStepperScreen() {
   const [openingLegacyBuilder, setOpeningLegacyBuilder] = useState(false);
   const [draftOrderId, setDraftOrderId] = useState(null);
   const [error, setError] = useState(null);
+  const hydratedDraftRef = useRef(null);
   const isFinalStep = currentStep === STEP_DEFINITIONS.length - 1;
 
   const [form, setForm] = useState({
@@ -126,6 +192,73 @@ function NewOrderStepperScreen() {
     () => shapes.find((shape) => shape.id === form.shapeId),
     [form.shapeId, shapes],
   );
+
+  const resumeFlag = Boolean(route?.params?.resume);
+  const resumeDraft =
+    resumeFlag && state.activeOrder?.status === 'draft' ? state.activeOrder : null;
+
+  useEffect(() => {
+    if (!resumeDraft) {
+      return;
+    }
+
+    if (hydratedDraftRef.current === resumeDraft.id) {
+      return;
+    }
+
+    const draftSet = Array.isArray(resumeDraft.nailSets) ? resumeDraft.nailSets[0] || {} : {};
+    const method = resumeDraft.fulfillment?.method || 'pickup';
+    const methodConfigCandidate = pricingConstants.DELIVERY_METHODS[method];
+    const fallbackMethodConfig = pricingConstants.DELIVERY_METHODS.pickup;
+    const methodConfigForDraft = methodConfigCandidate || fallbackMethodConfig;
+    const speed =
+      resumeDraft.fulfillment?.speed || methodConfigForDraft?.defaultSpeed || 'standard';
+
+    const normalizedAddress = {
+      name: '',
+      line1: '',
+      line2: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      ...(resumeDraft.fulfillment?.address || {}),
+    };
+
+    const normalizedUploads = Array.isArray(draftSet.designUploads)
+      ? draftSet.designUploads.map((upload, index) => {
+          const preview = resolveUploadPreview(upload);
+          return {
+            ...upload,
+            id: upload?.id || `upload_${index}`,
+            preview,
+          };
+        })
+      : [];
+
+    setDraftOrderId(resumeDraft.id || draftSet.id || null);
+    setForm({
+      shapeId: draftSet.shapeId || null,
+      designDescription: draftSet.description || '',
+      designUploads: normalizedUploads,
+      requiresFollowUp: Boolean(draftSet.requiresFollowUp),
+      quantity: Number(draftSet.quantity) || 1,
+      sizeMode: draftSet.sizes?.mode === 'perSet' ? 'perSet' : 'standard',
+      sizes:
+        draftSet.sizes?.mode === 'perSet'
+          ? normalizeDraftSizes(draftSet.sizes)
+          : { ...DEFAULT_SIZES },
+      fulfillment: {
+        method,
+        speed,
+        address: normalizedAddress,
+      },
+    });
+    setCurrentStep(0);
+    hydratedDraftRef.current = resumeDraft.id || true;
+    if (navigation.setParams) {
+      navigation.setParams({ ...(route?.params || {}), resume: false });
+    }
+  }, [navigation, resumeDraft, resumeFlag, route?.params]);
 
   const priceDetails = useMemo(() => {
     if (!form.shapeId) {
@@ -310,6 +443,9 @@ function NewOrderStepperScreen() {
         uri: asset.uri || null,
         fileName: asset.fileName || 'design-reference.jpg',
         base64: asset.base64,
+        preview: asset.base64
+          ? `data:${asset.type || 'image/jpeg'};base64,${asset.base64}`
+          : asset.uri || null,
       };
 
       setForm((prev) => ({
@@ -721,12 +857,8 @@ function DesignStep({
         {uploadCount > 0 ? (
           <View style={styles.designUploadGrid}>
             {uploads.map((upload) => {
-              const imageSource =
-                upload.uri
-                  ? { uri: upload.uri }
-                  : upload.base64
-                  ? { uri: `data:image/jpeg;base64,${upload.base64}` }
-                  : null;
+              const previewUri = resolveUploadPreview(upload);
+              const imageSource = previewUri ? { uri: previewUri } : null;
               return (
                 <View
                   key={upload.id}

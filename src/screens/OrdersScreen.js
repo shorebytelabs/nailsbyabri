@@ -1,13 +1,15 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
 import { logEvent } from '../utils/analytics';
 import { withOpacity } from '../utils/color';
 
 function OrdersScreen() {
+  const navigation = useNavigation();
   const { theme } = useTheme();
-  const { state, refreshConsentLogs } = useAppState();
+  const { state, refreshConsentLogs, setState } = useAppState();
   const colors = theme?.colors || {};
   const {
     primaryBackground,
@@ -96,7 +98,7 @@ function OrdersScreen() {
     () => [
       { key: 'drafts', label: 'Drafts', count: draftOrders.length },
       { key: 'submitted', label: 'Submitted', count: submittedOrders.length },
-      { key: 'completed', label: 'Completed', count: completedOrders.length },
+      { key: 'completed', label: 'Delivered', count: completedOrders.length },
       { key: 'all', label: 'All', count: allOrders.length },
     ],
     [draftOrders.length, submittedOrders.length, completedOrders.length, allOrders.length],
@@ -116,9 +118,52 @@ function OrdersScreen() {
     }
   }, [activeTab, draftOrders, submittedOrders, completedOrders, allOrders]);
 
+  const navigateToRoot = useCallback(
+    (routeName, params) => {
+      let parentNav = navigation;
+      while (parentNav?.getParent?.()) {
+        parentNav = parentNav.getParent();
+      }
+      parentNav?.navigate(routeName, params);
+    },
+    [navigation],
+  );
+
+  const handleViewDetails = useCallback(
+    (order) => {
+      if (!order) {
+        return;
+      }
+
+      logEvent('tap_order_view', { orderId: order.id, status: order.status });
+
+      if (order.status === 'draft') {
+        setState((prev) => ({
+          ...prev,
+          activeOrder: order,
+        }));
+        navigateToRoot('NewOrderFlow', { resume: true });
+        return;
+      }
+
+      navigateToRoot('OrderDetails', { order, fromOrders: true });
+    },
+    [navigateToRoot, setState],
+  );
+
   const renderOrderCard = (order) => {
     const primarySet = order.nailSets?.[0];
     const needsFollowUp = order.nailSets?.some((set) => set.requiresFollowUp);
+    const statusLabel =
+      order.status === 'draft'
+        ? 'Draft'
+        : order.status === 'completed'
+        ? 'Delivered'
+        : 'Submitted';
+    const statusBackground =
+      order.status === 'draft'
+        ? withOpacity(secondaryBackgroundColor, 0.2)
+        : withOpacity(accentColor, 0.12);
 
     return (
       <View
@@ -144,10 +189,7 @@ function OrdersScreen() {
             style={[
               styles.statusPill,
               {
-                backgroundColor:
-                  order.status === 'submitted'
-                    ? withOpacity(accentColor, 0.12)
-                    : withOpacity(secondaryBackgroundColor, 0.2),
+                backgroundColor: statusBackground,
               },
             ]}
           >
@@ -157,7 +199,7 @@ function OrdersScreen() {
                 { color: accentColor },
               ]}
             >
-              {order.status === 'draft' ? 'Draft' : 'Submitted'}
+              {statusLabel}
             </Text>
           </View>
         </View>
@@ -177,9 +219,7 @@ function OrdersScreen() {
               styles.linkButton,
               { borderColor: accentColor },
             ]}
-            onPress={() => {
-              logEvent('tap_order_view', { orderId: order.id });
-            }}
+            onPress={() => handleViewDetails(order)}
           >
             <Text
               style={[

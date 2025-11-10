@@ -524,6 +524,7 @@ function createStyles(colors) {
 
 function OrderDetailsScreen({ navigation, route }) {
   const order = route.params?.order || null;
+  const fromOrders = Boolean(route.params?.fromOrders);
   const { theme } = useTheme();
   const colors = theme?.colors || {};
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -609,13 +610,30 @@ function OrderDetailsScreen({ navigation, route }) {
     setPreviewImage(null);
   }, []);
 
-  const handleBackToConfirmation = useCallback(() => {
+  const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
       navigation.goBack();
       return;
     }
+
+    if (fromOrders) {
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'MainTabs',
+            state: {
+              index: 2,
+              routes: [{ name: 'Home' }, { name: 'Gallery' }, { name: 'Orders' }, { name: 'Profile' }],
+            },
+          },
+        ],
+      });
+      return;
+    }
+
     navigation.navigate('OrderConfirmation', { order });
-  }, [navigation, order]);
+  }, [fromOrders, navigation, order]);
 
   if (!order) {
     return (
@@ -676,13 +694,15 @@ function OrderDetailsScreen({ navigation, route }) {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.pageHeader}>
             <Pressable
-              onPress={handleBackToConfirmation}
+              onPress={handleBack}
               style={({ pressed }) => [styles.backLink, { opacity: pressed ? 0.7 : 1 }]}
               accessibilityRole="button"
-              accessibilityLabel="Back to order confirmation"
+              accessibilityLabel={fromOrders ? 'Back to orders' : 'Back to order confirmation'}
             >
               <Icon name="chevronRight" color={colors.accent} style={styles.backIcon} size={20} />
-              <Text style={styles.backLinkLabel}>Back to Order Confirmation</Text>
+              <Text style={styles.backLinkLabel}>
+                {fromOrders ? 'Back to Orders' : 'Back to Order Confirmation'}
+              </Text>
             </Pressable>
             <Text style={styles.pageTitle}>Order #{displayOrderId}</Text>
           </View>
