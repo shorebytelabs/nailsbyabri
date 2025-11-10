@@ -196,6 +196,7 @@ function NewOrderStepperScreen({ route }) {
   const resumeFlag = Boolean(route?.params?.resume);
   const resumeDraft =
     resumeFlag && state.activeOrder?.status === 'draft' ? state.activeOrder : null;
+  const stepperTitle = resumeDraft ? 'Edit Draft Order' : 'Create New Order';
 
   useEffect(() => {
     if (!resumeDraft) {
@@ -480,10 +481,22 @@ function NewOrderStepperScreen({ route }) {
           },
         ]}
       >
+        <Text
+          style={[
+            styles.stepperTitle,
+            {
+              color: primaryFont,
+              paddingHorizontal: horizontalSpacing,
+              marginTop: Math.max(insets.top, 12),
+            },
+          ]}
+        >
+          {stepperTitle}
+        </Text>
         <View
           style={[
             styles.progressContainer,
-            { paddingHorizontal: horizontalSpacing, paddingTop: Math.max(insets.top, 12) },
+            { paddingHorizontal: horizontalSpacing },
           ]}
         >
           <View style={styles.progressTrack}>
@@ -1442,9 +1455,14 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+  stepperTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
   progressContainer: {
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 12,
     paddingBottom: 12,
     gap: 6,
   },
