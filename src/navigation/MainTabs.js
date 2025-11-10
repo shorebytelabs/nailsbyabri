@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import HomeDashboardScreen from '../screens/HomeDashboardScreen';
@@ -18,6 +18,7 @@ const Tab = createBottomTabNavigator();
 
 const TAB_ICON_SIZE = 22;
 const TAB_ICON_SIZE_ACTIVE = 24;
+const LOGO_SOURCE = require('../../assets/images/NailsByAbriLogo.png');
 
 export default function MainTabs() {
   const navigation = useNavigation();
@@ -49,23 +50,14 @@ export default function MainTabs() {
       >
         <View style={styles.brandHeader}>
           <View style={styles.brandInfo}>
-            <View
-              style={[
-                styles.logoMark,
-                {
-                  backgroundColor: colors.accent,
-                  shadowColor: colors.shadow,
-                },
-              ]}
-              accessibilityRole="image"
-              accessibilityLabel="Nails by Abri logo"
-            >
-              <Text style={[styles.logoInitials, { color: colors.accentContrast }]}>NBA</Text>
-            </View>
-            <View style={styles.brandTextGroup}>
-              <Text style={[styles.brandSubtitle, { color: colors.secondaryFont }]}>
-                Nails by Abri
-              </Text>
+            <View style={styles.brandLogoFrame}>
+              <Image
+                source={LOGO_SOURCE}
+                style={styles.brandLogo}
+                resizeMode="cover"
+                accessibilityRole="image"
+                accessibilityLabel="Nails by Abri"
+              />
             </View>
           </View>
           <View style={styles.headerActions}>
@@ -189,25 +181,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  logoMark: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
+  brandLogoFrame: {
+    height: 56,
+    width: 200,
     justifyContent: 'center',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
+    overflow: 'hidden',
+    marginTop: 4,
   },
-  logoInitials: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  brandTextGroup: {
-    flexDirection: 'column',
-    gap: 1,
+  brandLogo: {
+    width: '100%',
+    height: 120,
+    marginTop: 50,
   },
   headerActions: {
     flexDirection: 'row',
@@ -224,18 +208,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
     elevation: 4,
-  },
-  brandGreeting: {
-    fontSize: 16,
-    fontStyle: 'italic',
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  brandSubtitle: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
   },
 });
 
