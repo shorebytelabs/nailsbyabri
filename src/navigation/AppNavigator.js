@@ -33,6 +33,7 @@ function SignupScreenContainer({ navigation }) {
         }
       }}
       onSwitchToLogin={() => navigation.replace('Login')}
+      onCancel={() => navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] })}
     />
   );
 }

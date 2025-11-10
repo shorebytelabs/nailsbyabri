@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
@@ -66,114 +66,119 @@ function LoginScreen({
         ]}
       />
 
-      <TouchableOpacity
-        onPress={onCancel}
-        style={styles.backButton}
-        accessibilityRole="button"
-        accessibilityLabel="Go back to Home"
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <Text
-          style={[styles.backText, { color: withOpacity(primaryFontColor, 0.7) }]}
+        <TouchableOpacity
+          onPress={onCancel}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Go back to Home"
         >
-          ← Back to Home
-        </Text>
-      </TouchableOpacity>
+          <Text
+            style={[styles.backText, { color: withOpacity(primaryFontColor, 0.7) }]}
+          >
+            ← Back to Home
+          </Text>
+        </TouchableOpacity>
 
-      <View style={styles.formStack}>
-        <View style={styles.logoWrapper}>
+        <View style={styles.formStack}>
+          <View style={styles.logoWrapper}>
+            <View
+              style={[
+                styles.logoContainer,
+                { backgroundColor: withOpacity(secondaryBackgroundColor, 0.6) },
+              ]}
+            >
+              <Image source={LOGO_SOURCE} style={styles.logo} resizeMode="contain" />
+            </View>
+          </View>
+
           <View
             style={[
-              styles.logoContainer,
-              { backgroundColor: withOpacity(secondaryBackgroundColor, 0.6) },
+              styles.formCard,
+              {
+                backgroundColor: surfaceColor,
+                borderColor,
+                shadowColor,
+              },
             ]}
           >
-            <Image source={LOGO_SOURCE} style={styles.logo} resizeMode="contain" />
-          </View>
-        </View>
-
-        <View
-          style={[
-            styles.formCard,
-            {
-              backgroundColor: surfaceColor,
-              borderColor,
-              shadowColor,
-            },
-          ]}
-        >
-          <View style={styles.formIntro}>
-            <Text
-              style={[
-                styles.welcome,
-                { color: primaryFontColor },
-              ]}
-            >
-              Welcome!
-            </Text>
-            {authMessage ? (
+            <View style={styles.formIntro}>
               <Text
                 style={[
-                  styles.authContext,
-                  { color: withOpacity(primaryFontColor, 0.75) },
+                  styles.welcome,
+                  { color: primaryFontColor },
                 ]}
               >
-                {authMessage}
+                Welcome!
               </Text>
-            ) : null}
-          </View>
+              {authMessage ? (
+                <Text
+                  style={[
+                    styles.authContext,
+                    { color: withOpacity(primaryFontColor, 0.75) },
+                  ]}
+                >
+                  {authMessage}
+                </Text>
+              ) : null}
+            </View>
 
-          <View style={styles.section}>
-            <FormField
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
-              keyboardType="email-address"
+            <View style={styles.section}>
+              <FormField
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="you@example.com"
+                keyboardType="email-address"
+              />
+              <FormField
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Enter your password"
+                secureTextEntry
+              />
+            </View>
+
+            {error ? <Text style={[styles.error, { color: errorColor }]}>{error}</Text> : null}
+
+            <PrimaryButton
+              label="Log In"
+              onPress={handleSubmit}
+              loading={loading}
+              disabled={isSubmitDisabled}
+              style={styles.loginButton}
             />
-            <FormField
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Enter your password"
-              secureTextEntry
-            />
-          </View>
 
-          {error ? <Text style={[styles.error, { color: errorColor }]}>{error}</Text> : null}
-
-          <PrimaryButton
-            label="Log In"
-            onPress={handleSubmit}
-            loading={loading}
-            disabled={isSubmitDisabled}
-            style={styles.loginButton}
-          />
-
-          <TouchableOpacity
-            style={styles.forgotRow}
-            accessibilityRole="button"
-            onPress={handleForgotPassword}
-          >
-            <Text
-              style={[
-                styles.forgotText,
-                { color: withOpacity(primaryFontColor, 0.7) },
-              ]}
+            <TouchableOpacity
+              style={styles.forgotRow}
+              accessibilityRole="button"
+              onPress={handleForgotPassword}
             >
-              Forgot password?
-            </Text>
-          </TouchableOpacity>
-
-          <View style={styles.switchRow}>
-            <Text style={[styles.switchText, { color: secondaryFontColor }]}>
-              Need an account?
-            </Text>
-            <TouchableOpacity onPress={onSwitchToSignup} accessibilityRole="button">
-              <Text style={[styles.switchLink, { color: accentColor }]}> Sign up</Text>
+              <Text
+                style={[
+                  styles.forgotText,
+                  { color: withOpacity(primaryFontColor, 0.7) },
+                ]}
+              >
+                Forgot password?
+              </Text>
             </TouchableOpacity>
+
+            <View style={styles.switchRow}>
+              <Text style={[styles.switchText, { color: secondaryFontColor }]}>
+                Need an account?
+              </Text>
+              <TouchableOpacity onPress={onSwitchToSignup} accessibilityRole="button">
+                <Text style={[styles.switchLink, { color: accentColor }]}> Sign up</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </ScreenContainer>
   );
 }
@@ -181,9 +186,12 @@ function LoginScreen({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingVertical: 32,
+    paddingHorizontal: 6,
+    alignItems: 'center',
     gap: 24,
   },
   backButton: {

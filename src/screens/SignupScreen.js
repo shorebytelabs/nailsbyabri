@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
@@ -7,7 +7,9 @@ import { signup } from '../services/api';
 import { useTheme } from '../theme';
 import { withOpacity } from '../utils/color';
 
-function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
+const LOGO_SOURCE = require('../../assets/images/NailsByAbriLogo.png');
+
+function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,10 +24,9 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
   const colors = theme?.colors || {};
   const primaryFontColor = colors.primaryFont || '#220707';
   const secondaryFontColor = colors.secondaryFont || '#5C5F5D';
-  const surfaceColor = colors.surface || '#FFFFFF';
-  const surfaceMutedColor = colors.surfaceMuted || withOpacity(surfaceColor, 0.4);
   const secondaryBackgroundColor = colors.secondaryBackground || '#E7D8CA';
-  const borderColor = colors.border || '#D9C8A9';
+  const surfaceColor = colors.surface || '#FFFFFF';
+  const borderColor = colors.border || withOpacity('#000000', 0.08);
   const accentColor = colors.accent || '#6F171F';
   const errorColor = colors.error || '#B33A3A';
 
@@ -61,123 +62,131 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin }) {
     !name.trim() || !email.trim() || !password.trim() || !dob.trim();
 
   return (
-    <ScreenContainer>
-      <View style={[styles.header, { backgroundColor: secondaryBackgroundColor }]}>
-        <Text
-          style={[
-            styles.title,
-            { color: primaryFontColor },
-          ]}
-        >
-          Create Your Account
-        </Text>
-        <Text
-          style={[
-            styles.subtitle,
-            { color: secondaryFontColor },
-          ]}
-        >
-          Enter your details to continue. We will request parental consent if you are a minor.
-        </Text>
-      </View>
-
-      <View style={styles.section}>
-        <FormField
-          label="Full Name"
-          value={name}
-          onChangeText={setName}
-          placeholder="Abri Smith"
-          autoCapitalize="words"
-        />
-        <FormField
-          label="Email"
-          value={email}
-          onChangeText={setEmail}
-          placeholder="child@example.com"
-          keyboardType="email-address"
-        />
-        <FormField
-          label="Password"
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Create a strong password"
-          secureTextEntry
-        />
-        <FormField
-          label="Date of Birth"
-          value={dob}
-          onChangeText={setDob}
-          placeholder="YYYY-MM-DD"
-          keyboardType="numbers-and-punctuation"
-        />
-
-        <View style={[styles.noticeContainer, { backgroundColor: surfaceMutedColor }]}>
-          {typeof age === 'number' ? (
-            <Text
-              style={[
-                styles.noticeText,
-                { color: primaryFontColor },
-              ]}
-            >
-              Your age is calculated as {age}.{' '}
-              {isMinor ? 'Parental consent required.' : 'You are registering as an adult.'}
-            </Text>
-          ) : (
-            <Text
-              style={[
-                styles.noticeText,
-                { color: primaryFontColor },
-              ]}
-            >
-              Enter your date of birth to verify if parental consent is required.
-            </Text>
-          )}
-        </View>
-
-        <View
-          style={[
-            styles.guardianSection,
-            { borderColor, backgroundColor: surfaceColor },
-          ]}
-        >
-          <Text style={[styles.guardianTitle, { color: primaryFontColor }]}>
-            Parent or Guardian Contact
-          </Text>
-          <FormField
-            label="Parent Email"
-            value={parentEmail}
-            onChangeText={setParentEmail}
-            placeholder="parent@example.com"
-            keyboardType="email-address"
-          />
-          <FormField
-            label="Parent Phone"
-            value={parentPhone}
-            onChangeText={setParentPhone}
-            placeholder="+1 555-555-5555"
-            keyboardType="phone-pad"
-          />
-          <Text style={[styles.guardianHint, { color: secondaryFontColor }]}>
-            Provide at least one contact method if the child is under 18.
-          </Text>
-        </View>
-      </View>
-
-      {error ? <Text style={[styles.error, { color: errorColor }]}>{error}</Text> : null}
-
-      <PrimaryButton
-        label="Sign Up"
-        onPress={handleSubmit}
-        loading={loading}
-        disabled={isSubmitDisabled}
+    <ScreenContainer scroll={false} style={styles.screen}>
+      <View
+        style={[
+          styles.ambientAccent,
+          { backgroundColor: withOpacity(accentColor, 0.06) },
+        ]}
       />
 
-      <TouchableOpacity onPress={onSwitchToLogin} style={styles.switchRow}>
-        <Text style={[styles.switchText, { color: secondaryFontColor }]}>
-          Already have an account?{' '}
-        </Text>
-        <Text style={[styles.switchLink, { color: accentColor }]}>Log in</Text>
-      </TouchableOpacity>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <TouchableOpacity
+          onPress={onCancel}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Go back to Home"
+        >
+          <Text
+            style={[styles.backText, { color: withOpacity(primaryFontColor, 0.7) }]}
+          >
+            ← Back to Home
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.formStack}>
+          <View style={styles.logoWrapper}>
+            <View
+              style={[
+                styles.logoContainer,
+                { backgroundColor: withOpacity(secondaryBackgroundColor, 0.6) },
+              ]}
+            >
+              <Image source={LOGO_SOURCE} style={styles.logo} resizeMode="contain" />
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.formCard,
+              {
+                backgroundColor: surfaceColor,
+                borderColor,
+                shadowColor: colors.shadow || '#000000',
+              },
+            ]}
+          >
+            <View style={styles.formIntro}>
+              <Text style={[styles.title, { color: primaryFontColor }]}>Create Your Account</Text>
+              <Text style={[styles.subtitle, { color: withOpacity(primaryFontColor, 0.75) }]}>Your perfect nails, your way.</Text>
+            </View>
+
+            <View style={styles.formSection}>
+              <FormField
+                label="Full Name"
+                value={name}
+                onChangeText={setName}
+                placeholder="Abri Smith"
+                autoCapitalize="words"
+              />
+              <FormField
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="you@example.com"
+                keyboardType="email-address"
+              />
+              <FormField
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Create a strong password"
+                secureTextEntry
+              />
+              <FormField
+                label="Date of Birth"
+                value={dob}
+                onChangeText={setDob}
+                placeholder="YYYY-MM-DD"
+                keyboardType="numbers-and-punctuation"
+              />
+              <Text style={[styles.helperText, { color: withOpacity(primaryFontColor, 0.65) }]}>Enter your date of birth to verify if parental consent is required.</Text>
+            </View>
+
+            {isMinor ? (
+              <View style={styles.guardianBlock}>
+                <View style={[styles.sectionDivider, { backgroundColor: withOpacity(borderColor, 0.6) }]} />
+                <Text style={[styles.guardianTitle, { color: primaryFontColor }]}>Parent or Guardian Contact</Text>
+                <FormField
+                  label="Parent Email"
+                  value={parentEmail}
+                  onChangeText={setParentEmail}
+                  placeholder="parent@example.com"
+                  keyboardType="email-address"
+                />
+                <FormField
+                  label="Parent Phone"
+                  value={parentPhone}
+                  onChangeText={setParentPhone}
+                  placeholder="+1 555-555-5555"
+                  keyboardType="phone-pad"
+                />
+                <Text style={[styles.guardianHint, { color: withOpacity(primaryFontColor, 0.65) }]}>Provide at least one contact method if the child is under 18.</Text>
+              </View>
+            ) : null}
+
+            {error ? <Text style={[styles.error, { color: errorColor }]}>{error}</Text> : null}
+
+            <PrimaryButton
+              label="Sign Up"
+              onPress={handleSubmit}
+              loading={loading}
+              disabled={isSubmitDisabled}
+              style={styles.submitButton}
+            />
+
+            <View style={styles.switchRow}>
+              <Text style={[styles.switchText, { color: secondaryFontColor }]}>Already have an account?</Text>
+              <TouchableOpacity onPress={onSwitchToLogin} accessibilityRole="button">
+                <Text style={[styles.switchLink, { color: accentColor }]}> Log in</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
     </ScreenContainer>
   );
 }
@@ -203,58 +212,132 @@ function calculateAge(dobString) {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    marginBottom: 24,
-    padding: 16,
-    borderRadius: 12,
+  screen: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingVertical: 32,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    gap: 24,
+  },
+  ambientAccent: {
+    position: 'absolute',
+    top: -120,
+    right: -80,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    transform: [{ rotate: '18deg' }],
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginLeft: 4,
+    marginBottom: 8,
+  },
+  backText: {
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  formStack: {
+    width: '100%',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    marginTop: -50,
+  },
+  logoWrapper: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: -120,
+  },
+  logoContainer: {
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 28,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 18,
+    elevation: 6,
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
+  },
+  formCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 28,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    gap: 20,
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 12 },
+    shadowRadius: 24,
+    elevation: 12,
+    marginTop: 0,
+  },
+  formIntro: {
+    gap: 6,
   },
   title: {
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '600',
+    lineHeight: 24,
   },
   subtitle: {
-    marginTop: 8,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
   },
-  section: {
-    marginBottom: 16,
+  formSection: {
+    gap: 12,
   },
-  noticeContainer: {
-    marginBottom: 16,
-    padding: 12,
-    borderRadius: 8,
+  helperText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
-  noticeText: {
-    fontSize: 14,
+  guardianBlock: {
+    gap: 12,
   },
-  guardianSection: {
-    marginTop: 8,
-    padding: 16,
-    borderWidth: 1,
-    borderRadius: 10,
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
   },
   guardianTitle: {
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 12,
   },
   guardianHint: {
-    marginTop: 8,
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 18,
   },
   error: {
-    marginBottom: 16,
+    marginTop: -4,
     fontSize: 14,
+  },
+  submitButton: {
+    marginTop: 4,
   },
   switchRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 16,
+    alignItems: 'center',
+    gap: 4,
   },
   switchText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   switchLink: {
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
 
