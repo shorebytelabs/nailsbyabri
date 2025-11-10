@@ -651,7 +651,7 @@ function ShapeStep({ colors, shapes, selectedShapeId, onSelect, loading }) {
                 { color: secondaryFont },
               ]}
             >
-              Base £{Number(shape.basePrice || 0).toFixed(2)}
+              Base ${Number(shape.basePrice || 0).toFixed(2)}
             </Text>
           </TouchableOpacity>
         );
@@ -795,7 +795,7 @@ function DesignStep({
         <TextInput
           value={description}
           onChangeText={onChangeDescription}
-          placeholder="Describe colour, finish, art placement or upload instructions…"
+          placeholder="Describe color, finish, art placement or upload instructions…"
           placeholderTextColor={secondaryFont}
           multiline
           style={[
@@ -1080,7 +1080,7 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
                   { color: accent },
                 ]}
               >
-                £{Number(speed.fee || 0).toFixed(2)}
+                ${Number(speed.fee || 0).toFixed(2)}
               </Text>
             </TouchableOpacity>
           );
@@ -1220,7 +1220,7 @@ function ReviewStep({ colors, priceDetails, onOpenAdvancedBuilder, openingLegacy
                 { color: primaryFont },
               ]}
             >
-              £{Number(item.amount || 0).toFixed(2)}
+              ${Number(item.amount || 0).toFixed(2)}
             </Text>
           </View>
         ))}
@@ -1240,7 +1240,7 @@ function ReviewStep({ colors, priceDetails, onOpenAdvancedBuilder, openingLegacy
             { color: accent },
           ]}
         >
-          £{Number(priceDetails.total || 0).toFixed(2)}
+          ${Number(priceDetails.total || 0).toFixed(2)}
         </Text>
       </View>
       <Text
