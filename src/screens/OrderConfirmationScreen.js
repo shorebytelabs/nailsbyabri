@@ -10,6 +10,7 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Clipboard from '@react-native-clipboard/clipboard';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
 import Icon from '../icons/Icon';
@@ -91,7 +92,9 @@ function OrderConfirmationScreen({ order, onDone, onViewOrder }) {
     }
 
     try {
-      if (
+      if (typeof Clipboard?.setString === 'function') {
+        Clipboard.setString(orderId);
+      } else if (
         typeof navigator !== 'undefined' &&
         navigator?.clipboard?.writeText
       ) {

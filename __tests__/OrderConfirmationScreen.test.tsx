@@ -2,6 +2,11 @@ import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 import OrderConfirmationScreen from '../src/screens/OrderConfirmationScreen';
 import ThemeProvider from '../src/theme/ThemeProvider';
+import Clipboard from '@react-native-clipboard/clipboard';
+
+jest.mock('@react-native-clipboard/clipboard', () => ({
+  setString: jest.fn(),
+}));
 
 describe('OrderConfirmationScreen', () => {
   const baseOrder = {
@@ -33,31 +38,19 @@ describe('OrderConfirmationScreen', () => {
       </ThemeProvider>,
     );
 
-  beforeEach(() => {
-    Object.assign(global, {
-      navigator: {
-        clipboard: {
-          writeText: jest.fn().mockResolvedValue(undefined),
-        },
-      },
-    });
-  });
-
   afterEach(() => {
     jest.clearAllMocks();
-    // @ts-expect-error allow cleanup in test environment
-    delete global.navigator;
   });
 
   it('copies the full order id when copy action is pressed', async () => {
     const tree = renderScreen();
     const copyButton = tree.root.findByProps({ testID: 'order-copy-action' });
 
-    await ReactTestRenderer.act(async () => {
-      await copyButton.props.onPress();
+    ReactTestRenderer.act(() => {
+      copyButton.props.onPress();
     });
 
-    expect(global.navigator.clipboard.writeText).toHaveBeenCalledWith(baseOrder.id);
+    expect(Clipboard.setString).toHaveBeenCalledWith(baseOrder.id);
   });
 
   it('invokes onViewOrder when primary CTA is pressed', () => {
