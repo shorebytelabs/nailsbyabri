@@ -36,13 +36,68 @@ function SignupScreenContainer({ navigation }) {
   );
 }
 
-function LoginScreenContainer({ navigation }) {
-  const { handleLoginSuccess, handleConsentPendingLogin } = useAppState();
+function LoginScreenContainer({ navigation, route }) {
+  const {
+    state,
+    handleLoginSuccess,
+    handleConsentPendingLogin,
+    clearAuthRedirect,
+    setState,
+  } = useAppState();
+
+  const authMessage = state.authMessage || route?.params?.loginMessage;
+  const redirectTarget = state.authRedirect;
 
   return (
     <LoginScreen
+      authMessage={authMessage}
       onLoginSuccess={(payload) => {
         handleLoginSuccess(payload);
+        if (redirectTarget?.type === 'startOrder') {
+          clearAuthRedirect();
+          if (payload.user?.pendingConsent) {
+            setState((prev) => ({
+              ...prev,
+              statusMessage: 'Parental consent must be approved before placing an order.',
+            }));
+            navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+            return;
+          }
+
+          logEvent('tap_nav_create');
+          navigation.reset({
+            index: 1,
+            routes: [{ name: 'MainTabs' }, { name: 'NewOrderFlow' }],
+          });
+          return;
+        }
+
+        if (redirectTarget?.type === 'tab') {
+          const tabName = redirectTarget.tab || 'Home';
+          const tabRoutes = ['Home', 'Gallery', 'Orders', 'Profile'].map((name) => ({
+            name,
+          }));
+          const tabIndex = Math.max(
+            0,
+            tabRoutes.findIndex((route) => route.name === tabName),
+          );
+          clearAuthRedirect();
+          navigation.reset({
+            index: 0,
+            routes: [
+              {
+                name: 'MainTabs',
+                state: {
+                  index: tabIndex,
+                  routes: tabRoutes,
+                },
+              },
+            ],
+          });
+          return;
+        }
+
+        clearAuthRedirect();
         navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       }}
       onConsentPending={(info) => {
@@ -50,6 +105,10 @@ function LoginScreenContainer({ navigation }) {
         navigation.replace('Consent');
       }}
       onSwitchToSignup={() => navigation.replace('Signup')}
+      onCancel={() => {
+        clearAuthRedirect();
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+      }}
     />
   );
 }
@@ -202,10 +261,7 @@ function AppNavigator() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName={isAuthenticated ? 'MainTabs' : 'Signup'}
-        screenOptions={{ headerShown: false }}
-      >
+      <Stack.Navigator initialRouteName="MainTabs" screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <>
             <Stack.Screen name="Signup" component={SignupScreenContainer} />

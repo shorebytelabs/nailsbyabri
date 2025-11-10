@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import HomeDashboardScreen from '../screens/HomeDashboardScreen';
 import GalleryScreen from '../screens/GalleryScreen';
@@ -21,20 +21,31 @@ const TAB_ICON_SIZE_ACTIVE = 24;
 
 export default function MainTabs() {
   const navigation = useNavigation();
-  const { state, handleStartOrder } = useAppState();
+  const { state, handleStartOrder, ensureAuthenticated } = useAppState();
   const { theme } = useTheme();
   const colors = theme?.colors || {};
-  const insets = useSafeAreaInsets();
 
   const draftBadgeCount = state.activeOrder?.status === 'draft' ? 1 : 0;
 
   const openCreateFlow = useCallback(() => {
-    const canProceed = handleStartOrder();
+    const canProceed = handleStartOrder({ navigation });
     if (canProceed) {
       logEvent('tap_nav_create');
       navigation.navigate('NewOrderFlow');
     }
   }, [handleStartOrder, navigation]);
+
+  const handleProfileAccess = useCallback(() => {
+    const allowed = ensureAuthenticated({
+      navigation,
+      message: 'Log in to view your profile.',
+      redirect: { type: 'tab', tab: 'Profile' },
+    });
+    if (!allowed) {
+      return;
+    }
+    navigation.navigate('Profile');
+  }, [ensureAuthenticated, navigation]);
 
   return (
     <View style={styles.root}>
@@ -70,6 +81,25 @@ export default function MainTabs() {
             </View>
           </View>
           <View style={styles.headerActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={state.currentUser ? 'Open profile' : 'Log in'}
+              onPress={handleProfileAccess}
+              style={({ pressed }) => [
+                styles.headerIconButton,
+                {
+                  borderColor: withOpacity(colors.border, 0.9),
+                  backgroundColor: withOpacity(colors.surface, pressed ? 0.7 : 0.9),
+                  shadowColor: colors.shadow,
+                },
+              ]}
+            >
+              <Icon
+                name="profile"
+                color={state.currentUser ? colors.accent : colors.secondaryFont}
+                size={18}
+              />
+            </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Create new custom nail set"
@@ -122,6 +152,18 @@ export default function MainTabs() {
         <Tab.Screen
           name="Orders"
           component={OrdersScreen}
+          listeners={{
+            tabPress: (event) => {
+              const allowed = ensureAuthenticated({
+                navigation,
+                message: 'Log in to view your orders.',
+                redirect: { type: 'tab', tab: 'Orders' },
+              });
+              if (!allowed) {
+                event.preventDefault();
+              }
+            },
+          }}
           options={{
             tabBarLabel: 'Orders',
             tabBarBadge: draftBadgeCount > 0 ? draftBadgeCount : undefined,
@@ -133,6 +175,18 @@ export default function MainTabs() {
         <Tab.Screen
           name="Profile"
           component={ProfileScreen}
+          listeners={{
+            tabPress: (event) => {
+              const allowed = ensureAuthenticated({
+                navigation,
+                message: 'Log in to view your profile.',
+                redirect: { type: 'tab', tab: 'Profile' },
+              });
+              if (!allowed) {
+                event.preventDefault();
+              }
+            },
+          }}
           options={{
             tabBarLabel: 'Profile',
             tabBarIcon: ({ color, focused }) => (
@@ -190,6 +244,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+  },
+  headerIconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
   },
   headerButton: {
     width: 42,

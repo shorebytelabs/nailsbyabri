@@ -20,7 +20,7 @@ const CTA_LABEL = 'Create Nail Set';
 function HomeDashboardScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const { state, handleStartOrder } = useAppState();
+  const { state, handleStartOrder, ensureAuthenticated } = useAppState();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
@@ -89,7 +89,7 @@ function HomeDashboardScreen() {
   }, [activeOrders.length]);
 
   const handleCreatePress = () => {
-    const canProceed = handleStartOrder();
+    const canProceed = handleStartOrder({ navigation });
     if (canProceed) {
       logEvent('tap_home_create');
       navigation.navigate('NewOrderFlow');
@@ -227,7 +227,17 @@ function HomeDashboardScreen() {
             Active orders
           </Text>
           <TouchableOpacity
-            onPress={() => navigation.navigate('Orders')}
+            onPress={() => {
+              const allowed = ensureAuthenticated({
+                navigation,
+                message: 'Log in to view your orders.',
+                redirect: { type: 'tab', tab: 'Orders' },
+              });
+              if (!allowed) {
+                return;
+              }
+              navigation.navigate('Orders');
+            }}
             accessibilityRole="button"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >

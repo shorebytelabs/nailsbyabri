@@ -85,7 +85,7 @@ function ProfileScreen() {
   };
 
   const handleCreateSet = () => {
-    const canProceed = handleStartOrder();
+    const canProceed = handleStartOrder({ navigation });
     if (canProceed) {
       logEvent('tap_profile_create');
       navigation.navigate('NewOrderFlow');

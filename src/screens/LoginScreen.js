@@ -5,8 +5,15 @@ import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
 import { login } from '../services/api';
 import { useTheme } from '../theme';
+import { withOpacity } from '../utils/color';
 
-function LoginScreen({ onLoginSuccess, onConsentPending, onSwitchToSignup }) {
+function LoginScreen({
+  authMessage,
+  onLoginSuccess,
+  onConsentPending,
+  onSwitchToSignup,
+  onCancel = () => {},
+}) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,6 +25,8 @@ function LoginScreen({ onLoginSuccess, onConsentPending, onSwitchToSignup }) {
   const secondaryBackgroundColor = colors.secondaryBackground || '#E7D8CA';
   const errorColor = colors.error || '#B33A3A';
   const accentColor = colors.accent || '#6F171F';
+  const noticeBackgroundColor = withOpacity(accentColor, 0.12);
+  const noticeBorderColor = withOpacity(accentColor, 0.24);
 
   const handleSubmit = async () => {
     setError(null);
@@ -43,6 +52,21 @@ function LoginScreen({ onLoginSuccess, onConsentPending, onSwitchToSignup }) {
 
   return (
     <ScreenContainer>
+      {authMessage ? (
+        <View
+          style={[
+            styles.notice,
+            {
+              backgroundColor: noticeBackgroundColor,
+              borderColor: noticeBorderColor,
+            },
+          ]}
+        >
+          <Text style={[styles.noticeTitle, { color: accentColor }]}>Log in required</Text>
+          <Text style={[styles.noticeMessage, { color: primaryFontColor }]}>{authMessage}</Text>
+        </View>
+      ) : null}
+
       <View style={[styles.header, { backgroundColor: secondaryBackgroundColor }]}>
         <Text style={[styles.title, { color: primaryFontColor }]}>
           Welcome Back
@@ -84,6 +108,15 @@ function LoginScreen({ onLoginSuccess, onConsentPending, onSwitchToSignup }) {
         </Text>
         <Text style={[styles.switchLink, { color: accentColor }]}>Sign up</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={onCancel}
+        style={styles.cancelRow}
+        accessibilityRole="button"
+        accessibilityLabel="Go back without logging in"
+      >
+        <Text style={[styles.cancelText, { color: secondaryFontColor }]}>Back to Home</Text>
+      </TouchableOpacity>
     </ScreenContainer>
   );
 }
@@ -93,6 +126,24 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     padding: 16,
     borderRadius: 12,
+  },
+  notice: {
+    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 6,
+  },
+  noticeTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  noticeMessage: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
   },
   title: {
     fontSize: 26,
@@ -118,6 +169,14 @@ const styles = StyleSheet.create({
   switchText: {
   },
   switchLink: {
+    fontWeight: '600',
+  },
+  cancelRow: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  cancelText: {
+    fontSize: 13,
     fontWeight: '600',
   },
 });

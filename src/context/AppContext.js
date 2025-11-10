@@ -25,6 +25,8 @@ const initialState = {
   statusMessage: null,
   loadingPreferences: false,
   loadingConsentLogs: false,
+  authRedirect: null,
+  authMessage: null,
 };
 
 export function AppStateProvider({ children }) {
@@ -96,6 +98,45 @@ export function AppStateProvider({ children }) {
   const clearStatusMessage = useCallback(() => {
     setState((prev) => ({ ...prev, statusMessage: null }));
   }, []);
+
+  const setAuthRedirect = useCallback((nextRedirect, message) => {
+    setState((prev) => ({
+      ...prev,
+      authRedirect: nextRedirect || null,
+      authMessage: message || (nextRedirect ? 'Log in to continue.' : null),
+    }));
+  }, []);
+
+  const clearAuthRedirect = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      authRedirect: null,
+      authMessage: null,
+    }));
+  }, []);
+
+  const ensureAuthenticated = useCallback(
+    ({ navigation, message, redirect } = {}) => {
+      if (state.currentUser) {
+        return true;
+      }
+
+      setAuthRedirect(redirect || null, message);
+
+      if (navigation) {
+        let targetNav = navigation;
+        let parent = targetNav?.getParent?.();
+        while (parent) {
+          targetNav = parent;
+          parent = targetNav?.getParent?.();
+        }
+        targetNav?.navigate?.('Login');
+      }
+
+      return false;
+    },
+    [setAuthRedirect, state.currentUser],
+  );
 
   const enterConsentFlow = useCallback(
     async (user, token, initialLog) => {
@@ -204,23 +245,28 @@ export function AppStateProvider({ children }) {
     });
   }, []);
 
-  const handleStartOrder = useCallback(() => {
-    if (!state.currentUser) {
-      setState((prev) => ({
-        ...prev,
-        statusMessage: 'Please log in to create an order.',
-      }));
-      return false;
-    }
-    if (state.currentUser.pendingConsent) {
-      setState((prev) => ({
-        ...prev,
-        statusMessage: 'Parental consent must be approved before placing an order.',
-      }));
-      return false;
-    }
-    return true;
-  }, [state.currentUser]);
+  const handleStartOrder = useCallback(
+    ({ navigation } = {}) => {
+      const hasAccess = ensureAuthenticated({
+        navigation,
+        message: 'Log in to create a custom set.',
+        redirect: { type: 'startOrder' },
+      });
+
+      if (!hasAccess) {
+        return false;
+      }
+      if (state.currentUser.pendingConsent) {
+        setState((prev) => ({
+          ...prev,
+          statusMessage: 'Parental consent must be approved before placing an order.',
+        }));
+        return false;
+      }
+      return true;
+    },
+    [ensureAuthenticated, state.currentUser],
+  );
 
   const handleDraftSaved = useCallback((order) => {
     setState((prev) => ({
@@ -260,6 +306,8 @@ export function AppStateProvider({ children }) {
       handleOrderCancelled,
       handleOrderComplete,
       enterConsentFlow,
+      ensureAuthenticated,
+      clearAuthRedirect,
       setState,
     }),
     [
@@ -277,6 +325,8 @@ export function AppStateProvider({ children }) {
       handleOrderCancelled,
       handleOrderComplete,
       enterConsentFlow,
+      ensureAuthenticated,
+      clearAuthRedirect,
     ],
   );
 
