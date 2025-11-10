@@ -35,18 +35,6 @@ export default function MainTabs() {
     }
   }, [handleStartOrder, navigation]);
 
-  const handleProfileAccess = useCallback(() => {
-    const allowed = ensureAuthenticated({
-      navigation,
-      message: 'Log in to view your profile.',
-      redirect: { type: 'tab', tab: 'Profile' },
-    });
-    if (!allowed) {
-      return;
-    }
-    navigation.navigate('Profile');
-  }, [ensureAuthenticated, navigation]);
-
   return (
     <View style={styles.root}>
       <SafeAreaView
@@ -81,25 +69,6 @@ export default function MainTabs() {
             </View>
           </View>
           <View style={styles.headerActions}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={state.currentUser ? 'Open profile' : 'Log in'}
-              onPress={handleProfileAccess}
-              style={({ pressed }) => [
-                styles.headerIconButton,
-                {
-                  borderColor: withOpacity(colors.border, 0.9),
-                  backgroundColor: withOpacity(colors.surface, pressed ? 0.7 : 0.9),
-                  shadowColor: colors.shadow,
-                },
-              ]}
-            >
-              <Icon
-                name="profile"
-                color={state.currentUser ? colors.accent : colors.secondaryFont}
-                size={18}
-              />
-            </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Create new custom nail set"
@@ -244,18 +213,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-  },
-  headerIconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 2,
   },
   headerButton: {
     width: 42,
