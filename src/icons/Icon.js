@@ -46,6 +46,29 @@ const iconRenderers = {
       />
     </Svg>
   ),
+  gallery: (props = {}) => (
+    <Svg
+      width={ICON_SIZE}
+      height={ICON_SIZE}
+      viewBox="0 0 24 24"
+      color={props.color || 'currentColor'}
+      {...props}
+    >
+      <Path
+        d="M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.7}
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M15.5 15.5 19 19M13 19l2.5-2.5"
+        stroke="currentColor"
+        strokeWidth={1.7}
+        strokeLinecap="round"
+      />
+    </Svg>
+  ),
   profile: (props = {}) => (
     <Svg
       width={ICON_SIZE}

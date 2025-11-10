@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import HomeDashboardScreen from '../screens/HomeDashboardScreen';
+import GalleryScreen from '../screens/GalleryScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import BottomTabBar from '../components/navigation/BottomTabBar';
@@ -96,6 +97,16 @@ export default function MainTabs() {
             tabBarLabel: 'Home',
             tabBarIcon: ({ color, focused }) => (
               <Icon name="home" color={color} size={focused ? 26 : 24} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Gallery"
+          component={GalleryScreen}
+          options={{
+            tabBarLabel: 'Gallery',
+            tabBarIcon: ({ color, focused }) => (
+              <Icon name="gallery" color={color} size={focused ? 26 : 24} />
             ),
           }}
         />
