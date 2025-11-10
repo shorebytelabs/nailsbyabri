@@ -374,7 +374,33 @@ function NewOrderStepperScreen({ route }) {
       setSavingDraft(true);
       const order = await persistDraftOrder();
       logEvent('save_order_draft', { order_id: order.id });
-      Alert.alert('Draft saved', 'You can continue editing this set anytime.');
+      Alert.alert('Draft saved', 'You can continue editing this set anytime.', [
+        {
+          text: 'OK',
+          onPress: () => {
+            navigation.reset({
+              index: 0,
+              routes: [
+                {
+                  name: 'MainTabs',
+                  state: {
+                    index: 2,
+                    routes: [
+                      { name: 'Home' },
+                      { name: 'Gallery' },
+                      {
+                        name: 'Orders',
+                        params: { initialTab: 'drafts' },
+                      },
+                      { name: 'Profile' },
+                    ],
+                  },
+                },
+              ],
+            });
+          },
+        },
+      ]);
     } catch (err) {
       Alert.alert('Unable to save draft', err.message || 'Please try again.');
     } finally {

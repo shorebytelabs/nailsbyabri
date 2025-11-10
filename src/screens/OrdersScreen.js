@@ -6,7 +6,8 @@ import { useAppState } from '../context/AppContext';
 import { logEvent } from '../utils/analytics';
 import { withOpacity } from '../utils/color';
 
-function OrdersScreen() {
+function OrdersScreen({ route }) {
+  const initialTabFromRoute = route?.params?.initialTab;
   const navigation = useNavigation();
   const { theme } = useTheme();
   const { state, refreshConsentLogs, setState } = useAppState();
@@ -92,7 +93,11 @@ function OrdersScreen() {
     });
   }, [state.activeOrder, state.lastCompletedOrder]);
 
-  const [activeTab, setActiveTab] = useState('drafts');
+  const [activeTab, setActiveTab] = useState(
+    ['drafts', 'submitted', 'completed', 'all'].includes(initialTabFromRoute)
+      ? initialTabFromRoute
+      : 'drafts',
+  );
 
   const tabs = useMemo(
     () => [
