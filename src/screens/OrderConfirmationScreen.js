@@ -118,17 +118,8 @@ function OrderConfirmationScreen({ order, onDone, onViewOrder }) {
     }
   }, [onDone, order]);
 
-  const handleContactSupport = useCallback(async () => {
-    try {
-      const result = await Linking.canOpenURL(SUPPORT_EMAIL);
-      if (result) {
-        await Linking.openURL(SUPPORT_EMAIL);
-      } else {
-        Alert.alert('Contact Support', 'Please email NailsByAbri@gmail.com for assistance.');
-      }
-    } catch (error) {
-      Alert.alert('Contact Support', 'Unable to open your mail app right now.');
-    }
+  const handleContactSupport = useCallback(() => {
+    Alert.alert('Contact Support', 'Please email NailsByAbri@gmail.com for assistance.');
   }, []);
 
   if (!order) {
