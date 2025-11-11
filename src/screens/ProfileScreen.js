@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  TextInput,
   View,
 } from 'react-native';
 import FormField from '../components/FormField';
@@ -16,6 +17,30 @@ import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
 import { logEvent } from '../utils/analytics';
 import { withOpacity } from '../utils/color';
+import {
+  normalizeNailSizes as normalizeStoredNailSizes,
+  createEmptySizeValues,
+} from '../storage/preferences';
+
+const FINGER_DISPLAY = [
+  { key: 'thumb', label: 'Thumb' },
+  { key: 'index', label: 'Index' },
+  { key: 'middle', label: 'Middle' },
+  { key: 'ring', label: 'Ring' },
+  { key: 'pinky', label: 'Pinky' },
+];
+
+const buildEmptyNailSizes = () => ({
+  defaultProfile: {
+    id: 'default',
+    label: 'My default sizes',
+    sizes: createEmptySizeValues(),
+  },
+  profiles: [],
+});
+
+const normalizeNailSizes = (value) =>
+  value ? normalizeStoredNailSizes(value) : buildEmptyNailSizes();
 
 function ProfileScreen() {
   const { theme } = useTheme();
@@ -32,22 +57,24 @@ function ProfileScreen() {
   const user = state.currentUser;
   const consentLogs = state.consentLogs || [];
 
-  const [localPreferences, setLocalPreferences] = useState(state.preferences);
   const [accountDraft, setAccountDraft] = useState(() => ({
     name: user?.name || '',
     email: user?.email || '',
   }));
-  const [preferencesExpanded, setPreferencesExpanded] = useState(false);
+  const [nailSizesExpanded, setNailSizesExpanded] = useState(false);
   const [consentExpanded, setConsentExpanded] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [accountModalVisible, setAccountModalVisible] = useState(false);
-  const [savingPreferences, setSavingPreferences] = useState(false);
+  const [savingSizes, setSavingSizes] = useState(false);
   const [refreshingConsent, setRefreshingConsent] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
+  const [nailSizesDraft, setNailSizesDraft] = useState(() =>
+    normalizeNailSizes(state.preferences?.nailSizes),
+  );
 
   useEffect(() => {
-    setLocalPreferences(state.preferences);
-  }, [state.preferences]);
+    setNailSizesDraft(normalizeNailSizes(state.preferences?.nailSizes));
+  }, [state.preferences?.nailSizes]);
 
   useEffect(() => {
     if (!user) {
@@ -88,21 +115,95 @@ function ProfileScreen() {
     user.memberSince || user.createdAt || user.consentedAt,
   );
 
-  const handlePreferenceChange = (key, value) => {
-    setLocalPreferences((prev) => ({
+  const handleDefaultProfileLabelChange = (value) => {
+    setNailSizesDraft((prev) => ({
       ...prev,
-      [key]: value,
+      defaultProfile: {
+        ...prev.defaultProfile,
+        label: value,
+      },
     }));
   };
 
-  const persistPreferences = async () => {
-    setSavingPreferences(true);
+  const handleDefaultSizeChange = (finger, value) => {
+    setNailSizesDraft((prev) => ({
+      ...prev,
+      defaultProfile: {
+        ...prev.defaultProfile,
+        sizes: {
+          ...prev.defaultProfile.sizes,
+          [finger]: value,
+        },
+      },
+    }));
+  };
+
+  const handleProfileNameChange = (profileId, value) => {
+    setNailSizesDraft((prev) => ({
+      ...prev,
+      profiles: prev.profiles.map((profile) =>
+        profile.id === profileId
+          ? {
+              ...profile,
+              label: value,
+            }
+          : profile,
+      ),
+    }));
+  };
+
+  const handleProfileSizeChange = (profileId, finger, value) => {
+    setNailSizesDraft((prev) => ({
+      ...prev,
+      profiles: prev.profiles.map((profile) =>
+        profile.id === profileId
+          ? {
+              ...profile,
+              sizes: {
+                ...profile.sizes,
+                [finger]: value,
+              },
+            }
+          : profile,
+      ),
+    }));
+  };
+
+  const handleAddSizeProfile = () => {
+    setNailSizesExpanded(true);
+    const newProfile = {
+      id: `profile_${Date.now()}`,
+      label: `Additional profile ${nailSizesDraft.profiles.length + 1}`,
+      sizes: createEmptySizeValues(),
+    };
+    setNailSizesDraft((prev) => ({
+      ...prev,
+      profiles: [...prev.profiles, newProfile],
+    }));
+    logEvent('profile_add_size_profile');
+  };
+
+  const handleRemoveSizeProfile = (profileId) => {
+    setNailSizesDraft((prev) => ({
+      ...prev,
+      profiles: prev.profiles.filter((profile) => profile.id !== profileId),
+    }));
+    logEvent('profile_remove_size_profile', { profile_id: profileId });
+  };
+
+  const handleSaveNailSizes = async () => {
+    setSavingSizes(true);
     try {
-      await handleUpdatePreferences({ ...localPreferences });
-      setConfirmation('Preferences saved');
-      logEvent('profile_save_preferences');
+      const sanitized = normalizeNailSizes(nailSizesDraft);
+      const nextPreferences = {
+        ...state.preferences,
+        nailSizes: sanitized,
+      };
+      await handleUpdatePreferences(nextPreferences);
+      setConfirmation('Nail sizes saved');
+      logEvent('profile_save_nail_sizes');
     } finally {
-      setSavingPreferences(false);
+      setSavingSizes(false);
     }
   };
 
@@ -133,18 +234,8 @@ function ProfileScreen() {
   };
 
   const handleContact = async () => {
-    const recipient = 'mailto:NailsByAbri@gmail.com';
-    try {
-      logEvent('profile_contact_support');
-      const canOpen = await Linking.canOpenURL(recipient);
-      if (canOpen) {
-        await Linking.openURL(recipient);
-      } else {
-        Alert.alert('Contact', 'Please email NailsByAbri@gmail.com');
-      }
-    } catch (error) {
-      Alert.alert('Contact', 'Unable to open your mail app.');
-    }
+    logEvent('profile_contact_support');
+    Alert.alert('Contact Support', 'Please email NailsByAbri@gmail.com for assistance.');
   };
 
   const handleSaveAccountDetails = () => {
@@ -180,13 +271,13 @@ function ProfileScreen() {
       onPress: handleShippingAddress,
     },
     {
-      key: 'preferences',
-      title: 'Saved Preferences',
-      description: 'Favorite polish color and nail shape',
+      key: 'nailSizes',
+      title: 'Nail Sizes',
+      description: 'Manage your nail sizes',
       icon: 'sliders',
       expandable: true,
-      expanded: preferencesExpanded,
-      onPress: () => setPreferencesExpanded((prev) => !prev),
+      expanded: nailSizesExpanded,
+      onPress: () => setNailSizesExpanded((prev) => !prev),
     },
     {
       key: 'consent',
@@ -241,7 +332,7 @@ function ProfileScreen() {
         <View style={styles.pageHeader}>
           <Text style={styles.pageTitle}>My Profile</Text>
           <Text style={styles.pageSubtitle}>
-            Manage your account, preferences, and history
+            Manage your account, nail sizes, and history
           </Text>
         </View>
 
@@ -324,29 +415,65 @@ function ProfileScreen() {
               </TouchableOpacity>
               {item.expandable && item.expanded ? (
                 <View style={styles.rowExpansion}>
-                  {item.key === 'preferences' ? (
-                    <View style={styles.inlineForm}>
-                      <FormField
-                        label="Favorite polish color"
-                        value={localPreferences.favoriteColor}
-                        onChangeText={(value) =>
-                          handlePreferenceChange('favoriteColor', value)
-                        }
-                        placeholder="e.g. Rose Gold"
-                      />
-                      <FormField
-                        label="Preferred nail shape"
-                        value={localPreferences.nailShape}
-                        onChangeText={(value) =>
-                          handlePreferenceChange('nailShape', value)
-                        }
-                        placeholder="e.g. Almond"
-                      />
+                  {item.key === 'nailSizes' ? (
+                    <View style={styles.nailSizesSection}>
+                      <View style={styles.sizeSectionHeader}>
+                        <Text style={styles.sectionTitle}>Default nail sizes</Text>
+                      </View>
+                      {renderSizeProfileCard({
+                        profile: nailSizesDraft.defaultProfile,
+                        colors,
+                        styles,
+                        isDefault: true,
+                        onChangeLabel: handleDefaultProfileLabelChange,
+                        onChangeSize: handleDefaultSizeChange,
+                      })}
+
+                      <View style={styles.sizeSectionHeaderRow}>
+                        <Text style={styles.sectionTitle}>Additional profiles</Text>
+                        <Text style={styles.sizeSectionHint}>
+                          Save additional nail sizes.
+                        </Text>
+                      </View>
+                      {nailSizesDraft.profiles.length
+                        ? nailSizesDraft.profiles.map((profile) =>
+                            renderSizeProfileCard({
+                              profile,
+                              colors,
+                              styles,
+                              isDefault: false,
+                              onChangeLabel: (value) => handleProfileNameChange(profile.id, value),
+                              onChangeSize: (finger, value) =>
+                                handleProfileSizeChange(profile.id, finger, value),
+                              onRemove: () => handleRemoveSizeProfile(profile.id),
+                            }),
+                          )
+                        : null}
+
+                      <TouchableOpacity
+                        style={[
+                          styles.addSizeButton,
+                          { borderColor: withOpacity(colors.accent || '#6F171F', 0.3) },
+                        ]}
+                        onPress={handleAddSizeProfile}
+                        accessibilityRole="button"
+                      >
+                        <Icon name="plus" color={colors.accent} size={16} />
+                        <Text
+                          style={[
+                            styles.addSizeButtonText,
+                            { color: colors.accent },
+                          ]}
+                        >
+                          Add size profile
+                        </Text>
+                      </TouchableOpacity>
+
                       <PrimaryButton
-                        label={savingPreferences ? 'Saving…' : 'Save Preferences'}
-                        onPress={persistPreferences}
-                        loading={savingPreferences}
-                        accessibilityLabel="Save your saved preferences"
+                        label={savingSizes ? 'Saving…' : 'Save Nail Sizes'}
+                        onPress={handleSaveNailSizes}
+                        loading={savingSizes}
+                        accessibilityLabel="Save nail size profiles"
                       />
                     </View>
                   ) : null}
@@ -541,6 +668,94 @@ function ProfileScreen() {
   );
 }
 
+function renderSizeProfileCard({
+  profile,
+  colors,
+  styles,
+  isDefault,
+  onChangeLabel,
+  onChangeSize,
+  onRemove,
+}) {
+  return (
+    <View
+      key={profile.id}
+      style={[
+        styles.sizeProfileCard,
+        {
+          borderColor: withOpacity(colors.divider || '#E6DCD0', 0.8),
+          backgroundColor: colors.surface || '#FFFFFF',
+        },
+      ]}
+    >
+      <View style={styles.sizeProfileHeader}>
+        <View style={styles.sizeProfileHeaderText}>
+          <Text style={styles.sizeProfileTitle}>
+            {isDefault ? 'Default profile' : 'Additional profile'}
+          </Text>
+        </View>
+        {!isDefault && (
+          <TouchableOpacity
+            onPress={onRemove}
+            accessibilityRole='button'
+            style={styles.sizeRemoveButton}
+          >
+            <Icon name="trash" color={withOpacity(colors.primaryFont || '#220707', 0.6)} size={16} />
+            <Text
+              style={[
+                styles.sizeRemoveText,
+                { color: withOpacity(colors.primaryFont || '#220707', 0.6) },
+              ]}
+            >
+              Remove
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <TextInput
+        style={[
+          styles.sizeProfileNameInput,
+          {
+            borderColor: colors.divider || '#E6DCD0',
+            color: colors.primaryFont || '#220707',
+            backgroundColor: colors.surfaceMuted || withOpacity(colors.accent || '#6F171F', 0.05),
+          },
+        ]}
+        value={profile.label}
+        onChangeText={onChangeLabel}
+        placeholder={isDefault ? 'My default sizes' : 'Profile name'}
+        placeholderTextColor={withOpacity(colors.secondaryFont || '#5C5F5D', 0.6)}
+      />
+
+      <View style={styles.sizeGrid}>
+        {FINGER_DISPLAY.map(({ key, label }) => (
+          <View key={`${profile.id}_${key}`} style={styles.sizeCell}>
+            <Text style={[styles.sizeLabel, { color: colors.secondaryFont || '#5C5F5D' }]}>
+              {label}
+            </Text>
+            <TextInput
+              style={[
+                styles.sizeInput,
+                {
+                  borderColor: colors.divider || '#E6DCD0',
+                  color: colors.primaryFont || '#220707',
+                  backgroundColor: colors.surface || '#FFFFFF',
+                },
+              ]}
+              value={profile.sizes?.[key] || ''}
+              onChangeText={(value) => onChangeSize(key, value)}
+              placeholder="e.g. 3"
+              placeholderTextColor={withOpacity(colors.secondaryFont || '#5C5F5D', 0.5)}
+              keyboardType="number-pad"
+            />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function formatDate(value) {
   if (!value) {
     return '—';
@@ -718,8 +933,97 @@ function createStyles(colors) {
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: borderColor,
     },
-    inlineForm: {
+    nailSizesSection: {
+      gap: 18,
+    },
+    sizeSectionHeader: {
+      gap: 6,
+    },
+    sizeSectionHeaderRow: {
+      gap: 2,
+    },
+    sizeSectionHint: {
+      fontSize: 12,
+      color: secondaryFont,
+    },
+    sizeProfileCard: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 18,
+      padding: 16,
       gap: 16,
+    },
+    sizeProfileHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      gap: 12,
+    },
+    sizeProfileHeaderText: {
+      flex: 1,
+      gap: 4,
+    },
+    sizeProfileTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: primaryFont,
+    },
+    sizeProfileNameInput: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    sizeGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    sizeCell: {
+      width: '30%',
+      minWidth: 96,
+      gap: 4,
+    },
+    sizeLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    sizeInput: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      fontSize: 14,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    sizeRemoveButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 999,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'transparent',
+    },
+    sizeRemoveText: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    addSizeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 14,
+      paddingVertical: 10,
+    },
+    addSizeButtonText: {
+      fontSize: 13,
+      fontWeight: '700',
     },
     consentSection: {
       gap: 12,
