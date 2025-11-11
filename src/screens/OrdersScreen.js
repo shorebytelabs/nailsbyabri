@@ -101,7 +101,7 @@ function OrdersScreen({ route }) {
 
   const tabs = useMemo(
     () => [
-      { key: 'drafts', label: 'Drafts', count: draftOrders.length },
+      { key: 'drafts', label: 'Cart', count: draftOrders.length },
       { key: 'submitted', label: 'Submitted', count: submittedOrders.length },
       { key: 'completed', label: 'Delivered', count: completedOrders.length },
       { key: 'all', label: 'All', count: allOrders.length },
