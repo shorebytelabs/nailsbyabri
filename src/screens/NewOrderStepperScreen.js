@@ -1701,108 +1701,194 @@ function OrderSummaryStep({
         <View style={styles.summaryList}>
           {sets.map((set, index) => {
             const previewSource = resolveUploadPreview(set.designUploads?.[0]);
-            const perSetPrice =
+            const quantity = set.quantity || 1;
+            const subtotal =
               set.price ??
-              (typeof set.unitPrice === 'number' ? set.unitPrice * (set.quantity || 1) : 0);
+              (typeof set.unitPrice === 'number' ? set.unitPrice * quantity : 0);
+            const requiresFollowUp = !!set.requiresFollowUp;
+
             return (
               <View
                 key={set.id || `set_${index}`}
                 style={[
                   styles.summaryCard,
                   {
-                    borderColor: withOpacity(border, 0.6),
+                    borderColor: withOpacity(border, 0.45),
                     backgroundColor: surface,
-                    shadowColor: shadow,
                   },
                 ]}
               >
-                <TouchableOpacity
-                  style={styles.summaryPreview}
-                  onPress={() => onPreviewSet(set.id)}
-                  accessibilityLabel="Preview this nail set"
-                >
-                  {previewSource ? (
-                    <Image source={{ uri: previewSource }} style={styles.summaryPreviewImage} />
-                  ) : (
-                    <View
-                      style={[
-                        styles.summaryPreviewPlaceholder,
-                        { backgroundColor: withOpacity(surfaceMuted, 0.8) },
-                      ]}
-                    >
-                      <Icon name="image" color={withOpacity(primaryFont, 0.4)} size={18} />
-                      <Text
+                <View style={styles.summaryCardContent}>
+                  <View style={styles.summaryPreviewWrapper}>
+                    {previewSource ? (
+                      <TouchableOpacity
+                        onPress={() => onPreviewSet(set.id)}
+                        style={styles.summaryPreviewImageWrapper}
+                        accessibilityLabel={`Preview nail set ${index + 1}`}
+                      >
+                        <Image source={{ uri: previewSource }} style={styles.summaryPreviewImage} />
+                      </TouchableOpacity>
+                    ) : (
+                      <View
                         style={[
-                          styles.summaryPreviewPlaceholderText,
-                          { color: secondaryFont },
+                          styles.summaryPreviewPlaceholder,
+                          { backgroundColor: withOpacity(surfaceMuted, 0.7) },
                         ]}
                       >
-                        No image
+                        <Icon name="image" color={withOpacity(primaryFont, 0.35)} size={22} />
+                        <Text
+                          style={[
+                            styles.summaryPreviewPlaceholderText,
+                            { color: secondaryFont },
+                          ]}
+                        >
+                          No image
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.summaryMeta}>
+                    <Text
+                      style={[
+                        styles.summaryTitle,
+                        { color: primaryFont },
+                      ]}
+                    >
+                      {`Nail Set #${index + 1}`}
+                    </Text>
+                    <View style={styles.reviewMetaRow}>
+                      <Text
+                        style={[
+                          styles.reviewMetaLabel,
+                          { color: withOpacity(primaryFont, 0.7) },
+                        ]}
+                      >
+                        Shape
+                      </Text>
+                      <Text
+                        style={[
+                          styles.reviewMetaValue,
+                          { color: primaryFont },
+                        ]}
+                      >
+                        {set.shapeName || 'Custom shape'}
                       </Text>
                     </View>
-                  )}
-                </TouchableOpacity>
-
-                <View style={styles.summaryMeta}>
+                    {set.designDescription ? (
+                      <View style={styles.reviewMetaRow}>
+                        <Text
+                          style={[
+                            styles.reviewMetaLabel,
+                            { color: withOpacity(primaryFont, 0.7) },
+                          ]}
+                        >
+                          Description
+                        </Text>
+                        <Text
+                          style={[
+                            styles.reviewMetaValue,
+                            { color: secondaryFont },
+                          ]}
+                          numberOfLines={2}
+                          ellipsizeMode="tail"
+                        >
+                          {set.designDescription}
+                        </Text>
+                      </View>
+                    ) : null}
+                    <View style={styles.reviewMetaRow}>
+                      <Text
+                        style={[
+                          styles.reviewMetaLabel,
+                          { color: withOpacity(primaryFont, 0.7) },
+                        ]}
+                      >
+                        Quantity
+                      </Text>
+                      <Text
+                        style={[
+                          styles.reviewMetaValue,
+                          { color: primaryFont },
+                        ]}
+                      >
+                        {quantity}
+                      </Text>
+                    </View>
+                    {requiresFollowUp ? (
+                      <View style={styles.reviewMetaRow}>
+                        <Text
+                          style={[
+                            styles.reviewMetaLabel,
+                            { color: withOpacity(primaryFont, 0.7) },
+                          ]}
+                        >
+                          Follow-up
+                        </Text>
+                        <Text
+                          style={[
+                            styles.reviewMetaValue,
+                            { color: accent },
+                          ]}
+                        >
+                          Needs design assistance
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+                <View style={styles.summaryCardFooter}>
                   <Text
                     style={[
-                      styles.summaryTitle,
-                      { color: primaryFont },
-                    ]}
-                  >
-                    {set.name || set.shapeName || `Set ${index + 1}`}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.summarySubtitle,
-                      { color: secondaryFont },
-                    ]}
-                  >
-                    {set.shapeName || 'Custom shape'}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.summaryPrice,
+                      styles.summarySetPrice,
                       { color: accent },
                     ]}
                   >
-                    {formatCurrency(perSetPrice)}
+                    {formatCurrency(subtotal)}
                   </Text>
-                </View>
-
-                <View style={styles.summaryActions}>
-                  <TouchableOpacity
-                    onPress={() => onEditSet(set.id)}
-                    accessibilityLabel="Edit this nail set"
-                    accessibilityHint="Edit this nail set"
-                    style={styles.summaryActionButton}
-                  >
-                    <Icon name="edit" color={accent} size={18} />
-                    <Text
+                  <View style={styles.summaryActions}>
+                    <TouchableOpacity
+                      onPress={() => onEditSet(set.id)}
+                      accessibilityLabel="Edit this nail set"
                       style={[
-                        styles.summaryActionLabel,
-                        { color: accent },
+                        styles.reviewActionButton,
+                        {
+                          borderColor: withOpacity(accent, 0.35),
+                          backgroundColor: withOpacity(accent, 0.08),
+                        },
                       ]}
                     >
-                      Edit
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => onRemoveSet(set.id)}
-                    accessibilityLabel="Remove this nail set"
-                    accessibilityHint="Remove this nail set"
-                    style={styles.summaryActionButton}
-                  >
-                    <Icon name="trash" color={withOpacity(danger, 0.9)} size={18} />
-                    <Text
+                      <Icon name="edit" color={accent} size={16} />
+                      <Text
+                        style={[
+                          styles.reviewActionLabel,
+                          { color: accent },
+                        ]}
+                      >
+                        Edit
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => onRemoveSet(set.id)}
+                      accessibilityLabel="Remove this nail set"
                       style={[
-                        styles.summaryActionLabel,
-                        { color: withOpacity(danger, 0.9) },
+                        styles.reviewActionButton,
+                        {
+                          borderColor: withOpacity(border, 0.5),
+                          backgroundColor: withOpacity(surfaceMuted, 0.5),
+                        },
                       ]}
                     >
-                      Remove
-                    </Text>
-                  </TouchableOpacity>
+                      <Icon name="trash" color={withOpacity(primaryFont, 0.7)} size={16} />
+                      <Text
+                        style={[
+                          styles.reviewActionLabel,
+                          { color: withOpacity(primaryFont, 0.7) },
+                        ]}
+                      >
+                        Remove
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             );
@@ -2392,10 +2478,10 @@ function ReviewStep({
           style={[
             styles.summaryAddButton,
             {
-              alignSelf: 'flex-start',
+              alignSelf: 'flex-end',
               borderColor: withOpacity(accent, 0.35),
               backgroundColor: withOpacity(accent, 0.08),
-              marginTop: 8,
+              marginBottom: 12,
             },
           ]}
           accessibilityLabel="Add another nail set"
@@ -2907,22 +2993,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   summaryList: {
-    gap: 14,
+    gap: 12,
   },
   summaryCard: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 18,
     padding: 16,
+    gap: 16,
+  },
+  summaryCardContent: {
     flexDirection: 'row',
     gap: 16,
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 12,
-    elevation: 3,
   },
-  summaryPreview: {
-    width: 96,
-    height: 96,
+  summaryPreviewWrapper: {
+    width: 84,
+  },
+  summaryPreviewImageWrapper: {
+    width: 84,
+    height: 84,
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -2931,43 +3019,39 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   summaryPreviewPlaceholder: {
-    flex: 1,
+    width: 84,
+    height: 84,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
   },
   summaryPreviewPlaceholderText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   summaryMeta: {
     flex: 1,
-    gap: 4,
+    gap: 8,
   },
   summaryTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
   },
-  summarySubtitle: {
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  summaryPrice: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  summaryActions: {
-    gap: 8,
-    justifyContent: 'center',
-  },
-  summaryActionButton: {
+  summaryCardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
+    gap: 12,
   },
-  summaryActionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+  summarySetPrice: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  summaryActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   summaryEmpty: {
     borderWidth: StyleSheet.hairlineWidth,
