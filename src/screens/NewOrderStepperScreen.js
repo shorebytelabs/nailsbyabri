@@ -907,7 +907,7 @@ function DesignStep({
                 { color: secondaryFont },
               ]}
             >
-              Add inspiration images.
+              Add inspiration images to guide your custom set.
             </Text>
           </View>
           <TouchableOpacity
@@ -1022,7 +1022,7 @@ function DesignStep({
                 { color: secondaryFont },
               ]}
             >
-              Upload photos or describe your idea below.
+              Upload images if you have any inspiration to share.
             </Text>
           </View>
         )}
@@ -1052,13 +1052,13 @@ function DesignStep({
               { color: secondaryFont },
             ]}
           >
-            Describe colors, finishes, or notes for Abri.
+            Share colors, finishes, inspiration references, or special instructions.
           </Text>
         </View>
         <TextInput
           value={description}
           onChangeText={onChangeDescription}
-          placeholder="Tell us about the look—palette, art style, finishes, accents."
+          placeholder="Tell us about your dream set-palette, art style, finishes, or special accents."
           placeholderTextColor={withOpacity(primaryFont, 0.4)}
           multiline
           numberOfLines={4}
@@ -1095,7 +1095,7 @@ function DesignStep({
                 { color: secondaryFont },
               ]}
             >
-              Let Abri suggest ideas or finalize details.
+              Toggle on if you’d like Abri to suggest ideas or finalize details with you.
             </Text>
           </View>
           <Switch
