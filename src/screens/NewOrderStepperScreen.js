@@ -19,6 +19,7 @@ import { useAppState } from '../context/AppContext';
 import { fetchShapes, createOrUpdateOrder } from '../services/api';
 import { calculatePriceBreakdown, pricingConstants } from '../utils/pricing';
 import PrimaryButton from '../components/PrimaryButton';
+import Icon from '../icons/Icon';
 import { logEvent } from '../utils/analytics';
 import { withOpacity } from '../utils/color';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -56,6 +57,8 @@ function resolveUploadPreview(upload) {
     upload.data ||
     upload.content ||
     upload.base64 ||
+    upload.thumbnail ||
+    upload.source ||
     null;
 
   if (!possible || typeof possible !== 'string') {
@@ -63,6 +66,10 @@ function resolveUploadPreview(upload) {
   }
 
   if (upload.uri || upload.url || upload.preview || /^data:/.test(possible)) {
+    return possible;
+  }
+
+  if (possible.startsWith('http')) {
     return possible;
   }
 
@@ -448,6 +455,7 @@ function NewOrderStepperScreen({ route }) {
         includeBase64: true,
         quality: 0.85,
         maxWidth: 1500,
+        selectionLimit: 0,
       });
 
       if (response.didCancel) {
@@ -459,25 +467,38 @@ function NewOrderStepperScreen({ route }) {
         return;
       }
 
-      const asset = response.assets?.[0];
-      if (!asset?.base64) {
-        Alert.alert('Upload error', 'Unable to read the selected image. Please try again.');
+      const assets = Array.isArray(response.assets) ? response.assets : [];
+      if (!assets.length) {
         return;
       }
 
-      const upload = {
-        id: `upload_${Date.now()}`,
-        uri: asset.uri || null,
-        fileName: asset.fileName || 'design-reference.jpg',
-        base64: asset.base64,
-        preview: asset.base64
-          ? `data:${asset.type || 'image/jpeg'};base64,${asset.base64}`
-          : asset.uri || null,
-      };
+      const uploadsToAdd = assets
+        .map((asset, index) => {
+          const hasPreview = asset.base64 || asset.uri || asset.url;
+          if (!hasPreview) {
+            return null;
+          }
+
+          return {
+            id: `upload_${Date.now()}_${index}`,
+            uri: asset.uri || asset.url || null,
+            fileName: asset.fileName || `design-reference-${index + 1}.jpg`,
+            base64: asset.base64 || null,
+            preview: asset.base64
+              ? `data:${asset.type || 'image/jpeg'};base64,${asset.base64}`
+              : asset.uri || asset.url || null,
+          };
+        })
+        .filter(Boolean);
+
+      if (!uploadsToAdd.length) {
+        Alert.alert('Upload error', 'Unable to read the selected images. Please try again.');
+        return;
+      }
 
       setForm((prev) => ({
         ...prev,
-        designUploads: [...(prev.designUploads || []), upload],
+        designUploads: [...(prev.designUploads || []), ...uploadsToAdd],
       }));
     } catch (err) {
       Alert.alert('Upload error', err.message || 'Something went wrong. Please try again.');
@@ -851,7 +872,9 @@ function DesignStep({
     accent = '#6F171F',
     border = '#D9C8A9',
     surface = '#FFFFFF',
+    surfaceMuted = '#F4EBE3',
     secondaryBackground = '#BF9B7A',
+    shadow = '#000000',
   } = colors || {};
 
   const uploads = Array.isArray(designUploads) ? designUploads : [];
@@ -869,30 +892,46 @@ function DesignStep({
         ]}
       >
         <View style={styles.designUploadHeader}>
-          <Text
-            style={[
-              styles.sectionLabel,
-              { color: primaryFont },
-            ]}
-          >
-            Design uploads
-          </Text>
-          {uploadCount > 0 ? (
+          <View style={styles.designUploadHeaderCopy}>
             <Text
               style={[
-                styles.designUploadCount,
+                styles.sectionLabel,
+                { color: primaryFont },
+              ]}
+            >
+              Design uploads
+            </Text>
+            <Text
+              style={[
+                styles.designUploadHint,
                 { color: secondaryFont },
               ]}
             >
-              {uploadCount} {uploadCount === 1 ? 'image' : 'images'} added
+              Add inspiration images.
             </Text>
-          ) : null}
+          </View>
+          <TouchableOpacity
+            onPress={onAddUpload}
+            accessibilityRole="button"
+            style={[
+              styles.designUploadAction,
+              {
+                borderColor: withOpacity(accent, 0.35),
+                backgroundColor: withOpacity(accent, 0.08),
+              },
+            ]}
+          >
+            <Icon name="plus" color={accent} size={16} />
+            <Text
+              style={[
+                styles.designUploadActionLabel,
+                { color: accent },
+              ]}
+            >
+              Add image
+            </Text>
+          </TouchableOpacity>
         </View>
-        <PrimaryButton
-          label="Add Inspiration Image"
-          onPress={onAddUpload}
-          style={styles.designUploadButton}
-        />
         {uploadCount > 0 ? (
           <View style={styles.designUploadGrid}>
             {uploads.map((upload) => {
@@ -904,109 +943,172 @@ function DesignStep({
                   style={[
                     styles.designUploadItem,
                     {
-                      borderColor: border,
-                      backgroundColor: surface,
+                      borderColor: withOpacity(border, 0.6),
+                      backgroundColor: surfaceMuted,
+                      shadowColor: shadow,
                     },
                   ]}
                 >
-                  {imageSource ? (
-                    <Image source={imageSource} style={styles.designUploadImage} />
-                  ) : (
-                    <View
-                      style={[
-                        styles.designUploadEmpty,
-                        { backgroundColor: withOpacity(secondaryBackground, 0.5) },
-                      ]}
-                    >
-                      <Text
+                  <View style={styles.designUploadThumbnailFrame}>
+                    {imageSource ? (
+                      <Image source={imageSource} style={styles.designUploadImage} />
+                    ) : (
+                      <View
                         style={[
-                          styles.designUploadEmptyText,
-                          { color: primaryFont },
+                          styles.designUploadEmpty,
+                          { backgroundColor: withOpacity(secondaryBackground, 0.35) },
                         ]}
                       >
-                        No preview
-                      </Text>
-                    </View>
-                  )}
-                  <TouchableOpacity onPress={() => onRemoveUpload(upload.id)}>
+                        <Icon name="image" color={withOpacity(primaryFont, 0.4)} size={18} />
+                        <Text
+                          style={[
+                            styles.designUploadEmptyText,
+                            { color: primaryFont },
+                          ]}
+                        >
+                          No preview
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.designUploadMeta}>
                     <Text
                       style={[
-                        styles.designUploadRemove,
-                        { color: accent },
+                        styles.designUploadName,
+                        { color: primaryFont },
                       ]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
                     >
-                      Remove
+                      {upload.fileName || 'Inspiration image'}
                     </Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity onPress={() => onRemoveUpload(upload.id)}>
+                      <Text
+                        style={[
+                          styles.designUploadRemove,
+                          { color: accent },
+                        ]}
+                      >
+                        Remove
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               );
             })}
           </View>
         ) : (
-          <Text
+          <View
             style={[
-              styles.designUploadHint,
-              { color: secondaryFont },
+              styles.designUploadPlaceholder,
+              {
+                borderColor: withOpacity(border, 0.4),
+                backgroundColor: withOpacity(surfaceMuted, 0.75),
+              },
             ]}
           >
-            Upload photos of the designs or describe it below. If neither, mark for follow-up.
-          </Text>
+            <Icon name="image" color={withOpacity(accent, 0.5)} size={28} />
+            <Text
+              style={[
+                styles.designUploadPlaceholderTitle,
+                { color: primaryFont },
+              ]}
+            >
+              No images yet
+            </Text>
+            <Text
+              style={[
+                styles.designUploadPlaceholderCopy,
+                { color: secondaryFont },
+              ]}
+            >
+              Upload photos or describe your idea below.
+            </Text>
+          </View>
         )}
       </View>
 
-      <View style={styles.designDescriptionBlock}>
-        <Text
-          style={[
-            styles.sectionLabel,
-            { color: primaryFont },
-          ]}
-        >
-          Design description
-        </Text>
-        <TextInput
-          value={description}
-          onChangeText={onChangeDescription}
-          placeholder="Describe color, finish, art placement or upload instructions…"
-          placeholderTextColor={secondaryFont}
-          multiline
-          style={[
-            styles.designInput,
-            {
-              borderColor: border,
-              color: primaryFont,
-              backgroundColor: surface,
-            },
-          ]}
-        />
-      </View>
-
-      <View style={styles.followUpRow}>
-        <View style={styles.followUpCopy}>
+      <View
+        style={[
+          styles.designDescriptionCard,
+          {
+            borderColor: border,
+            backgroundColor: surface,
+          },
+        ]}
+      >
+        <View style={styles.designDescriptionHeader}>
           <Text
             style={[
               styles.sectionLabel,
               { color: primaryFont },
             ]}
           >
-            Need design help?
+            Design description
           </Text>
           <Text
             style={[
-              styles.designUploadHint,
+              styles.designDescriptionHint,
               { color: secondaryFont },
             ]}
           >
-            Mark for follow-up and we’ll contact you to finalise details.
+            Describe colors, finishes, or notes for Abri.
           </Text>
         </View>
-        <Switch
-          value={requiresFollowUp}
-          onValueChange={onToggleFollowUp}
-          trackColor={{
-            false: withOpacity(secondaryBackground, 0.44),
-            true: accent,
-          }}
+        <TextInput
+          value={description}
+          onChangeText={onChangeDescription}
+          placeholder="Tell us about the look—palette, art style, finishes, accents."
+          placeholderTextColor={withOpacity(primaryFont, 0.4)}
+          multiline
+          numberOfLines={4}
+          style={[
+            styles.designDescriptionInput,
+            {
+              color: primaryFont,
+              borderColor: withOpacity(border, 0.75),
+              backgroundColor: withOpacity(surfaceMuted, 0.45),
+            },
+          ]}
         />
+        <View
+          style={[
+            styles.designHelpRow,
+            {
+              borderColor: withOpacity(border, 0.5),
+              backgroundColor: withOpacity(surfaceMuted, 0.4),
+            },
+          ]}
+        >
+          <View style={styles.designHelpCopy}>
+            <Text
+              style={[
+                styles.designHelpTitle,
+                { color: primaryFont },
+              ]}
+            >
+              Need design help?
+            </Text>
+            <Text
+              style={[
+                styles.designHelpHint,
+                { color: secondaryFont },
+              ]}
+            >
+              Let Abri suggest ideas or finalize details.
+            </Text>
+          </View>
+          <Switch
+            value={requiresFollowUp}
+            onValueChange={onToggleFollowUp}
+            trackColor={{
+              false: withOpacity(border, 0.6),
+              true: withOpacity(accent, 0.4),
+            }}
+            thumbColor={requiresFollowUp ? accent : surface}
+            ios_backgroundColor={withOpacity(border, 0.6)}
+          />
+        </View>
       </View>
     </View>
   );
@@ -1557,88 +1659,151 @@ const styles = StyleSheet.create({
   },
   designUploadCard: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
-    padding: 16,
-    gap: 12,
+    borderRadius: 18,
+    padding: 18,
+    gap: 16,
   },
   designUploadHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
   },
-  designUploadCount: {
+  designUploadHeaderCopy: {
+    flex: 1,
+    gap: 6,
+  },
+  designUploadHint: {
     fontSize: 12,
-    fontWeight: '600',
+    lineHeight: 18,
   },
-  designUploadButton: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+  designUploadAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  designUploadActionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   designUploadGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 14,
   },
   designUploadItem: {
-    width: 92,
+    width: '48%',
+    minWidth: 160,
     borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    padding: 12,
+    gap: 10,
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  designUploadThumbnailFrame: {
     borderRadius: 12,
-    padding: 6,
-    alignItems: 'center',
-    gap: 6,
+    overflow: 'hidden',
+    height: 120,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   designUploadImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
   },
   designUploadEmpty: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
+    flex: 1,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
+    gap: 6,
   },
   designUploadEmptyText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
   },
-  designUploadRemove: {
-    fontSize: 12,
+  designUploadMeta: {
+    gap: 4,
+  },
+  designUploadName: {
+    fontSize: 13,
     fontWeight: '600',
   },
-  designUploadHint: {
+  designUploadRemove: {
     fontSize: 12,
-    lineHeight: 17,
+    fontWeight: '700',
   },
-  designDescriptionBlock: {
-    gap: 8,
+  designUploadPlaceholder: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
   },
-  designInput: {
+  designUploadPlaceholderTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  designUploadPlaceholderCopy: {
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  designDescriptionCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
+    padding: 18,
+    gap: 14,
+  },
+  designDescriptionHeader: {
+    gap: 4,
+  },
+  designDescriptionHint: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  designDescriptionInput: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 16,
     padding: 16,
-    minHeight: 130,
+    minHeight: 140,
     textAlignVertical: 'top',
     fontSize: 14,
+    lineHeight: 20,
   },
   sectionLabel: {
     fontSize: 14,
     fontWeight: '700',
   },
-  followUpRow: {
+  designHelpRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    gap: 12,
   },
-  followUpCopy: {
+  designHelpCopy: {
     flex: 1,
     gap: 4,
-    paddingRight: 12,
+  },
+  designHelpTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  designHelpHint: {
+    fontSize: 12,
+    lineHeight: 18,
   },
   sizingContainer: {
     gap: 20,
