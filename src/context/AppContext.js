@@ -268,10 +268,15 @@ export function AppStateProvider({ children }) {
     [ensureAuthenticated, state.currentUser],
   );
 
-  const handleDraftSaved = useCallback((order) => {
+  const handleDraftSaved = useCallback((order, options = {}) => {
+    const { currentStepKey = null, currentSetId = null } = options || {};
     setState((prev) => ({
       ...prev,
-      activeOrder: order,
+      activeOrder: {
+        ...order,
+        resumeStepKey: currentStepKey,
+        resumeSetId: currentSetId,
+      },
     }));
   }, []);
 

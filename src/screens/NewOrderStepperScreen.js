@@ -346,15 +346,47 @@ function NewOrderStepperScreen({ route }) {
       promoCode: resumeDraft.promoCode || '',
     });
 
-    const initialSet = mappedSets.length ? mappedSets[0] : createEmptySetDraft();
-    setCurrentSetDraft({
-      ...initialSet,
-      designUploads: (initialSet.designUploads || []).map((upload) => ({
-        ...upload,
-      })),
-    });
-    setEditingSetId(mappedSets.length ? mappedSets[0].id : null);
-    setCurrentStep(0);
+    const resolvedStepKey = (() => {
+      if (resumeDraft.resumeStepKey) {
+        const exists = STEP_DEFINITIONS.some((step) => step.key === resumeDraft.resumeStepKey);
+        if (exists) {
+          return resumeDraft.resumeStepKey;
+        }
+      }
+      if (mappedSets.length) {
+        return 'summary';
+      }
+      return 'shape';
+    })();
+
+    const targetStepIndex = Math.max(
+      STEP_DEFINITIONS.findIndex((step) => step.key === resolvedStepKey),
+      0,
+    );
+
+    let initialEditingId = null;
+    let initialDraft = createEmptySetDraft();
+
+    if (SET_STEPS.includes(resolvedStepKey)) {
+      const preferredSetId = resumeDraft.resumeSetId;
+      const matchedSet = preferredSetId
+        ? mappedSets.find((set) => set.id === preferredSetId)
+        : mappedSets[0];
+
+      if (matchedSet) {
+        initialEditingId = matchedSet.id;
+        initialDraft = {
+          ...matchedSet,
+          designUploads: (matchedSet.designUploads || []).map((upload) => ({ ...upload })),
+        };
+      } else {
+        initialDraft = createEmptySetDraft();
+      }
+    }
+
+    setCurrentSetDraft(initialDraft);
+    setEditingSetId(initialEditingId);
+    setCurrentStep(targetStepIndex);
     hydratedDraftRef.current = resumeDraft.id || true;
     if (navigation.setParams) {
       navigation.setParams({ ...(route?.params || {}), resume: false });
@@ -512,20 +544,27 @@ function NewOrderStepperScreen({ route }) {
     };
   };
 
-  const persistDraftOrder = async () => {
+  const persistDraftOrder = async (options = {}) => {
+    const { stepKey = currentStepKey, setId = editingSetId } = options || {};
     const payload = buildOrderPayload('draft');
     // eslint-disable-next-line no-console
     console.log('[OrderDraft] Persist payload', payload);
     const response = await createOrUpdateOrder(payload);
     setDraftOrderId(response.order.id);
-    handleDraftSaved(response.order);
+    handleDraftSaved(response.order, {
+      currentStepKey: stepKey,
+      currentSetId: setId,
+    });
     return response.order;
   };
 
   const handleSaveDraft = async () => {
     try {
       setSavingDraft(true);
-      const order = await persistDraftOrder();
+      const order = await persistDraftOrder({
+        stepKey: currentStepKey,
+        setId: editingSetId,
+      });
       logEvent('save_order_draft', { order_id: order.id });
       Alert.alert('Draft saved', 'You can continue editing this set anytime.', [
         {
@@ -565,7 +604,10 @@ function NewOrderStepperScreen({ route }) {
   const handleOpenLegacyBuilder = async () => {
     try {
       setOpeningLegacyBuilder(true);
-      const order = await persistDraftOrder();
+      const order = await persistDraftOrder({
+        stepKey: currentStepKey,
+        setId: editingSetId,
+      });
       logEvent('tap_open_legacy_builder', { order_id: order.id });
       navigation.navigate('LegacyOrderBuilder');
     } catch (err) {
