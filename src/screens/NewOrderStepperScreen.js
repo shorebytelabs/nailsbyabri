@@ -220,6 +220,7 @@ function NewOrderStepperScreen({ route }) {
   const [orderDraft, setOrderDraft] = useState({
     sets: [],
     deliveryDetails: createDefaultDeliveryDetails(),
+    promoCode: '',
   });
   const [editingSetId, setEditingSetId] = useState(null);
   const [stepErrors, setStepErrors] = useState({
@@ -230,6 +231,8 @@ function NewOrderStepperScreen({ route }) {
     fulfillment: false,
   });
   const [previewSet, setPreviewSet] = useState(null);
+  const [isPromoInputVisible, setPromoInputVisible] = useState(false);
+  const [promoInputValue, setPromoInputValue] = useState('');
 
   useEffect(() => {
     logEvent('start_order_step', { step: STEP_DEFINITIONS[currentStep].key });
@@ -272,6 +275,10 @@ function NewOrderStepperScreen({ route }) {
     () => shapes.find((shape) => shape.id === currentSetDraft.shapeId),
     [currentSetDraft.shapeId, shapes],
   );
+
+  useEffect(() => {
+    setPromoInputValue(orderDraft.promoCode || '');
+  }, [orderDraft.promoCode]);
 
   const resumeFlag = Boolean(route?.params?.resume);
   const resumeDraft =
@@ -336,6 +343,7 @@ function NewOrderStepperScreen({ route }) {
         address: normalizedAddress,
         notes: resumeDraft.fulfillment?.notes || '',
       },
+      promoCode: resumeDraft.promoCode || '',
     });
 
     const initialSet = mappedSets.length ? mappedSets[0] : createEmptySetDraft();
@@ -368,7 +376,7 @@ function NewOrderStepperScreen({ route }) {
           method: orderDraft.deliveryDetails.method,
           speed: orderDraft.deliveryDetails.speed,
         },
-        promoCode: null,
+        promoCode: orderDraft.promoCode,
       }),
     [orderDraft],
   );
@@ -499,7 +507,7 @@ function NewOrderStepperScreen({ route }) {
         notes: fulfillment.notes || null,
       },
       orderNotes: null,
-      promoCode: null,
+      promoCode: orderDraft.promoCode ? orderDraft.promoCode.trim() : null,
       status,
     };
   };
@@ -666,6 +674,32 @@ function NewOrderStepperScreen({ route }) {
 
   const closePreview = useCallback(() => {
     setPreviewSet(null);
+  }, []);
+
+  const handleTogglePromoInput = useCallback(() => {
+    setPromoInputVisible((prev) => !prev);
+  }, []);
+
+  const handleChangePromoInput = useCallback((value) => {
+    setPromoInputValue(value);
+  }, []);
+
+  const handleApplyPromoCode = useCallback(() => {
+    const trimmed = promoInputValue.trim();
+    setOrderDraft((prev) => ({
+      ...prev,
+      promoCode: trimmed,
+    }));
+    setPromoInputVisible(false);
+  }, [promoInputValue]);
+
+  const handleClearPromoCode = useCallback(() => {
+    setOrderDraft((prev) => ({
+      ...prev,
+      promoCode: '',
+    }));
+    setPromoInputVisible(false);
+    setPromoInputValue('');
   }, []);
 
   const [toastMessage, setToastMessage] = useState(null);
@@ -1060,10 +1094,31 @@ function NewOrderStepperScreen({ route }) {
           {currentStep === 5 && priceDetails ? (
             <ReviewStep
               colors={colors}
-              priceDetails={priceDetails}
-              onOpenAdvancedBuilder={handleOpenLegacyBuilder}
-              openingLegacy={openingLegacyBuilder}
+            priceDetails={priceDetails}
+            openingLegacy={openingLegacyBuilder}
               sets={orderDraft.sets}
+            onEditSet={handleEditSet}
+            onRemoveSet={handleRemoveSet}
+            onAddAnotherSet={() => {
+              setEditingSetId(null);
+              setCurrentSetDraft(createEmptySetDraft());
+              setCurrentStep(0);
+            }}
+            onPreviewSet={handlePreviewSet}
+            deliveryDetails={orderDraft.deliveryDetails}
+            onEditDelivery={() => {
+              const fulfillmentIndex = STEP_DEFINITIONS.findIndex((step) => step.key === 'fulfillment');
+              if (fulfillmentIndex > -1) {
+                setCurrentStep(fulfillmentIndex);
+              }
+            }}
+            promoCode={orderDraft.promoCode}
+            isPromoInputVisible={isPromoInputVisible}
+            promoInputValue={promoInputValue}
+            onTogglePromoInput={handleTogglePromoInput}
+            onChangePromoInput={handleChangePromoInput}
+            onApplyPromoCode={handleApplyPromoCode}
+            onClearPromoCode={handleClearPromoCode}
             />
           ) : null}
           </ScrollView>
@@ -2078,162 +2133,508 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
   );
 }
 
-function ReviewStep({ colors, priceDetails, onOpenAdvancedBuilder, openingLegacy, sets = [] }) {
+function ReviewStep({
+  colors,
+  priceDetails,
+  openingLegacy,
+  sets = [],
+  onEditSet,
+  onRemoveSet,
+  onAddAnotherSet,
+  onPreviewSet,
+  deliveryDetails,
+  onEditDelivery,
+  promoCode = '',
+  isPromoInputVisible = false,
+  promoInputValue = '',
+  onTogglePromoInput = () => {},
+  onChangePromoInput = () => {},
+  onApplyPromoCode = () => {},
+  onClearPromoCode = () => {},
+}) {
   const {
     primaryFont = '#220707',
     secondaryFont = '#5C5F5D',
     accent = '#6F171F',
     border = '#D9C8A9',
     surface = '#FFFFFF',
+    surfaceMuted = '#F4EBE3',
   } = colors || {};
+
+  const methodConfig = pricingConstants.DELIVERY_METHODS[deliveryDetails?.method] || null;
+  const speedConfig = methodConfig?.speedOptions?.[deliveryDetails?.speed] || null;
+  const estimatedDate = priceDetails?.estimatedCompletionDate
+    ? new Date(priceDetails.estimatedCompletionDate).toLocaleDateString()
+    : null;
+  const addressLines = deliveryDetails?.address
+    ? [
+        deliveryDetails.address.name,
+        deliveryDetails.address.line1,
+        deliveryDetails.address.line2,
+        [deliveryDetails.address.city, deliveryDetails.address.state]
+          .filter(Boolean)
+          .join(', '),
+        deliveryDetails.address.postalCode,
+      ].filter(Boolean)
+    : [];
 
   return (
     <View style={styles.reviewContainer}>
-      <Text
-        style={[
-          styles.reviewHeading,
-          { color: primaryFont },
-        ]}
-      >
-        Summary
-      </Text>
-      <View style={styles.reviewSetList}>
-        {sets.map((set, index) => (
-          <View
-            key={set.id || `summary_set_${index}`}
+      <View style={styles.reviewSection}>
+        <View style={styles.reviewSectionHeader}>
+          <Text
             style={[
-              styles.reviewSetCard,
-              { borderColor: withOpacity(border, 0.5) },
+              styles.reviewHeading,
+              { color: primaryFont },
             ]}
           >
-            <View style={styles.reviewSetMeta}>
-              <Text
+            Order Summary
+          </Text>
+        </View>
+        <View style={styles.reviewSetList}>
+          {sets.map((set, index) => {
+            const previewSource = resolveUploadPreview(set.designUploads?.[0]);
+            const quantity = set.quantity || 1;
+            const subtotal =
+              set.price ??
+              (typeof set.unitPrice === 'number' ? set.unitPrice * quantity : 0);
+            const requiresFollowUp = !!set.requiresFollowUp;
+
+            return (
+              <View
+                key={set.id || `summary_set_${index}`}
                 style={[
-                  styles.reviewSetTitle,
-                  { color: primaryFont },
+                  styles.reviewSetCard,
+                  {
+                    borderColor: withOpacity(border, 0.45),
+                    backgroundColor: surface,
+                  },
                 ]}
               >
-                {set.name || set.shapeName || `Set ${index + 1}`}
-              </Text>
-              <Text
-                style={[
-                  styles.reviewSetSubtitle,
-                  { color: secondaryFont },
-                ]}
-              >
-                {set.shapeName || 'Custom shape'}
-              </Text>
-            </View>
+                <View style={styles.reviewSetContent}>
+                  <View style={styles.reviewSetPreview}>
+                    {previewSource ? (
+                      <TouchableOpacity
+                        onPress={() => onPreviewSet?.(set.id)}
+                        style={styles.reviewPreviewImageWrapper}
+                        accessibilityLabel={`Preview nail set ${index + 1}`}
+                      >
+                        <Image source={{ uri: previewSource }} style={styles.reviewPreviewImage} />
+                      </TouchableOpacity>
+                    ) : (
+                      <View
+                        style={[
+                          styles.reviewPreviewPlaceholder,
+                          { backgroundColor: withOpacity(surfaceMuted, 0.7) },
+                        ]}
+                      >
+                        <Icon name="image" color={withOpacity(primaryFont, 0.35)} size={22} />
+                        <Text
+                          style={[
+                            styles.reviewPreviewPlaceholderText,
+                            { color: secondaryFont },
+                          ]}
+                        >
+                          No image
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.reviewSetMeta}>
+                    <Text
+                      style={[
+                        styles.reviewSetTitle,
+                        { color: primaryFont },
+                      ]}
+                    >
+                      {`Nail Set #${index + 1}`}
+                    </Text>
+                    <View style={styles.reviewMetaRow}>
+                      <Text
+                        style={[
+                          styles.reviewMetaLabel,
+                          { color: withOpacity(primaryFont, 0.7) },
+                        ]}
+                      >
+                        Shape
+                      </Text>
+                      <Text
+                        style={[
+                          styles.reviewMetaValue,
+                          { color: primaryFont },
+                        ]}
+                      >
+                        {set.shapeName || 'Custom shape'}
+                      </Text>
+                    </View>
+                    {set.designDescription ? (
+                      <View style={styles.reviewMetaRow}>
+                        <Text
+                          style={[
+                            styles.reviewMetaLabel,
+                            { color: withOpacity(primaryFont, 0.7) },
+                          ]}
+                        >
+                          Description
+                        </Text>
+                        <Text
+                          style={[
+                            styles.reviewMetaValue,
+                            { color: secondaryFont },
+                          ]}
+                          numberOfLines={2}
+                          ellipsizeMode="tail"
+                        >
+                          {set.designDescription}
+                        </Text>
+                      </View>
+                    ) : null}
+                    <View style={styles.reviewMetaRow}>
+                      <Text
+                        style={[
+                          styles.reviewMetaLabel,
+                          { color: withOpacity(primaryFont, 0.7) },
+                        ]}
+                      >
+                        Quantity
+                      </Text>
+                      <Text
+                        style={[
+                          styles.reviewMetaValue,
+                          { color: primaryFont },
+                        ]}
+                      >
+                        {quantity}
+                      </Text>
+                    </View>
+                    {requiresFollowUp ? (
+                      <View style={styles.reviewMetaRow}>
+                        <Text
+                          style={[
+                            styles.reviewMetaLabel,
+                            { color: withOpacity(primaryFont, 0.7) },
+                          ]}
+                        >
+                          Follow-up
+                        </Text>
+                        <Text
+                          style={[
+                            styles.reviewMetaValue,
+                            { color: accent },
+                          ]}
+                        >
+                          Needs design assistance
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+                <View style={styles.reviewSetFooter}>
+                  <Text
+                    style={[
+                      styles.reviewSetPrice,
+                      { color: accent },
+                    ]}
+                  >
+                    {formatCurrency(subtotal)}
+                  </Text>
+                  <View style={styles.reviewSetActions}>
+                    <TouchableOpacity
+                      onPress={() => onEditSet?.(set.id)}
+                      style={[
+                        styles.reviewActionButton,
+                        {
+                          borderColor: withOpacity(accent, 0.35),
+                          backgroundColor: withOpacity(accent, 0.08),
+                        },
+                      ]}
+                      accessibilityLabel={`Edit nail set ${index + 1}`}
+                    >
+                      <Icon name="edit" color={accent} size={16} />
+                      <Text
+                        style={[
+                          styles.reviewActionLabel,
+                          { color: accent },
+                        ]}
+                      >
+                        Edit
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => onRemoveSet?.(set.id)}
+                      style={[
+                        styles.reviewActionButton,
+                        {
+                          borderColor: withOpacity(border, 0.5),
+                          backgroundColor: withOpacity(surfaceMuted, 0.5),
+                        },
+                      ]}
+                      accessibilityLabel={`Remove nail set ${index + 1}`}
+                    >
+                      <Icon name="trash" color={withOpacity(primaryFont, 0.7)} size={16} />
+                      <Text
+                        style={[
+                          styles.reviewActionLabel,
+                          { color: withOpacity(primaryFont, 0.7) },
+                        ]}
+                      >
+                        Remove
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+        <TouchableOpacity
+          onPress={onAddAnotherSet}
+          style={[
+            styles.summaryAddButton,
+            {
+              alignSelf: 'flex-start',
+              borderColor: withOpacity(accent, 0.35),
+              backgroundColor: withOpacity(accent, 0.08),
+              marginTop: 8,
+            },
+          ]}
+          accessibilityLabel="Add another nail set"
+        >
+          <Icon name="plus" color={accent} size={16} />
+          <Text
+            style={[
+              styles.summaryAddLabel,
+              { color: accent },
+            ]}
+          >
+            Add another set
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.reviewSection}>
+        <View style={styles.reviewSectionHeader}>
+          <Text
+            style={[
+              styles.reviewHeading,
+              { color: primaryFont },
+            ]}
+          >
+            Delivery Details
+          </Text>
+          <TouchableOpacity
+            onPress={onEditDelivery}
+            accessibilityRole="button"
+            accessibilityLabel="Edit delivery details"
+          >
             <Text
               style={[
-                styles.reviewSetPrice,
+                styles.reviewLink,
                 { color: accent },
               ]}
             >
-            {formatCurrency(
-              set.price ??
-                (typeof set.unitPrice === 'number' ? set.unitPrice * (set.quantity || 1) : 0),
-            )}
+              Edit delivery details
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <View
+          style={[
+            styles.deliveryCard,
+            {
+              borderColor: withOpacity(border, 0.5),
+              backgroundColor: surface,
+            },
+          ]}
+        >
+          <View style={styles.reviewMetaRow}>
+            <Text style={[styles.deliveryLabel, { color: secondaryFont }]}>Method</Text>
+            <Text style={[styles.deliveryValue, { color: primaryFont }]}>
+              {methodConfig ? methodConfig.label : 'Not selected'}
             </Text>
           </View>
-        ))}
+          <View style={styles.reviewMetaRow}>
+            <Text style={[styles.deliveryLabel, { color: secondaryFont }]}>Timing</Text>
+            <Text style={[styles.deliveryValue, { color: primaryFont }]}>
+              {speedConfig ? `${speedConfig.label} • ${speedConfig.description}` : 'Not selected'}
+            </Text>
+          </View>
+          <View style={styles.reviewMetaRow}>
+            <Text style={[styles.deliveryLabel, { color: secondaryFont }]}>Estimated ready date</Text>
+            <Text style={[styles.deliveryValue, { color: accent }]}>
+              {estimatedDate || `${priceDetails?.estimatedCompletionDays || 0} business days`}
+            </Text>
+          </View>
+          {addressLines.length ? (
+            <View style={styles.reviewMetaRow}>
+              <Text style={[styles.deliveryLabel, { color: secondaryFont }]}>Shipping</Text>
+              <View style={styles.deliveryAddressBlock}>
+                {addressLines.map((line, idx) => (
+                  <Text
+                    key={`address_line_${idx}`}
+                    style={[styles.deliveryValue, { color: primaryFont }]}
+                  >
+                    {line}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          ) : null}
+        </View>
       </View>
-      <View style={styles.priceList}>
-        {priceDetails.lineItems.map((item) => (
-          <View key={item.id} style={styles.priceRow}>
+
+      <View style={styles.reviewSection}>
+        <View style={styles.reviewSectionHeader}>
+          <Text
+            style={[
+              styles.reviewHeading,
+              { color: primaryFont },
+            ]}
+          >
+            Price Breakdown
+          </Text>
+          <TouchableOpacity accessibilityRole="button" onPress={onTogglePromoInput}>
             <Text
               style={[
-                styles.priceLabel,
-                { color: secondaryFont },
+                styles.reviewLink,
+                { color: withOpacity(primaryFont, 0.7) },
               ]}
             >
-              {item.label}
+              {promoCode ? `Promo code applied: ${promoCode.toUpperCase()}` : 'Have a promo code?'}
             </Text>
+          </TouchableOpacity>
+        </View>
+        <View
+          style={[
+            styles.priceCard,
+            {
+              borderColor: withOpacity(border, 0.5),
+              backgroundColor: surface,
+            },
+          ]}
+        >
+          <View style={styles.promoContainer}>
+            {promoCode ? (
+              <View style={styles.promoBadgeRow}>
+                <View
+                  style={[
+                    styles.promoBadge,
+                    {
+                      backgroundColor: withOpacity(accent, 0.12),
+                      borderColor: withOpacity(accent, 0.3),
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.promoBadgeText,
+                      { color: accent },
+                    ]}
+                  >
+                    {promoCode.toUpperCase()}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={onClearPromoCode}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove promo code"
+                >
+                  <Text
+                    style={[
+                      styles.promoRemoveLabel,
+                      { color: withOpacity(primaryFont, 0.65) },
+                    ]}
+                  >
+                    Remove
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+            {isPromoInputVisible ? (
+              <View style={styles.promoInputRow}>
+                <TextInput
+                  value={promoInputValue}
+                  onChangeText={onChangePromoInput}
+                  placeholder="Enter promo code"
+                  placeholderTextColor={withOpacity(primaryFont, 0.4)}
+                  style={[
+                    styles.promoInput,
+                    {
+                      color: primaryFont,
+                      borderColor: withOpacity(border, 0.6),
+                      backgroundColor: withOpacity(surfaceMuted, 0.55),
+                    },
+                  ]}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  keyboardType="default"
+                  returnKeyType="done"
+                  onSubmitEditing={onApplyPromoCode}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.promoApplyButton,
+                    {
+                      backgroundColor: accent,
+                    },
+                  ]}
+                  onPress={onApplyPromoCode}
+                  accessibilityRole="button"
+                >
+                  <Text
+                    style={[
+                      styles.promoApplyLabel,
+                      { color: colors.accentContrast || '#FFFFFF' },
+                    ]}
+                  >
+                    Apply
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+          </View>
+          <View style={styles.priceList}>
+            {priceDetails.lineItems.map((item) => (
+              <View key={item.id} style={styles.priceRow}>
+                <Text
+                  style={[
+                    styles.priceLabel,
+                    { color: secondaryFont },
+                  ]}
+                >
+                  {item.label}
+                </Text>
+                <Text
+                  style={[
+                    styles.priceValue,
+                    { color: primaryFont },
+                  ]}
+                >
+                  ${Number(item.amount || 0).toFixed(2)}
+                </Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.totalRow}>
             <Text
               style={[
-                styles.priceValue,
+                styles.totalLabel,
                 { color: primaryFont },
               ]}
             >
-              ${Number(item.amount || 0).toFixed(2)}
+              Total
             </Text>
-          </View>
-        ))}
-      </View>
-      <View style={styles.totalRow}>
-        <Text
-          style={[
-            styles.totalLabel,
-            { color: primaryFont },
-          ]}
-        >
-          Total
-        </Text>
-        <Text
-          style={[
-            styles.totalValue,
-            { color: accent },
-          ]}
-        >
-          ${Number(priceDetails.total || 0).toFixed(2)}
-        </Text>
-      </View>
-      <Text
-        style={[
-          styles.etaText,
-          { color: secondaryFont },
-        ]}
-      >
-        Estimated completion: {priceDetails.estimatedCompletionDate ? new Date(priceDetails.estimatedCompletionDate).toLocaleDateString() : `${priceDetails.estimatedCompletionDays} business days`}
-      </Text>
-      <View
-        style={[
-          styles.advancedCard,
-          {
-            borderColor: border,
-            backgroundColor: surface,
-          },
-        ]}
-      >
-        <Text
-          style={[
-            styles.advancedTitle,
-            { color: primaryFont },
-          ]}
-        >
-          Need advanced options?
-        </Text>
-        <Text
-          style={[
-            styles.advancedHint,
-            { color: secondaryFont },
-          ]}
-        >
-          Add multiple nail sets, upload inspiration photos, or tweak fulfilment in detail.
-        </Text>
-        <TouchableOpacity
-          style={[
-            styles.advancedButton,
-            { borderColor: accent },
-          ]}
-          onPress={onOpenAdvancedBuilder}
-          disabled={openingLegacy}
-          accessibilityLabel="Open advanced nail set builder"
-        >
-          {openingLegacy ? (
-            <ActivityIndicator color={accent} />
-          ) : (
             <Text
               style={[
-                styles.advancedButtonText,
+                styles.totalValue,
                 { color: accent },
               ]}
             >
-              Open advanced builder
+              ${Number(priceDetails.total || 0).toFixed(2)}
             </Text>
-          )}
-        </TouchableOpacity>
+          </View>
+        </View>
       </View>
+
     </View>
   );
 }
@@ -2739,45 +3140,196 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   reviewContainer: {
+    gap: 18,
+  },
+  reviewSection: {
     gap: 12,
+  },
+  reviewSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   reviewHeading: {
     fontSize: 18,
     fontWeight: '800',
   },
   reviewSetList: {
-    gap: 8,
+    gap: 12,
   },
   reviewSetCard: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 18,
+    padding: 16,
+    gap: 16,
+  },
+  reviewSetContent: {
     flexDirection: 'row',
+    gap: 16,
+  },
+  reviewSetPreview: {
+    width: 84,
+  },
+  reviewPreviewImageWrapper: {
+    width: 84,
+    height: 84,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  reviewPreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  reviewPreviewPlaceholder: {
+    width: 84,
+    height: 84,
+    borderRadius: 16,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  reviewPreviewPlaceholderText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   reviewSetMeta: {
-    gap: 4,
     flex: 1,
+    gap: 8,
   },
   reviewSetTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
   },
-  reviewSetSubtitle: {
+  reviewMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 16,
+  },
+  reviewMetaLabel: {
     fontSize: 12,
-    lineHeight: 18,
+    fontWeight: '700',
+    flexBasis: 90,
+  },
+  reviewMetaValue: {
+    fontSize: 12,
+    flex: 1,
+  },
+  reviewSetFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
   },
   reviewSetPrice: {
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  reviewSetActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  reviewActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'transparent',
+  },
+  reviewActionLabel: {
+    fontSize: 13,
     fontWeight: '700',
   },
+  reviewLink: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  deliveryCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  deliveryLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  deliveryValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  deliveryAddressBlock: {
+    gap: 2,
+    flex: 1,
+  },
+  priceCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  promoContainer: {
+    gap: 8,
+  },
+  promoBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  promoBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  promoBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  promoRemoveLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  promoInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  promoInput: {
+    flex: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 1,
+  },
+  promoApplyButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promoApplyLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.75,
+  },
   priceList: {
-    gap: 6,
+    gap: 8,
   },
   priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   priceLabel: {
     fontSize: 13,
@@ -2791,45 +3343,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(0,0,0,0.08)',
-    paddingTop: 10,
+    paddingTop: 12,
   },
   totalLabel: {
     fontSize: 15,
     fontWeight: '700',
   },
   totalValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
   },
   etaText: {
     fontSize: 12,
-  },
-  advancedCard: {
-    marginTop: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
-    padding: 16,
-    gap: 10,
-  },
-  advancedTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  advancedHint: {
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  advancedButton: {
-    marginTop: 8,
-    paddingVertical: 12,
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  advancedButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
   },
   footer: {
     flexDirection: 'row',
@@ -2913,4 +3438,5 @@ const styles = StyleSheet.create({
 });
 
 export default NewOrderStepperScreen;
+
 
