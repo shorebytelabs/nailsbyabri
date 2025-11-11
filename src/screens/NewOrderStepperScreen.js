@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Switch,
@@ -17,24 +18,57 @@ import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
 import { fetchShapes, createOrUpdateOrder } from '../services/api';
-import { calculatePriceBreakdown, pricingConstants } from '../utils/pricing';
+import { calculatePriceBreakdown, pricingConstants, formatCurrency } from '../utils/pricing';
 import PrimaryButton from '../components/PrimaryButton';
 import Icon from '../icons/Icon';
 import { logEvent } from '../utils/analytics';
 import { withOpacity } from '../utils/color';
 import { launchImageLibrary } from 'react-native-image-picker';
 
+const SET_STEPS = ['shape', 'design', 'size'];
+const ORDER_FLOW_STEPS = ['summary', 'fulfillment', 'review'];
+
 const STEP_DEFINITIONS = [
-  { key: 'shape', title: 'Choose a shape', subtitle: 'Pick the silhouette for this set.' },
+  {
+    key: 'shape',
+    title: 'Choose a shape',
+    subtitle: 'Pick the silhouette for this set.',
+  },
   {
     key: 'design',
     title: 'Design details',
-    subtitle: 'Upload inspiration images or describe your art direction.',
+    subtitle: 'Share inspiration - add images, notes, or request ideas',
   },
-  { key: 'sizing', title: 'Sizing & quantity', subtitle: 'Select quantity and sizing mode.' },
-  { key: 'fulfillment', title: 'Delivery details', subtitle: 'How should we deliver your set?' },
-  { key: 'review', title: 'Review & submit', subtitle: 'Double-check everything looks right.' },
+  {
+    key: 'size',
+    title: 'Sizing',
+    subtitle: 'Select sizes for each finger or use sizing guide.',
+  },
+  {
+    key: 'summary',
+    title: 'Your nail sets',
+    subtitle: 'Make sure your sets are perfect — review, edit, or add.',
+  },
+  {
+    key: 'fulfillment',
+    title: 'Delivery details',
+    subtitle: 'How should we deliver your sets?',
+  },
+  {
+    key: 'review',
+    title: 'Review & submit',
+    subtitle: 'Double-check everything looks right.',
+  },
 ];
+
+const STEP_TOOLTIPS = {
+  shape: 'Pick a shape (Almond, Square, Oval…)',
+  design: 'Share inspiration - add images, notes, or request ideas',
+  size: 'Select sizes for each finger or use sizing guide',
+  summary: 'Review your nail sets and decide if you want to add another',
+  fulfillment: 'Continue to delivery & shipping',
+  review: 'Review all sets and submit order',
+};
 
 const DEFAULT_SIZES = {
   thumb: '',
@@ -44,6 +78,35 @@ const DEFAULT_SIZES = {
   pinky: '',
 };
 const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
+
+function createEmptySetDraft() {
+  return {
+    id: null,
+    shapeId: null,
+    designDescription: '',
+    designUploads: [],
+    requiresFollowUp: false,
+    quantity: 1,
+    sizeMode: 'standard',
+    sizes: { ...DEFAULT_SIZES },
+  };
+}
+
+function createDefaultDeliveryDetails() {
+  return {
+    method: 'pickup',
+    speed: 'standard',
+    address: {
+      name: '',
+      line1: '',
+      line2: '',
+      city: '',
+      state: '',
+      postalCode: '',
+    },
+    notes: '',
+  };
+}
 
 function resolveUploadPreview(upload) {
   if (!upload) {
@@ -153,31 +216,41 @@ function NewOrderStepperScreen({ route }) {
   const hydratedDraftRef = useRef(null);
   const isFinalStep = currentStep === STEP_DEFINITIONS.length - 1;
 
-  const [form, setForm] = useState({
-    shapeId: null,
-    designDescription: '',
-    designUploads: [],
-    requiresFollowUp: false,
-    quantity: 1,
-    sizeMode: 'standard',
-    sizes: DEFAULT_SIZES,
-    fulfillment: {
-      method: 'pickup',
-      speed: 'standard',
-      address: {
-        name: '',
-        line1: '',
-        line2: '',
-        city: '',
-        state: '',
-        postalCode: '',
-      },
-    },
+  const [currentSetDraft, setCurrentSetDraft] = useState(createEmptySetDraft());
+  const [orderDraft, setOrderDraft] = useState({
+    sets: [],
+    deliveryDetails: createDefaultDeliveryDetails(),
   });
+  const [editingSetId, setEditingSetId] = useState(null);
+  const [stepErrors, setStepErrors] = useState({
+    shape: false,
+    design: false,
+    size: false,
+    summary: false,
+    fulfillment: false,
+  });
+  const [previewSet, setPreviewSet] = useState(null);
 
   useEffect(() => {
     logEvent('start_order_step', { step: STEP_DEFINITIONS[currentStep].key });
   }, [currentStep]);
+
+  useEffect(() => {
+    if (!toastMessage) {
+      return undefined;
+    }
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    toastTimerRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 2500);
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, [toastMessage]);
 
   useEffect(() => {
     const loadShapes = async () => {
@@ -196,14 +269,14 @@ function NewOrderStepperScreen({ route }) {
   }, []);
 
   const selectedShape = useMemo(
-    () => shapes.find((shape) => shape.id === form.shapeId),
-    [form.shapeId, shapes],
+    () => shapes.find((shape) => shape.id === currentSetDraft.shapeId),
+    [currentSetDraft.shapeId, shapes],
   );
 
   const resumeFlag = Boolean(route?.params?.resume);
   const resumeDraft =
     resumeFlag && state.activeOrder?.status === 'draft' ? state.activeOrder : null;
-  const stepperTitle = resumeDraft ? 'Edit Draft Order' : 'Create New Order';
+  const stepperTitle = resumeDraft ? 'Edit Draft Order' : 'Design & Order Your Nails';
 
   useEffect(() => {
     if (!resumeDraft) {
@@ -214,7 +287,7 @@ function NewOrderStepperScreen({ route }) {
       return;
     }
 
-    const draftSet = Array.isArray(resumeDraft.nailSets) ? resumeDraft.nailSets[0] || {} : {};
+    const draftSets = Array.isArray(resumeDraft.nailSets) ? resumeDraft.nailSets : [];
     const method = resumeDraft.fulfillment?.method || 'pickup';
     const methodConfigCandidate = pricingConstants.DELIVERY_METHODS[method];
     const fallbackMethodConfig = pricingConstants.DELIVERY_METHODS.pickup;
@@ -232,35 +305,47 @@ function NewOrderStepperScreen({ route }) {
       ...(resumeDraft.fulfillment?.address || {}),
     };
 
-    const normalizedUploads = Array.isArray(draftSet.designUploads)
-      ? draftSet.designUploads.map((upload, index) => {
-          const preview = resolveUploadPreview(upload);
-          return {
+    setDraftOrderId(resumeDraft.id || mappedSets[0]?.id || null);
+    const mappedSets = draftSets.map((set, index) => ({
+      id: set.id || `set_${index}`,
+      name: set.name || null,
+      shapeId: set.shapeId || null,
+      designDescription: set.description || '',
+      designUploads: Array.isArray(set.designUploads)
+        ? set.designUploads.map((upload, uploadIndex) => ({
             ...upload,
-            id: upload?.id || `upload_${index}`,
-            preview,
-          };
-        })
-      : [];
-
-    setDraftOrderId(resumeDraft.id || draftSet.id || null);
-    setForm({
-      shapeId: draftSet.shapeId || null,
-      designDescription: draftSet.description || '',
-      designUploads: normalizedUploads,
-      requiresFollowUp: Boolean(draftSet.requiresFollowUp),
-      quantity: Number(draftSet.quantity) || 1,
-      sizeMode: draftSet.sizes?.mode === 'perSet' ? 'perSet' : 'standard',
+            id: upload?.id || `upload_${index}_${uploadIndex}`,
+            preview: resolveUploadPreview(upload),
+          }))
+        : [],
+      requiresFollowUp: Boolean(set.requiresFollowUp),
+      quantity: Number(set.quantity) || 1,
+      sizeMode: set.sizes?.mode === 'perSet' ? 'perSet' : 'standard',
       sizes:
-        draftSet.sizes?.mode === 'perSet'
-          ? normalizeDraftSizes(draftSet.sizes)
+        set.sizes?.mode === 'perSet'
+          ? normalizeDraftSizes(set.sizes)
           : { ...DEFAULT_SIZES },
-      fulfillment: {
+      price: set.price || null,
+    }));
+
+    setOrderDraft({
+      sets: mappedSets,
+      deliveryDetails: {
         method,
         speed,
         address: normalizedAddress,
+        notes: resumeDraft.fulfillment?.notes || '',
       },
     });
+
+    const initialSet = mappedSets.length ? mappedSets[0] : createEmptySetDraft();
+    setCurrentSetDraft({
+      ...initialSet,
+      designUploads: (initialSet.designUploads || []).map((upload) => ({
+        ...upload,
+      })),
+    });
+    setEditingSetId(mappedSets.length ? mappedSets[0].id : null);
     setCurrentStep(0);
     hydratedDraftRef.current = resumeDraft.id || true;
     if (navigation.setParams) {
@@ -268,61 +353,100 @@ function NewOrderStepperScreen({ route }) {
     }
   }, [navigation, resumeDraft, resumeFlag, route?.params]);
 
-  const priceDetails = useMemo(() => {
-    if (!form.shapeId) {
-      return null;
-    }
-    const payload = {
-      nailSets: [
-        {
-          id: draftOrderId || `set_${Date.now()}`,
-          name: selectedShape?.name || 'Custom Set',
-          shapeId: form.shapeId,
-          quantity: form.quantity,
-          description: form.designDescription,
-          setNotes: '',
-          designUploads: form.designUploads,
-          requiresFollowUp: form.requiresFollowUp,
-          sizes:
-            form.sizeMode === 'perSet'
-              ? { mode: 'perSet', values: form.sizes }
-              : { mode: 'standard', values: {} },
+  const priceDetails = useMemo(
+    () =>
+      calculatePriceBreakdown({
+        nailSets: orderDraft.sets.map((set) => ({
+          ...set,
+          designUploads: (set.designUploads || []).map((upload, index) => ({
+            id: upload.id || `upload_${index}`,
+            fileName: upload.fileName || null,
+            base64: upload.base64 || null,
+          })),
+        })),
+        fulfillment: {
+          method: orderDraft.deliveryDetails.method,
+          speed: orderDraft.deliveryDetails.speed,
         },
-      ],
-      fulfillment: form.fulfillment,
-      promoCode: null,
-    };
-    return calculatePriceBreakdown(payload);
-  }, [draftOrderId, form, selectedShape]);
+        promoCode: null,
+      }),
+    [orderDraft],
+  );
+
+  const currentStepKey = STEP_DEFINITIONS[currentStep].key;
+  const isSetStep = SET_STEPS.includes(currentStepKey);
+  const flowSteps = isSetStep ? SET_STEPS : ORDER_FLOW_STEPS;
+  const currentFlowStepIndex = flowSteps.indexOf(currentStepKey) + 1;
+  const totalSavedSets = orderDraft.sets.length;
+  const editingIndex = editingSetId
+    ? orderDraft.sets.findIndex((set) => set.id === editingSetId)
+    : -1;
+  const activeSetPosition = isSetStep
+    ? editingIndex >= 0
+      ? editingIndex + 1
+      : totalSavedSets + 1
+    : Math.max(totalSavedSets, 1);
+  const totalSetsCount = isSetStep
+    ? Math.max(totalSavedSets + (editingSetId ? 0 : 1), 1)
+    : Math.max(totalSavedSets, 1);
+  const orderStepCount = ORDER_FLOW_STEPS.length;
+  const setStepCount = flowSteps.length;
+  const setProgressLabel = `Step ${currentFlowStepIndex} of ${setStepCount}`;
+  const orderProgressLabel = `Step ${currentFlowStepIndex} of ${orderStepCount}`;
+  const progressLabel = isSetStep ? setProgressLabel : orderProgressLabel;
+  const setStatusLabel = editingSetId ? `Editing set ${activeSetPosition}` : `New set`;
+  const progressBadgeLabel = isSetStep ? setStatusLabel : 'Order progress';
+  const showNextButton = ['shape', 'design', 'summary', 'fulfillment'].includes(currentStepKey);
+  const nextButtonWrapperStyle =
+    currentStepKey === 'summary'
+      ? styles.footerButtonWrapperSummary
+      : currentStepKey === 'fulfillment'
+      ? styles.footerButtonWrapperLargeTight
+      : styles.footerButtonWrapperLarge;
 
   const handleNext = () => {
     setError(null);
-    if (currentStep === 0 && !form.shapeId) {
+    const currentStepKey = STEP_DEFINITIONS[currentStep].key;
+    if (SET_STEPS.includes(currentStepKey)) {
+      setStepErrors((prev) => ({ ...prev, [currentStepKey]: false }));
+    }
+
+    if (currentStepKey === 'shape' && !currentSetDraft.shapeId) {
       setError('Select a shape to continue.');
+      setStepErrors((prev) => ({ ...prev, shape: true }));
       return;
     }
-    if (currentStep === 1) {
-      const hasDescription = Boolean(form.designDescription && form.designDescription.trim());
-      const hasUploads = Array.isArray(form.designUploads) && form.designUploads.length > 0;
-      if (!hasDescription && !hasUploads && !form.requiresFollowUp) {
+
+    if (currentStepKey === 'design') {
+      const hasDescription = Boolean(
+        currentSetDraft.designDescription && currentSetDraft.designDescription.trim(),
+      );
+      const hasUploads =
+        Array.isArray(currentSetDraft.designUploads) && currentSetDraft.designUploads.length > 0;
+      if (!hasDescription && !hasUploads && !currentSetDraft.requiresFollowUp) {
         setError('Add inspiration, describe your design, or mark for follow-up.');
+        setStepErrors((prev) => ({ ...prev, design: true }));
         return;
       }
     }
-    if (currentStep === 2) {
-      if (!form.quantity || Number.isNaN(Number(form.quantity)) || Number(form.quantity) < 1) {
-        setError('Quantity must be at least 1.');
-        return;
-      }
-    }
-    if (currentStep === 3) {
+
+    if (currentStepKey === 'fulfillment') {
+      const delivery = orderDraft.deliveryDetails;
       if (
-        (form.fulfillment.method === 'delivery' || form.fulfillment.method === 'shipping') &&
-        (!form.fulfillment.address.name || !form.fulfillment.address.line1 || !form.fulfillment.address.city)
+        (delivery.method === 'delivery' || delivery.method === 'shipping') &&
+        (!delivery.address.name || !delivery.address.line1 || !delivery.address.city)
       ) {
         setError('Please provide a full delivery address.');
+        setStepErrors((prev) => ({ ...prev, fulfillment: true }));
         return;
       }
+      setStepErrors((prev) => ({ ...prev, fulfillment: false }));
+    }
+
+    if (currentStepKey === 'summary' && orderDraft.sets.length === 0) {
+      setError('Save at least one set before continuing to delivery.');
+      setStepErrors((prev) => ({ ...prev, summary: true }));
+      return;
     }
 
     if (currentStep < STEP_DEFINITIONS.length - 1) {
@@ -339,37 +463,51 @@ function NewOrderStepperScreen({ route }) {
     }
   };
 
-  const buildOrderPayload = (status = 'draft') => ({
-    id: draftOrderId,
-    userId: state.currentUser?.id,
-    nailSets: [
-      {
-        id: draftOrderId || `set_${Date.now()}`,
-        name: selectedShape?.name || 'Custom Set',
-        shapeId: form.shapeId,
-        quantity: Number(form.quantity) || 1,
-        description: form.designDescription,
-        setNotes: '',
-        designUploads: (form.designUploads || []).map((upload, index) => ({
-          id: upload.id || `upload_${index}`,
-          fileName: upload.fileName || null,
-          base64: upload.base64 || null,
-        })),
-        requiresFollowUp: form.requiresFollowUp,
-        sizes:
-          form.sizeMode === 'perSet'
-            ? { mode: 'perSet', values: form.sizes }
-            : { mode: 'standard', values: {} },
+  const buildOrderPayload = (status = 'draft') => {
+    const mappedSets = orderDraft.sets.map((set, index) => ({
+      id: set.id || `set_${index}`,
+      name: set.name || selectedShape?.name || 'Custom Set',
+      shapeId: set.shapeId,
+      quantity: Number(set.quantity) || 1,
+      description: set.designDescription,
+      setNotes: set.notes || '',
+      designUploads: (set.designUploads || []).map((upload, uploadIndex) => ({
+        id: upload.id || `upload_${index}_${uploadIndex}`,
+        fileName: upload.fileName || null,
+        base64: upload.base64 || null,
+      })),
+      requiresFollowUp: set.requiresFollowUp,
+      sizes:
+        set.sizeMode === 'perSet'
+          ? { mode: 'perSet', values: set.sizes }
+          : { mode: 'standard', values: {} },
+      price: set.price || null,
+    }));
+
+    const fulfillment = orderDraft.deliveryDetails;
+
+    return {
+      id: draftOrderId,
+      userId: state.currentUser?.id,
+      nailSets: mappedSets,
+      fulfillment: {
+        method: fulfillment.method,
+        speed: fulfillment.speed,
+        address: {
+          ...fulfillment.address,
+        },
+        notes: fulfillment.notes || null,
       },
-    ],
-    fulfillment: form.fulfillment,
-    orderNotes: null,
-    promoCode: null,
-    status,
-  });
+      orderNotes: null,
+      promoCode: null,
+      status,
+    };
+  };
 
   const persistDraftOrder = async () => {
     const payload = buildOrderPayload('draft');
+    // eslint-disable-next-line no-console
+    console.log('[OrderDraft] Persist payload', payload);
     const response = await createOrUpdateOrder(payload);
     setDraftOrderId(response.order.id);
     handleDraftSaved(response.order);
@@ -409,7 +547,8 @@ function NewOrderStepperScreen({ route }) {
         },
       ]);
     } catch (err) {
-      Alert.alert('Unable to save draft', err.message || 'Please try again.');
+      const message = err?.details?.error || err.message || 'Please try again.';
+      Alert.alert('Unable to save draft', message);
     } finally {
       setSavingDraft(false);
     }
@@ -431,6 +570,11 @@ function NewOrderStepperScreen({ route }) {
   const handleSubmit = async () => {
     try {
       setSubmitting(true);
+      if (!orderDraft.sets.length) {
+        Alert.alert('Add a nail set', 'Save at least one nail set before submitting your order.');
+        setCurrentStep(0);
+        return;
+      }
       const payload = buildOrderPayload('submitted');
       const response = await createOrUpdateOrder(payload);
       setDraftOrderId(response.order.id);
@@ -438,15 +582,12 @@ function NewOrderStepperScreen({ route }) {
       logEvent('complete_order', { order_id: response.order.id, variant: 'default' });
       navigation.replace('OrderConfirmation', { order: response.order });
     } catch (err) {
-      Alert.alert('Unable to submit order', err.message || 'Please try again.');
+      const message = err?.details?.error || err.message || 'Please try again.';
+      Alert.alert('Unable to submit order', message);
     } finally {
       setSubmitting(false);
     }
   };
-
-  const methodConfig =
-    pricingConstants.DELIVERY_METHODS[form.fulfillment.method] ||
-    pricingConstants.DELIVERY_METHODS.pickup;
 
   const handleAddDesignUpload = async () => {
     try {
@@ -496,7 +637,7 @@ function NewOrderStepperScreen({ route }) {
         return;
       }
 
-      setForm((prev) => ({
+      setCurrentSetDraft((prev) => ({
         ...prev,
         designUploads: [...(prev.designUploads || []), ...uploadsToAdd],
       }));
@@ -506,11 +647,164 @@ function NewOrderStepperScreen({ route }) {
   };
 
   const handleRemoveDesignUpload = (uploadId) => {
-    setForm((prev) => ({
+    setCurrentSetDraft((prev) => ({
       ...prev,
       designUploads: (prev.designUploads || []).filter((item) => item.id !== uploadId),
     }));
   };
+
+  const handlePreviewSet = useCallback(
+    (setId) => {
+      const target = orderDraft.sets.find((set) => set.id === setId);
+      if (!target) {
+        return;
+      }
+      setPreviewSet(target);
+    },
+    [orderDraft.sets],
+  );
+
+  const closePreview = useCallback(() => {
+    setPreviewSet(null);
+  }, []);
+
+  const [toastMessage, setToastMessage] = useState(null);
+  const toastTimerRef = useRef(null);
+
+  const computeSetPricing = useCallback(
+    (setDraft) => {
+      const pricing = calculatePriceBreakdown({
+        nailSets: [
+          {
+            ...setDraft,
+            designUploads: (setDraft.designUploads || []).map((upload, index) => ({
+              id: upload.id || `preview_${index}`,
+              fileName: upload.fileName || null,
+              base64: upload.base64 || null,
+            })),
+          },
+        ],
+        fulfillment: {
+          method: orderDraft.deliveryDetails.method,
+          speed: orderDraft.deliveryDetails.speed,
+        },
+        promoCode: null,
+      });
+
+      const summaryLine = pricing.summary?.[0];
+      return {
+        total: summaryLine?.subtotal || 0,
+        unitPrice: summaryLine?.unitPrice || 0,
+        shapeName: summaryLine?.shapeName || selectedShape?.name || 'Custom Set',
+      };
+    },
+    [orderDraft.deliveryDetails, selectedShape],
+  );
+
+  const validateCurrentSet = useCallback(() => {
+    if (!currentSetDraft.shapeId) {
+      setError('Select a shape to continue.');
+      return false;
+    }
+
+    const hasDescription = Boolean(
+      currentSetDraft.designDescription && currentSetDraft.designDescription.trim(),
+    );
+    const hasUploads =
+      Array.isArray(currentSetDraft.designUploads) && currentSetDraft.designUploads.length > 0;
+    if (!hasDescription && !hasUploads && !currentSetDraft.requiresFollowUp) {
+      setError('Add inspiration, describe your design, or mark for follow-up.');
+      return false;
+    }
+
+    setError(null);
+    return true;
+  }, [currentSetDraft]);
+
+  const handleSaveCurrentSet = useCallback(() => {
+    if (!validateCurrentSet()) {
+      setStepErrors((prev) => ({ ...prev, size: true }));
+      return;
+    }
+    setStepErrors((prev) => ({ ...prev, size: false }));
+    const pricing = computeSetPricing(currentSetDraft);
+    const setId = editingSetId || currentSetDraft.id || `set_${Date.now()}`;
+    const preparedUploads = (currentSetDraft.designUploads || []).map((upload, index) => ({
+      ...upload,
+      id: upload.id || `upload_${setId}_${index}`,
+    }));
+
+    const setToSave = {
+      ...currentSetDraft,
+      id: setId,
+      designUploads: preparedUploads,
+      shapeName: pricing.shapeName,
+      price: pricing.total,
+      unitPrice: pricing.unitPrice,
+    };
+
+    let nextCount = 0;
+    setOrderDraft((prev) => {
+      const existingIndex = prev.sets.findIndex((set) => set.id === setId);
+      const nextSets =
+        existingIndex >= 0
+          ? prev.sets.map((set, index) => (index === existingIndex ? setToSave : set))
+          : [...prev.sets, setToSave];
+      nextCount = nextSets.length;
+      return {
+        ...prev,
+        sets: nextSets,
+      };
+    });
+    setEditingSetId(null);
+    setCurrentSetDraft(createEmptySetDraft());
+    showToast(`Saved set ${nextCount} — add another or continue to delivery.`);
+    setStepErrors((prev) => ({ ...prev, summary: false }));
+    setCurrentStep(3);
+  }, [computeSetPricing, currentSetDraft, editingSetId, showToast, validateCurrentSet]);
+
+  const handleEditSet = useCallback(
+    (setId) => {
+      const target = orderDraft.sets.find((set) => set.id === setId);
+      if (!target) {
+        return;
+      }
+      setEditingSetId(setId);
+      setCurrentSetDraft({
+        ...target,
+        designUploads: (target.designUploads || []).map((upload) => ({ ...upload })),
+      });
+      setCurrentStep(0);
+    },
+    [orderDraft.sets],
+  );
+
+  const handleRemoveSet = useCallback(
+    (setId) => {
+      Alert.alert('Remove set', 'Remove this nail set from your order?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            setOrderDraft((prev) => ({
+              ...prev,
+              sets: prev.sets.filter((set) => set.id !== setId),
+            }));
+            if (editingSetId === setId) {
+              setEditingSetId(null);
+              setCurrentSetDraft(createEmptySetDraft());
+            }
+          },
+        },
+      ]);
+    },
+    [editingSetId],
+  );
+
+  const showToast = useCallback((message) => {
+    setToastMessage(message);
+  }, []);
 
   return (
     <SafeAreaView
@@ -534,7 +828,7 @@ function NewOrderStepperScreen({ route }) {
             {
               color: primaryFont,
               paddingHorizontal: horizontalSpacing,
-              marginTop: Math.max(insets.top, 12),
+              marginTop: Math.max(insets.top - 34, 8),
             },
           ]}
         >
@@ -557,14 +851,28 @@ function NewOrderStepperScreen({ route }) {
               ]}
             />
           </View>
-          <Text
-            style={[
-              styles.progressLabel,
-              { color: secondaryFont },
-            ]}
-          >
-            Step {currentStep + 1} of {STEP_DEFINITIONS.length}
-          </Text>
+          <View style={styles.progressRow}>
+            <Text
+              style={[
+                styles.setStatusPill,
+                {
+                  backgroundColor: withOpacity(accent || '#6F171F', 0.12),
+                  color: accent || '#6F171F',
+                  borderColor: withOpacity(accent || '#6F171F', 0.3),
+                },
+              ]}
+            >
+              {progressBadgeLabel}
+            </Text>
+            <Text
+              style={[
+                styles.progressLabel,
+                { color: secondaryFont },
+              ]}
+            >
+              {progressLabel}
+            </Text>
+          </View>
         </View>
 
         <View
@@ -613,95 +921,151 @@ function NewOrderStepperScreen({ route }) {
             ) : null}
 
             {currentStep === 0 ? (
-              <ShapeStep
-                colors={colors}
-                shapes={shapes}
-                loading={loadingShapes}
-                selectedShapeId={form.shapeId}
-                onSelect={(shapeId) => setForm((prev) => ({ ...prev, shapeId }))}
-              />
+            <ShapeStep
+              colors={colors}
+              shapes={shapes}
+              loading={loadingShapes}
+              selectedShapeId={currentSetDraft.shapeId}
+              onSelect={(shapeId) =>
+                setCurrentSetDraft((prev) => ({
+                  ...prev,
+                  shapeId,
+                }))
+              }
+            />
+            ) : null}
+
+            {stepErrors.shape ? (
+              <Text style={[styles.validationText, { color: accent }]}>
+                Pick a shape to continue.
+              </Text>
             ) : null}
 
             {currentStep === 1 ? (
               <DesignStep
                 colors={colors}
-                description={form.designDescription}
-                designUploads={form.designUploads}
-                requiresFollowUp={form.requiresFollowUp}
+              description={currentSetDraft.designDescription}
+              designUploads={currentSetDraft.designUploads}
+              requiresFollowUp={currentSetDraft.requiresFollowUp}
                 onAddUpload={handleAddDesignUpload}
                 onChangeDescription={(designDescription) =>
-                  setForm((prev) => ({ ...prev, designDescription }))
+                setCurrentSetDraft((prev) => ({
+                  ...prev,
+                  designDescription,
+                }))
                 }
                 onRemoveUpload={handleRemoveDesignUpload}
                 onToggleFollowUp={(requiresFollowUp) =>
-                  setForm((prev) => ({ ...prev, requiresFollowUp }))
+                setCurrentSetDraft((prev) => ({
+                  ...prev,
+                  requiresFollowUp,
+                }))
                 }
               />
+            ) : null}
+
+            {stepErrors.design ? (
+              <Text style={[styles.validationText, { color: accent }]}>
+                Add inspiration, describe your design, or mark for follow-up.
+              </Text>
             ) : null}
 
             {currentStep === 2 ? (
               <SizingStep
                 colors={colors}
-                quantity={String(form.quantity)}
-                sizeMode={form.sizeMode}
-                sizes={form.sizes}
-                onChangeQuantity={(quantity) => setForm((prev) => ({ ...prev, quantity }))}
+              sizeMode={currentSetDraft.sizeMode}
+              sizes={currentSetDraft.sizes}
                 onSelectSizeMode={(sizeMode) =>
-                  setForm((prev) => ({ ...prev, sizeMode }))
+                setCurrentSetDraft((prev) => ({
+                  ...prev,
+                  sizeMode,
+                }))
                 }
                 onChangeSizes={(sizes) =>
-                  setForm((prev) => ({ ...prev, sizes: { ...prev.sizes, ...sizes } }))
+                setCurrentSetDraft((prev) => ({
+                  ...prev,
+                  sizes: { ...prev.sizes, ...sizes },
+                }))
                 }
               />
             ) : null}
 
-            {currentStep === 3 ? (
-              <FulfillmentStep
-                colors={colors}
-                fulfillment={form.fulfillment}
-                onChangeMethod={(method) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    fulfillment: {
-                      ...prev.fulfillment,
-                      method,
-                      speed:
-                        pricingConstants.DELIVERY_METHODS[method]?.defaultSpeed || 'standard',
-                    },
-                  }))
-                }
-                onChangeSpeed={(speed) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    fulfillment: {
-                      ...prev.fulfillment,
-                      speed,
-                    },
-                  }))
-                }
-                onChangeAddress={(address) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    fulfillment: {
-                      ...prev.fulfillment,
-                      address: {
-                        ...prev.fulfillment.address,
-                        ...address,
-                      },
-                    },
-                  }))
-                }
-              />
+          {currentStep === 3 ? (
+            <OrderSummaryStep
+              colors={colors}
+              orderDraft={orderDraft}
+              currentSetDraft={currentSetDraft}
+              onAddAnother={() => {
+                setEditingSetId(null);
+                setCurrentSetDraft(createEmptySetDraft());
+                setCurrentStep(0);
+              }}
+              onEditSet={(setId) => handleEditSet(setId)}
+              onRemoveSet={(setId) => handleRemoveSet(setId)}
+              onPreviewSet={(setId) => handlePreviewSet(setId)}
+            />
+          ) : null}
+
+            {stepErrors.summary ? (
+              <Text style={[styles.validationText, { color: accent }]}>
+                Save at least one set to continue.
+              </Text>
             ) : null}
 
-            {currentStep === 4 && priceDetails ? (
+          {currentStep === 4 ? (
+            <FulfillmentStep
+              colors={colors}
+              fulfillment={orderDraft.deliveryDetails}
+              onChangeMethod={(method) =>
+                setOrderDraft((prev) => ({
+                  ...prev,
+                  deliveryDetails: {
+                    ...prev.deliveryDetails,
+                    method,
+                    speed:
+                      pricingConstants.DELIVERY_METHODS[method]?.defaultSpeed || 'standard',
+                  },
+                }))
+              }
+              onChangeSpeed={(speed) =>
+                setOrderDraft((prev) => ({
+                  ...prev,
+                  deliveryDetails: {
+                    ...prev.deliveryDetails,
+                    speed,
+                  },
+                }))
+              }
+              onChangeAddress={(address) =>
+                setOrderDraft((prev) => ({
+                  ...prev,
+                  deliveryDetails: {
+                    ...prev.deliveryDetails,
+                    address: {
+                      ...prev.deliveryDetails.address,
+                      ...address,
+                    },
+                  },
+                }))
+              }
+            />
+          ) : null}
+
+            {stepErrors.fulfillment ? (
+              <Text style={[styles.validationText, { color: accent }]}>
+                Please provide a full delivery address.
+              </Text>
+            ) : null}
+
+          {currentStep === 5 && priceDetails ? (
             <ReviewStep
               colors={colors}
               priceDetails={priceDetails}
               onOpenAdvancedBuilder={handleOpenLegacyBuilder}
               openingLegacy={openingLegacyBuilder}
+              sets={orderDraft.sets}
             />
-            ) : null}
+          ) : null}
           </ScrollView>
         </View>
 
@@ -715,83 +1079,207 @@ function NewOrderStepperScreen({ route }) {
           ]}
         >
           <View style={styles.footerButtonWrapperSmall}>
-            <TouchableOpacity
-              style={[
-                styles.footerButton,
-                {
-                  borderColor: border,
-                  backgroundColor: surface,
-                },
-              ]}
-              onPress={handleBack}
-              accessibilityRole="button"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text
-                numberOfLines={1}
-                ellipsizeMode="tail"
+            {currentStepKey === 'summary' ? (
+              <TouchableOpacity
                 style={[
-                  styles.footerButtonText,
-                  { color: secondaryFont },
+                  styles.footerButton,
+                  {
+                    borderColor: border,
+                    backgroundColor: surface,
+                  },
                 ]}
+                onPress={handleSaveDraft}
+                disabled={savingDraft}
+                accessibilityRole="button"
+                accessibilityLabel="Save draft"
+                accessibilityHint="Save this order as draft"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                Back
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {isFinalStep ? (
-            <>
-              <View style={styles.footerButtonWrapperLarge}>
-                <TouchableOpacity
+                {savingDraft ? (
+                  <ActivityIndicator color={accent} />
+                ) : (
+                  <Text
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    style={[
+                      styles.footerButtonText,
+                      { color: accent },
+                    ]}
+                  >
+                    Save Draft
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ) : currentStepKey !== 'summary' ? (
+              <TouchableOpacity
+                style={[
+                  styles.footerButton,
+                  {
+                    borderColor: border,
+                    backgroundColor: surface,
+                  },
+                ]}
+                onPress={handleBack}
+                accessibilityRole="button"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
                   style={[
-                    styles.footerButton,
-                    {
-                      borderColor: border,
-                      backgroundColor: surface,
-                    },
+                    styles.footerButtonText,
+                    { color: secondaryFont },
                   ]}
-                  onPress={handleSaveDraft}
-                  disabled={savingDraft}
-                  accessibilityRole="button"
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  {savingDraft ? (
-                    <ActivityIndicator color={accent} />
-                  ) : (
-                    <Text
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      style={[
-                        styles.footerButtonText,
-                        { color: accent },
-                      ]}
-                    >
-                      Save draft
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-              <View style={styles.footerButtonWrapperLarge}>
-                <PrimaryButton
-                  label={submitting ? 'Submitting…' : 'Order Now'}
-                  onPress={handleSubmit}
-                  loading={submitting}
-                  style={styles.footerPrimaryButton}
-                  accessibilityLabel="Submit your nail set order"
-                />
-              </View>
-            </>
-          ) : (
+                  Back
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.footerButtonSpacer} />
+            )}
+          </View>
+
+          {['fulfillment', 'review'].includes(currentStepKey) ? (
+            <View style={styles.footerButtonWrapperMedium}>
+              <TouchableOpacity
+                style={[
+                  styles.footerButton,
+                  {
+                    borderColor: border,
+                    backgroundColor: surface,
+                  },
+                ]}
+                onPress={handleSaveDraft}
+                disabled={savingDraft}
+                accessibilityRole="button"
+                accessibilityLabel="Save draft"
+                accessibilityHint="Save this order as draft"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                {savingDraft ? (
+                  <ActivityIndicator color={accent} />
+                ) : (
+                  <Text
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    style={[
+                      styles.footerButtonText,
+                      { color: accent },
+                    ]}
+                  >
+                    Save Draft
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {currentStepKey === 'review' ? (
             <View style={styles.footerButtonWrapperLarge}>
               <PrimaryButton
-                label="Next"
-                onPress={handleNext}
+                label={submitting ? 'Submitting…' : 'Order Now'}
+                onPress={handleSubmit}
+                loading={submitting}
                 style={styles.footerPrimaryButton}
-                accessibilityLabel="Go to next step"
+                accessibilityLabel="Submit your nail set order"
               />
             </View>
-          )}
+          ) : null}
+
+          {currentStepKey === 'size' ? (
+            <View style={styles.footerButtonWrapperLarge}>
+              <PrimaryButton
+                label="Save this nail set"
+                onPress={handleSaveCurrentSet}
+                style={styles.footerPrimaryButton}
+                accessibilityLabel="Save this nail set"
+              />
+            </View>
+          ) : null}
+
+          {showNextButton ? (
+            <View style={nextButtonWrapperStyle}>
+              <PrimaryButton
+                label={
+          currentStepKey === 'summary' ? 'Continue to delivery' : 'Next'
+        }
+                onPress={handleNext}
+                style={styles.footerPrimaryButton}
+                accessibilityLabel={
+                  currentStepKey === 'summary'
+                    ? 'Continue to delivery'
+                    : 'Go to next step'
+                }
+                accessibilityHint={STEP_TOOLTIPS[currentStepKey]}
+              />
+            </View>
+          ) : null}
         </View>
+        {previewSet ? (
+          <Modal transparent animationType="slide" visible onRequestClose={closePreview}>
+            <View style={styles.previewModalContainer}>
+              <View
+                style={[
+                  styles.previewModalCard,
+                  {
+                    backgroundColor: surface || '#FFFFFF',
+                    borderColor: withOpacity(border || '#D9C8A9', 0.6),
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.previewModalTitle,
+                    { color: primaryFont },
+                  ]}
+                >
+                  {previewSet.name || previewSet.shapeName || 'Nail set preview'}
+                </Text>
+                <Text
+                  style={[
+                    styles.previewModalSubtitle,
+                    { color: secondaryFont },
+                  ]}
+                >
+                  Shape: {previewSet.shapeName || 'Custom'}
+                </Text>
+                <ScrollView style={styles.previewModalBody} contentContainerStyle={styles.previewModalBodyContent}>
+                  {(previewSet.designUploads || []).map((upload, index) => {
+                    const source = resolveUploadPreview(upload);
+                    return source ? (
+                      <Image
+                        key={upload.id || `preview_${index}`}
+                        source={{ uri: source }}
+                        style={styles.previewModalImage}
+                      />
+                    ) : null;
+                  })}
+                  {previewSet.designDescription ? (
+                    <View style={styles.previewModalSection}>
+                      <Text
+                        style={[
+                          styles.previewModalSectionTitle,
+                          { color: primaryFont },
+                        ]}
+                      >
+                        Description
+                      </Text>
+                      <Text
+                        style={[
+                          styles.previewModalSectionCopy,
+                          { color: secondaryFont },
+                        ]}
+                      >
+                        {previewSet.designDescription}
+                      </Text>
+                    </View>
+                  ) : null}
+                </ScrollView>
+                <PrimaryButton label="Close preview" onPress={closePreview} />
+              </View>
+            </View>
+          </Modal>
+        ) : null}
       </View>
     </SafeAreaView>
   );
@@ -907,7 +1395,7 @@ function DesignStep({
                 { color: secondaryFont },
               ]}
             >
-              Add inspiration images to guide your custom set.
+              Add images if you have any inspiration to share.
             </Text>
           </View>
           <TouchableOpacity
@@ -1016,14 +1504,6 @@ function DesignStep({
             >
               No images yet
             </Text>
-            <Text
-              style={[
-                styles.designUploadPlaceholderCopy,
-                { color: secondaryFont },
-              ]}
-            >
-              Upload images if you have any inspiration to share.
-            </Text>
           </View>
         )}
       </View>
@@ -1052,13 +1532,13 @@ function DesignStep({
               { color: secondaryFont },
             ]}
           >
-            Share colors, finishes, inspiration references, or special instructions.
+            Share inspiration references or special instructions.
           </Text>
         </View>
         <TextInput
           value={description}
           onChangeText={onChangeDescription}
-          placeholder="Tell us about your dream set-palette, art style, finishes, or special accents."
+          placeholder="Tell us about the look—palette, art style, finishes, accents."
           placeholderTextColor={withOpacity(primaryFont, 0.4)}
           multiline
           numberOfLines={4}
@@ -1071,58 +1551,242 @@ function DesignStep({
             },
           ]}
         />
-        <View
-          style={[
-            styles.designHelpRow,
-            {
-              borderColor: withOpacity(border, 0.5),
-              backgroundColor: withOpacity(surfaceMuted, 0.4),
-            },
-          ]}
-        >
-          <View style={styles.designHelpCopy}>
-            <Text
-              style={[
-                styles.designHelpTitle,
-                { color: primaryFont },
-              ]}
-            >
-              Need design help?
-            </Text>
-            <Text
-              style={[
-                styles.designHelpHint,
-                { color: secondaryFont },
-              ]}
-            >
-              Toggle on if you’d like Abri to suggest ideas or finalize details with you.
-            </Text>
-          </View>
-          <Switch
-            value={requiresFollowUp}
-            onValueChange={onToggleFollowUp}
-            trackColor={{
-              false: withOpacity(border, 0.6),
-              true: withOpacity(accent, 0.4),
-            }}
-            thumbColor={requiresFollowUp ? accent : surface}
-            ios_backgroundColor={withOpacity(border, 0.6)}
-          />
+      </View>
+      <View
+        style={[
+          styles.designHelpCard,
+          {
+            borderColor: withOpacity(border, 0.5),
+            backgroundColor: withOpacity(surfaceMuted, 0.4),
+          },
+        ]}
+      >
+        <View style={styles.designHelpCopy}>
+          <Text
+            style={[
+              styles.designHelpTitle,
+              { color: primaryFont },
+            ]}
+          >
+            Need design help?
+          </Text>
+          <Text
+            style={[
+              styles.designHelpHint,
+              { color: secondaryFont },
+            ]}
+          >
+            Toggle on if you'd like Abri to suggest ideas or finalize details with you.
+          </Text>
         </View>
+        <Switch
+          value={requiresFollowUp}
+          onValueChange={onToggleFollowUp}
+          trackColor={{
+            false: withOpacity(border, 0.6),
+            true: withOpacity(accent, 0.4),
+          }}
+          thumbColor={requiresFollowUp ? accent : surface}
+          ios_backgroundColor={withOpacity(border, 0.6)}
+        />
       </View>
     </View>
   );
 }
 
-function SizingStep({
+function OrderSummaryStep({
   colors,
-  quantity,
-  sizeMode,
-  sizes,
-  onChangeQuantity,
-  onSelectSizeMode,
-  onChangeSizes,
+  orderDraft,
+  onAddAnother,
+  onEditSet,
+  onRemoveSet,
+  onPreviewSet,
 }) {
+  const {
+    primaryFont = '#220707',
+    secondaryFont = '#5C5F5D',
+    accent = '#6F171F',
+    border = '#D9C8A9',
+    surface = '#FFFFFF',
+    surfaceMuted = '#F4EBE3',
+    shadow = '#000000',
+    error: danger = '#B33A3A',
+  } = colors || {};
+
+  const sets = orderDraft.sets || [];
+
+  return (
+    <View style={styles.summaryContainer}>
+      <View style={styles.summaryActionsRow}>
+        <TouchableOpacity
+          onPress={onAddAnother}
+          style={[
+            styles.summaryAddButton,
+            {
+              borderColor: withOpacity(accent, 0.35),
+              backgroundColor: withOpacity(accent, 0.08),
+            },
+          ]}
+          accessibilityLabel="Add another set"
+          accessibilityHint="Save this set and add another"
+        >
+          <Icon name="plus" color={accent} size={16} />
+          <Text
+            style={[
+              styles.summaryAddLabel,
+              { color: accent },
+            ]}
+          >
+            Add another set
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {sets.length ? (
+        <View style={styles.summaryList}>
+          {sets.map((set, index) => {
+            const previewSource = resolveUploadPreview(set.designUploads?.[0]);
+            const perSetPrice =
+              set.price ??
+              (typeof set.unitPrice === 'number' ? set.unitPrice * (set.quantity || 1) : 0);
+            return (
+              <View
+                key={set.id || `set_${index}`}
+                style={[
+                  styles.summaryCard,
+                  {
+                    borderColor: withOpacity(border, 0.6),
+                    backgroundColor: surface,
+                    shadowColor: shadow,
+                  },
+                ]}
+              >
+                <TouchableOpacity
+                  style={styles.summaryPreview}
+                  onPress={() => onPreviewSet(set.id)}
+                  accessibilityLabel="Preview this nail set"
+                >
+                  {previewSource ? (
+                    <Image source={{ uri: previewSource }} style={styles.summaryPreviewImage} />
+                  ) : (
+                    <View
+                      style={[
+                        styles.summaryPreviewPlaceholder,
+                        { backgroundColor: withOpacity(surfaceMuted, 0.8) },
+                      ]}
+                    >
+                      <Icon name="image" color={withOpacity(primaryFont, 0.4)} size={18} />
+                      <Text
+                        style={[
+                          styles.summaryPreviewPlaceholderText,
+                          { color: secondaryFont },
+                        ]}
+                      >
+                        No image
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                <View style={styles.summaryMeta}>
+                  <Text
+                    style={[
+                      styles.summaryTitle,
+                      { color: primaryFont },
+                    ]}
+                  >
+                    {set.name || set.shapeName || `Set ${index + 1}`}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.summarySubtitle,
+                      { color: secondaryFont },
+                    ]}
+                  >
+                    {set.shapeName || 'Custom shape'}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.summaryPrice,
+                      { color: accent },
+                    ]}
+                  >
+                    {formatCurrency(perSetPrice)}
+                  </Text>
+                </View>
+
+                <View style={styles.summaryActions}>
+                  <TouchableOpacity
+                    onPress={() => onEditSet(set.id)}
+                    accessibilityLabel="Edit this nail set"
+                    accessibilityHint="Edit this nail set"
+                    style={styles.summaryActionButton}
+                  >
+                    <Icon name="edit" color={accent} size={18} />
+                    <Text
+                      style={[
+                        styles.summaryActionLabel,
+                        { color: accent },
+                      ]}
+                    >
+                      Edit
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => onRemoveSet(set.id)}
+                    accessibilityLabel="Remove this nail set"
+                    accessibilityHint="Remove this nail set"
+                    style={styles.summaryActionButton}
+                  >
+                    <Icon name="trash" color={withOpacity(danger, 0.9)} size={18} />
+                    <Text
+                      style={[
+                        styles.summaryActionLabel,
+                        { color: withOpacity(danger, 0.9) },
+                      ]}
+                    >
+                      Remove
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      ) : (
+        <View
+          style={[
+            styles.summaryEmpty,
+            {
+              borderColor: withOpacity(border, 0.5),
+              backgroundColor: withOpacity(surfaceMuted, 0.7),
+            },
+          ]}
+        >
+          <Icon name="info" color={withOpacity(primaryFont, 0.4)} size={20} />
+          <Text
+            style={[
+              styles.summaryEmptyTitle,
+              { color: primaryFont },
+            ]}
+          >
+            No sets saved yet
+          </Text>
+          <Text
+            style={[
+              styles.summaryEmptyCopy,
+              { color: secondaryFont },
+            ]}
+          >
+            Save your first nail set to continue to delivery.
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function SizingStep({ colors, sizeMode, sizes, onSelectSizeMode, onChangeSizes }) {
   const {
     primaryFont = '#220707',
     secondaryFont = '#5C5F5D',
@@ -1133,49 +1797,6 @@ function SizingStep({
 
   return (
     <View style={styles.sizingContainer}>
-      <Text
-        style={[
-          styles.sectionLabel,
-          { color: primaryFont },
-        ]}
-      >
-        Quantity
-      </Text>
-      <View style={styles.quantityRow}>
-        <TouchableOpacity
-          style={[
-            styles.quantityButton,
-            { borderColor: border },
-          ]}
-          onPress={() =>
-            onChangeQuantity(String(Math.max(1, Number(quantity || 1) - 1)))
-          }
-        >
-          <Text style={styles.quantityButtonText}>-</Text>
-        </TouchableOpacity>
-        <TextInput
-          value={quantity}
-          onChangeText={(value) => onChangeQuantity(value.replace(/[^0-9]/g, ''))}
-          keyboardType="number-pad"
-          style={[
-            styles.quantityInput,
-            {
-              borderColor: border,
-              color: primaryFont,
-            },
-          ]}
-        />
-        <TouchableOpacity
-          style={[
-            styles.quantityButton,
-            { borderColor: border },
-          ]}
-          onPress={() => onChangeQuantity(String(Number(quantity || 1) + 1))}
-        >
-          <Text style={styles.quantityButtonText}>+</Text>
-        </TouchableOpacity>
-      </View>
-
       <Text
         style={[
           styles.sectionLabel,
@@ -1457,7 +2078,7 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
   );
 }
 
-function ReviewStep({ colors, priceDetails, onOpenAdvancedBuilder, openingLegacy }) {
+function ReviewStep({ colors, priceDetails, onOpenAdvancedBuilder, openingLegacy, sets = [] }) {
   const {
     primaryFont = '#220707',
     secondaryFont = '#5C5F5D',
@@ -1476,6 +2097,47 @@ function ReviewStep({ colors, priceDetails, onOpenAdvancedBuilder, openingLegacy
       >
         Summary
       </Text>
+      <View style={styles.reviewSetList}>
+        {sets.map((set, index) => (
+          <View
+            key={set.id || `summary_set_${index}`}
+            style={[
+              styles.reviewSetCard,
+              { borderColor: withOpacity(border, 0.5) },
+            ]}
+          >
+            <View style={styles.reviewSetMeta}>
+              <Text
+                style={[
+                  styles.reviewSetTitle,
+                  { color: primaryFont },
+                ]}
+              >
+                {set.name || set.shapeName || `Set ${index + 1}`}
+              </Text>
+              <Text
+                style={[
+                  styles.reviewSetSubtitle,
+                  { color: secondaryFont },
+                ]}
+              >
+                {set.shapeName || 'Custom shape'}
+              </Text>
+            </View>
+            <Text
+              style={[
+                styles.reviewSetPrice,
+                { color: accent },
+              ]}
+            >
+            {formatCurrency(
+              set.price ??
+                (typeof set.unitPrice === 'number' ? set.unitPrice * (set.quantity || 1) : 0),
+            )}
+            </Text>
+          </View>
+        ))}
+      </View>
       <View style={styles.priceList}>
         {priceDetails.lineItems.map((item) => (
           <View key={item.id} style={styles.priceRow}>
@@ -1586,13 +2248,13 @@ const styles = StyleSheet.create({
   stepperTitle: {
     fontSize: 24,
     fontWeight: '800',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   progressContainer: {
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 12,
-    gap: 6,
+    paddingTop: 4,
+    paddingBottom: 8,
+    gap: 4,
   },
   progressTrack: {
     height: 6,
@@ -1608,10 +2270,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 6,
+  },
+  setStatusPill: {
+    fontSize: 11,
+    fontWeight: '700',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
   contentContainer: {
     flex: 1,
     flexDirection: 'row',
     paddingHorizontal: 20,
+    paddingTop: 12,
     gap: 20,
   },
   stepContainer: {
@@ -1744,19 +2422,15 @@ const styles = StyleSheet.create({
   designUploadPlaceholder: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 16,
-    padding: 24,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 6,
   },
   designUploadPlaceholderTitle: {
     fontSize: 14,
     fontWeight: '700',
-  },
-  designUploadPlaceholderCopy: {
-    fontSize: 13,
-    lineHeight: 20,
-    textAlign: 'center',
   },
   designDescriptionCard: {
     borderWidth: StyleSheet.hairlineWidth,
@@ -1774,21 +2448,21 @@ const styles = StyleSheet.create({
   designDescriptionInput: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 16,
-    padding: 16,
-    minHeight: 140,
+    padding: 12,
+    minHeight: 90,
     textAlignVertical: 'top',
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   sectionLabel: {
     fontSize: 14,
     fontWeight: '700',
   },
-  designHelpRow: {
+  designHelpCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
+    padding: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 16,
     gap: 12,
@@ -1805,34 +2479,158 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
   },
-  sizingContainer: {
-    gap: 20,
+  validationText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
   },
-  quantityRow: {
+  summaryContainer: {
+    gap: 16,
+  },
+  summaryActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  summaryAddButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  quantityButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quantityButtonText: {
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  quantityInput: {
-    width: 70,
+    gap: 6,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 12,
-    textAlign: 'center',
-    fontSize: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  summaryAddLabel: {
+    fontSize: 13,
     fontWeight: '700',
-    paddingVertical: 10,
+  },
+  summaryList: {
+    gap: 14,
+  },
+  summaryCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
+    padding: 16,
+    flexDirection: 'row',
+    gap: 16,
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  summaryPreview: {
+    width: 96,
+    height: 96,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  summaryPreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  summaryPreviewPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  summaryPreviewPlaceholderText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  summaryMeta: {
+    flex: 1,
+    gap: 4,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  summarySubtitle: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  summaryPrice: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  summaryActions: {
+    gap: 8,
+    justifyContent: 'center',
+  },
+  summaryActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  summaryActionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  summaryEmpty: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
+    padding: 24,
+    alignItems: 'center',
+    gap: 10,
+  },
+  summaryEmptyTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  summaryEmptyCopy: {
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+  },
+  previewModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  previewModalCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 20,
+    gap: 16,
+  },
+  previewModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  previewModalSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  previewModalBody: {
+    maxHeight: 280,
+  },
+  previewModalBodyContent: {
+    gap: 12,
+  },
+  previewModalImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 16,
+  },
+  previewModalSection: {
+    gap: 6,
+  },
+  previewModalSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  previewModalSectionCopy: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  sizingContainer: {
+    gap: 20,
   },
   modeRow: {
     flexDirection: 'row',
@@ -1944,7 +2742,34 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   reviewHeading: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  reviewSetList: {
+    gap: 8,
+  },
+  reviewSetCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 14,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  reviewSetMeta: {
+    gap: 4,
+    flex: 1,
+  },
+  reviewSetTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  reviewSetSubtitle: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  reviewSetPrice: {
+    fontSize: 14,
     fontWeight: '700',
   },
   priceList: {
@@ -2024,7 +2849,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   footerButtonWrapperLarge: {
-    flex: 1.15,
+    flex: 1.05,
+    minWidth: 0,
+  },
+  footerButtonSpacer: {
+    flex: 1,
+  },
+  footerButtonWrapperMedium: {
+    flex: 0.95,
     minWidth: 0,
   },
   footerButton: {
@@ -2049,6 +2881,34 @@ const styles = StyleSheet.create({
   },
   legacyBuilderButton: {
     marginTop: 16,
+  },
+  footerButtonWrapperLargeTight: {
+    flex: 0.95,
+    minWidth: 0,
+  },
+  footerButtonWrapperSummary: {
+    flex: 1,
+  },
+  toast: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: withOpacity('#6F171F', 0.92),
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+    alignItems: 'center',
+  },
+  toastText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
 
