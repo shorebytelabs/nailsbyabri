@@ -2754,11 +2754,11 @@ function SizingStep({
             </View>
           ) : null}
 
-          <View style={styles.savedProfileGrid}>
+          <View style={styles.savedProfileRowCompact}>
             {activeProfileEntries.map((entry) => (
-              <View key={entry.finger} style={styles.savedProfileRow}>
-                <Text style={[styles.sizeLabel, { color: secondaryFont }]}>{entry.label}</Text>
-                <Text style={[styles.savedProfileValue, { color: primaryFont }]}>{entry.value}</Text>
+              <View key={entry.finger} style={styles.savedProfileColumn}>
+                <Text style={[styles.savedProfileColumnLabel, { color: secondaryFont }]}>{entry.label}</Text>
+                <Text style={[styles.savedProfileColumnValue, { color: primaryFont }]}>{entry.value}</Text>
               </View>
             ))}
           </View>
@@ -4097,17 +4097,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  savedProfileGrid: {
-    marginTop: 16,
-    gap: 10,
-  },
-  savedProfileRow: {
+  savedProfileRowCompact: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    gap: 12,
+    marginTop: 16,
   },
-  savedProfileValue: {
-    fontSize: 13,
+  savedProfileColumn: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  savedProfileColumnLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  savedProfileColumnValue: {
+    fontSize: 16,
     fontWeight: '700',
   },
   fulfillmentContainer: {
@@ -4537,6 +4547,29 @@ const styles = StyleSheet.create({
   },
   previewCloseLabel: {
     fontSize: 13,
+    fontWeight: '700',
+  },
+  savedProfileRowCompact: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 16,
+  },
+  savedProfileColumn: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  savedProfileColumnLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  savedProfileColumnValue: {
+    fontSize: 16,
     fontWeight: '700',
   },
 });
