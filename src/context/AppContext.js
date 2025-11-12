@@ -6,7 +6,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { fetchConsentLogs } from '../services/api';
+import { fetchConsentLogs, fetchOrders, updateOrder } from '../services/api';
 import {
   defaultPreferences,
   loadPreferences,
@@ -15,6 +15,24 @@ import {
 
 const AppStateContext = createContext(null);
 
+const ADMIN_EMAILS = new Set([
+  'abriannachheng@gmail.com',
+  'arlenealdaychheng@gmail.com',
+  'arlenechheng@gmail.com',
+]);
+
+function applyAdminFlag(user) {
+  if (!user) {
+    return user;
+  }
+
+  const email = (user.email || '').toLowerCase();
+  return {
+    ...user,
+    isAdmin: ADMIN_EMAILS.has(email),
+  };
+}
+
 const initialState = {
   currentUser: null,
   pendingConsent: null,
@@ -22,6 +40,11 @@ const initialState = {
   preferences: defaultPreferences,
   activeOrder: null,
   lastCompletedOrder: null,
+  orders: [],
+  ordersLoading: false,
+  ordersUpdating: false,
+  ordersError: null,
+  ordersLoaded: false,
   statusMessage: null,
   loadingPreferences: false,
   loadingConsentLogs: false,
@@ -154,10 +177,11 @@ export function AppStateProvider({ children }) {
         return false;
       }
 
+      const adminUser = applyAdminFlag(user);
       setState((prev) => ({
         ...prev,
         pendingConsent: {
-          user,
+          user: adminUser,
           token,
           consentLog: logToUse,
         },
@@ -171,34 +195,84 @@ export function AppStateProvider({ children }) {
     [refreshConsentLogs],
   );
 
+  const loadOrdersForUser = useCallback(async (user) => {
+    if (!user || !user.isAdmin) {
+      setState((prev) => ({
+        ...prev,
+        orders: [],
+        ordersLoaded: false,
+        ordersError: null,
+      }));
+      return;
+    }
+
+    setState((prev) => ({
+      ...prev,
+      ordersLoading: true,
+      ordersError: null,
+    }));
+
+    try {
+      const response = await fetchOrders();
+      const orders = Array.isArray(response?.orders) ? response.orders : [];
+      setState((prev) => ({
+        ...prev,
+        orders,
+        ordersLoaded: true,
+      }));
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        ordersError: error?.message || 'Unable to load orders.',
+      }));
+    } finally {
+      setState((prev) => ({
+        ...prev,
+        ordersLoading: false,
+      }));
+    }
+  }, []);
+
   const handleSignupSuccess = useCallback(
     async (response) => {
       if (response.consentRequired) {
         await enterConsentFlow(response.user, response.consentToken, response.consentLog);
       } else {
+        const adminUser = applyAdminFlag(response.user);
         setState((prev) => ({
           ...prev,
-          currentUser: response.user,
+          currentUser: adminUser,
           pendingConsent: null,
           preferences: defaultPreferences,
           activeOrder: null,
+          orders: adminUser.isAdmin ? prev.orders : [],
+          ordersLoaded: adminUser.isAdmin ? prev.ordersLoaded : false,
         }));
-        refreshConsentLogs(response.user.id);
+        if (adminUser.isAdmin) {
+          loadOrdersForUser(adminUser);
+        }
+        refreshConsentLogs(adminUser.id);
       }
     },
-    [enterConsentFlow, refreshConsentLogs],
+    [enterConsentFlow, refreshConsentLogs, loadOrdersForUser],
   );
 
   const handleLoginSuccess = useCallback(
     (payload) => {
+      const adminUser = applyAdminFlag(payload.user);
       setState((prev) => ({
         ...prev,
-        currentUser: payload.user,
+        currentUser: adminUser,
         pendingConsent: null,
+        orders: adminUser.isAdmin ? prev.orders : [],
+        ordersLoaded: adminUser.isAdmin ? prev.ordersLoaded : false,
       }));
-      refreshConsentLogs(payload.user.id);
+      if (adminUser.isAdmin) {
+        loadOrdersForUser(adminUser);
+      }
+      refreshConsentLogs(adminUser.id);
     },
-    [refreshConsentLogs],
+    [refreshConsentLogs, loadOrdersForUser],
   );
 
   const handleConsentPendingLogin = useCallback(
@@ -214,15 +288,21 @@ export function AppStateProvider({ children }) {
 
   const handleConsentComplete = useCallback(
     async (payload) => {
+      const adminUser = applyAdminFlag(payload.user);
       setState((prev) => ({
         ...prev,
-        currentUser: payload.user,
+        currentUser: adminUser,
         pendingConsent: null,
         statusMessage: 'Consent approved successfully.',
+        orders: adminUser.isAdmin ? prev.orders : [],
+        ordersLoaded: adminUser.isAdmin ? prev.ordersLoaded : false,
       }));
-      await refreshConsentLogs(payload.user.id);
+      if (adminUser.isAdmin) {
+        await loadOrdersForUser(adminUser);
+      }
+      await refreshConsentLogs(adminUser.id);
     },
-    [refreshConsentLogs],
+    [refreshConsentLogs, loadOrdersForUser],
   );
 
   const handleUpdatePreferences = useCallback(
@@ -293,6 +373,55 @@ export function AppStateProvider({ children }) {
       activeOrder: order,
       lastCompletedOrder: { ...order, variant },
     }));
+    if (state.currentUser?.isAdmin) {
+      loadOrdersForUser(state.currentUser);
+    }
+  }, [loadOrdersForUser, state.currentUser]);
+
+  const updateOrderAdmin = useCallback(async (orderId, payload = {}) => {
+    setState((prev) => ({
+      ...prev,
+      ordersUpdating: true,
+      statusMessage: null,
+    }));
+
+    try {
+      const updated = await updateOrder(orderId, payload);
+      setState((prev) => {
+        const nextOrders = Array.isArray(prev.orders)
+          ? prev.orders.map((order) => (order.id === updated.id ? { ...order, ...updated } : order))
+          : prev.orders;
+
+        const nextActiveOrder = prev.activeOrder?.id === updated.id
+          ? { ...prev.activeOrder, ...updated }
+          : prev.activeOrder;
+
+        const nextLastCompletedOrder = prev.lastCompletedOrder?.id === updated.id
+          ? { ...prev.lastCompletedOrder, ...updated }
+          : prev.lastCompletedOrder;
+
+        return {
+          ...prev,
+          orders: nextOrders,
+          activeOrder: nextActiveOrder,
+          lastCompletedOrder: nextLastCompletedOrder,
+          statusMessage: 'Order updated successfully.',
+        };
+      });
+
+      return updated;
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        statusMessage: error?.message || 'Unable to update order.',
+      }));
+      throw error;
+    } finally {
+      setState((prev) => ({
+        ...prev,
+        ordersUpdating: false,
+      }));
+    }
   }, []);
 
   const contextValue = useMemo(
@@ -310,6 +439,8 @@ export function AppStateProvider({ children }) {
       handleDraftSaved,
       handleOrderCancelled,
       handleOrderComplete,
+      loadOrdersForUser,
+      updateOrderAdmin,
       enterConsentFlow,
       ensureAuthenticated,
       clearAuthRedirect,
@@ -329,6 +460,8 @@ export function AppStateProvider({ children }) {
       handleDraftSaved,
       handleOrderCancelled,
       handleOrderComplete,
+      loadOrdersForUser,
+      updateOrderAdmin,
       enterConsentFlow,
       ensureAuthenticated,
       clearAuthRedirect,

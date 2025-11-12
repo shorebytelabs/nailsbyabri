@@ -112,3 +112,22 @@ export async function fetchOrder(orderId) {
   return handleResponse(response);
 }
 
+export async function fetchOrders(params = {}) {
+  const query = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && String(value).length)
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join('&');
+
+  const response = await fetch(`${API_BASE_URL}/orders${query ? `?${query}` : ''}`);
+  return handleResponse(response);
+}
+
+export async function updateOrder(orderId, payload) {
+  const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+

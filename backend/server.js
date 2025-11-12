@@ -479,6 +479,62 @@ app.get('/orders/:orderId', (req, res) => {
   return res.json({ order: sanitizeOrder(order) });
 });
 
+app.patch('/orders/:orderId', (req, res) => {
+  const { orderId } = req.params;
+  const {
+    status,
+    adminNotes,
+    adminImages,
+    discount,
+    trackingNumber,
+  } = req.body || {};
+
+  const state = readData();
+  const order = findOrderById(state, orderId);
+
+  if (!order) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+
+  const allowedStatuses = new Set([
+    'draft',
+    'submitted',
+    'pending',
+    'in_progress',
+    'completed',
+    'delivered',
+    'cancelled',
+    'pending_payment',
+  ]);
+
+  if (status && allowedStatuses.has(status)) {
+    order.status = status;
+  }
+
+  if (typeof adminNotes === 'string') {
+    order.adminNotes = adminNotes.trim();
+  }
+
+  if (Array.isArray(adminImages)) {
+    order.adminImages = adminImages.filter((item) => typeof item === 'string' && item.length > 0);
+  }
+
+  if (typeof discount === 'number' && !Number.isNaN(discount)) {
+    order.discount = discount;
+  }
+
+  if (trackingNumber !== undefined) {
+    order.trackingNumber =
+      trackingNumber === null ? '' : String(trackingNumber).trim();
+  }
+
+  order.updatedAt = new Date().toISOString();
+
+  writeData(state);
+
+  return res.json({ order: sanitizeOrder(order) });
+});
+
 app.post('/orders/:orderId/payment-intent', async (req, res) => {
   if (!stripe) {
     return res.status(500).json({

@@ -1,16 +1,28 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  Switch,
+  Image,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
 import { logEvent } from '../utils/analytics';
 import { withOpacity } from '../utils/color';
+import { launchImageLibrary } from 'react-native-image-picker';
 
 function OrdersScreen({ route }) {
   const initialTabFromRoute = route?.params?.initialTab;
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const { state, refreshConsentLogs, setState } = useAppState();
+  const { state, refreshConsentLogs, setState, loadOrdersForUser, updateOrderAdmin } = useAppState();
+  const currentUserId = state.currentUser?.id;
   const colors = theme?.colors || {};
   const {
     primaryBackground,
@@ -29,69 +41,83 @@ function OrdersScreen({ route }) {
   const secondaryFontColor = secondaryFont || '#5C5F5D';
   const borderColor = border || '#D9C8A9';
 
-  const draftOrders = useMemo(() => {
-    if (state.activeOrder?.status === 'draft') {
-      return [state.activeOrder];
+  const isAdmin = Boolean(state.currentUser?.isAdmin);
+  const [hasRequestedAdminOrders, setHasRequestedAdminOrders] = useState(false);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      if (hasRequestedAdminOrders) {
+        setHasRequestedAdminOrders(false);
+      }
+      return;
     }
-    return [];
-  }, [state.activeOrder]);
 
-  const submittedOrders = useMemo(() => {
-    const map = new Map();
-    const addOrder = (order) => {
-      if (!order || order.status !== 'submitted') {
+    if (!hasRequestedAdminOrders || (!state.ordersLoaded && !state.ordersLoading)) {
+      if (!state.currentUser) {
         return;
       }
-      if (!map.has(order.id)) {
-        map.set(order.id, order);
-      }
-    };
+      setHasRequestedAdminOrders(true);
+      loadOrdersForUser(state.currentUser);
+    }
+  }, [isAdmin, loadOrdersForUser, state.ordersLoaded, state.ordersLoading, hasRequestedAdminOrders, currentUserId]);
 
-    addOrder(state.activeOrder);
-    addOrder(state.lastCompletedOrder);
-
-    return Array.from(map.values());
-  }, [state.activeOrder, state.lastCompletedOrder]);
-
-  const completedOrders = useMemo(() => {
+  const baseOrders = useMemo(() => {
     const map = new Map();
-    const addOrder = (order) => {
-      if (!order || order.status !== 'completed') {
-        return;
+
+    if (isAdmin) {
+      (state.orders || []).forEach((order) => {
+        if (order && order.id && !map.has(order.id)) {
+          map.set(order.id, order);
+        }
+      });
+    } else {
+      if (state.activeOrder?.id) {
+        map.set(state.activeOrder.id, state.activeOrder);
       }
-      if (!map.has(order.id)) {
+      if (state.lastCompletedOrder?.id && !map.has(state.lastCompletedOrder.id)) {
+        map.set(state.lastCompletedOrder.id, state.lastCompletedOrder);
+      }
+    }
+
+    // Ensure locally cached orders (like drafts) are shown for admins too
+    const localOrders = [state.activeOrder, state.lastCompletedOrder];
+    localOrders.forEach((order) => {
+      if (order && order.id && !map.has(order.id)) {
         map.set(order.id, order);
       }
-    };
-
-    addOrder(state.activeOrder);
-    addOrder(state.lastCompletedOrder);
-
-    return Array.from(map.values());
-  }, [state.activeOrder, state.lastCompletedOrder]);
-
-  const allOrders = useMemo(() => {
-    const map = new Map();
-    const addOrder = (order) => {
-      if (!order) {
-        return;
-      }
-      if (!map.has(order.id)) {
-        map.set(order.id, order);
-      }
-    };
-
-    addOrder(state.activeOrder);
-    addOrder(state.lastCompletedOrder);
+    });
 
     const items = Array.from(map.values());
-
     return items.sort((a, b) => {
       const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
       const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
       return bTime - aTime;
     });
-  }, [state.activeOrder, state.lastCompletedOrder]);
+  }, [isAdmin, state.activeOrder, state.lastCompletedOrder, state.orders]);
+
+  const categorizedOrders = useMemo(() => {
+    const drafts = [];
+    const submitted = [];
+    const completed = [];
+
+    baseOrders.forEach((order) => {
+      const status = (order.status || '').toLowerCase();
+      if (status === 'draft') {
+        drafts.push(order);
+      } else if (status === 'completed' || status === 'delivered') {
+        completed.push(order);
+      } else {
+        submitted.push(order);
+      }
+    });
+
+    return {
+      drafts,
+      submitted,
+      completed,
+      all: baseOrders,
+    };
+  }, [baseOrders]);
 
   const [activeTab, setActiveTab] = useState(
     ['drafts', 'submitted', 'completed', 'all'].includes(initialTabFromRoute)
@@ -101,27 +127,69 @@ function OrdersScreen({ route }) {
 
   const tabs = useMemo(
     () => [
-      { key: 'drafts', label: 'Cart', count: draftOrders.length },
-      { key: 'submitted', label: 'Submitted', count: submittedOrders.length },
-      { key: 'completed', label: 'Delivered', count: completedOrders.length },
-      { key: 'all', label: 'All', count: allOrders.length },
+      { key: 'drafts', label: 'Cart', count: categorizedOrders.drafts.length },
+      { key: 'submitted', label: 'Submitted', count: categorizedOrders.submitted.length },
+      { key: 'completed', label: 'Delivered', count: categorizedOrders.completed.length },
+      { key: 'all', label: 'All', count: categorizedOrders.all.length },
     ],
-    [draftOrders.length, submittedOrders.length, completedOrders.length, allOrders.length],
+    [categorizedOrders],
   );
 
-  const visibleOrders = useMemo(() => {
-    switch (activeTab) {
-      case 'submitted':
-        return submittedOrders;
-      case 'completed':
-        return completedOrders;
-      case 'all':
-        return allOrders;
-      case 'drafts':
-      default:
-        return draftOrders;
+  const STATUS_FILTERS = useMemo(
+    () => [
+      { key: 'all', label: 'All statuses' },
+      { key: 'draft', label: 'Draft' },
+      { key: 'pending', label: 'Pending' },
+      { key: 'in_progress', label: 'In progress' },
+      { key: 'submitted', label: 'Submitted' },
+      { key: 'completed', label: 'Completed' },
+      { key: 'cancelled', label: 'Cancelled' },
+    ],
+    [],
+  );
+
+  const [selectedUserFilter, setSelectedUserFilter] = useState('all');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
+  const [showAdminControls, setShowAdminControls] = useState(false);
+  const [expandedAdminOrders, setExpandedAdminOrders] = useState({});
+  const [adminDrafts, setAdminDrafts] = useState({});
+
+  const userOptions = useMemo(() => {
+    if (!isAdmin) {
+      return [];
     }
-  }, [activeTab, draftOrders, submittedOrders, completedOrders, allOrders]);
+
+    const map = new Map();
+    baseOrders.forEach((order) => {
+      const email = (order.user?.email || order.userEmail || '').toLowerCase();
+      if (!email || map.has(email)) {
+        return;
+      }
+      const name = order.user?.name || order.userName || order.customerName || email;
+      map.set(email, { email, name });
+    });
+
+    return [{ email: 'all', name: 'All users' }, ...Array.from(map.values())];
+  }, [baseOrders, isAdmin]);
+
+  const filteredOrders = useMemo(() => {
+    let results = categorizedOrders[activeTab] || categorizedOrders.drafts;
+
+    if (isAdmin) {
+      if (selectedStatusFilter !== 'all') {
+        results = results.filter((order) => (order.status || '').toLowerCase() === selectedStatusFilter);
+      }
+
+      if (selectedUserFilter !== 'all') {
+        results = results.filter((order) => {
+          const email = (order.user?.email || order.userEmail || '').toLowerCase();
+          return email === selectedUserFilter;
+        });
+      }
+    }
+
+    return results;
+  }, [activeTab, categorizedOrders, isAdmin, selectedStatusFilter, selectedUserFilter]);
 
   const navigateToRoot = useCallback(
     (routeName, params) => {
@@ -156,19 +224,232 @@ function OrdersScreen({ route }) {
     [navigateToRoot, setState],
   );
 
+  const getOrderUserLabel = useCallback((order) => {
+    if (!isAdmin) {
+      return null;
+    }
+    const name = order.user?.name || order.userName || order.customerName;
+    const email = order.user?.email || order.userEmail;
+    if (name && email) {
+      return `${name} • ${email}`;
+    }
+    return name || email || 'Unknown customer';
+  }, [isAdmin]);
+
+  const getAdminDraft = useCallback(
+    (order) => {
+      const existing = adminDrafts[order.id];
+      if (existing) {
+        return existing;
+      }
+
+      const storedImages = Array.isArray(order.adminImages)
+        ? order.adminImages
+            .filter(Boolean)
+            .map((uri, index) => ({ id: `${order.id}_admin_${index}`, uri }))
+        : [];
+
+      const defaultDraft = {
+        notes: order.adminNotes || '',
+        images: storedImages,
+        discount: order.discount !== undefined && order.discount !== null ? String(order.discount) : '',
+        trackingNumber: order.trackingNumber || '',
+        status: order.status || 'pending',
+      };
+
+      return defaultDraft;
+    },
+    [adminDrafts],
+  );
+
+  const handleAdminDraftChange = useCallback((orderId, field, value) => {
+    setAdminDrafts((prev) => ({
+      ...prev,
+      [orderId]: {
+        ...(prev[orderId] || {}),
+        [field]: value,
+      },
+    }));
+  }, []);
+
+  const handleAdminImageUpload = useCallback(
+    async (order) => {
+      try {
+        const response = await launchImageLibrary({
+          mediaType: 'photo',
+          selectionLimit: 0,
+          includeBase64: false,
+        });
+
+        if (response.didCancel || !Array.isArray(response.assets)) {
+          return;
+        }
+
+        const newEntries = response.assets
+          .filter((asset) => asset?.uri)
+          .map((asset, index) => ({
+            id:
+              asset.assetId ||
+              asset.fileName ||
+              `${order.id}_upload_${Date.now()}_${index}`,
+            uri: asset.uri,
+          }));
+
+        if (!newEntries.length) {
+          return;
+        }
+
+        const baseDraft = getAdminDraft(order);
+
+        setAdminDrafts((prev) => {
+          const existingImages = (prev[order.id]?.images || baseDraft.images || []).filter(
+            Boolean,
+          );
+          return {
+            ...prev,
+            [order.id]: {
+              ...(prev[order.id] || baseDraft || {}),
+              images: [...existingImages, ...newEntries],
+            },
+          };
+        });
+      } catch (error) {
+        setState((prev) => ({
+          ...prev,
+          statusMessage: 'Unable to add images. Please try again.',
+        }));
+      }
+    },
+    [getAdminDraft, setState],
+  );
+
+  const handleAdminImageRemove = useCallback((orderId, imageId) => {
+    setAdminDrafts((prev) => {
+      const draft = prev[orderId];
+      if (!draft || !Array.isArray(draft.images)) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [orderId]: {
+          ...draft,
+          images: draft.images.filter((image) => image?.id !== imageId),
+        },
+      };
+    });
+  }, []);
+
+  const handleAdminStatusSelect = useCallback(
+    async (order, nextStatus) => {
+      if (!nextStatus) {
+        return;
+      }
+
+      const previousStatus = getAdminDraft(order).status;
+      if ((previousStatus || '').toLowerCase() === nextStatus.toLowerCase()) {
+        return;
+      }
+      handleAdminDraftChange(order.id, 'status', nextStatus);
+
+      try {
+        await updateOrderAdmin(order.id, { status: nextStatus });
+      } catch (error) {
+        setState((prev) => ({
+          ...prev,
+          statusMessage: error?.message || 'Unable to update status.',
+        }));
+        handleAdminDraftChange(order.id, 'status', previousStatus);
+      }
+    },
+    [getAdminDraft, handleAdminDraftChange, updateOrderAdmin, setState],
+  );
+
+  const toggleAdminSection = useCallback((orderId) => {
+    setExpandedAdminOrders((prev) => ({
+      ...prev,
+      [orderId]: !prev[orderId],
+    }));
+  }, []);
+
+  const handleAdminSave = useCallback(
+    async (order) => {
+      const draft = getAdminDraft(order);
+      try {
+        const payload = {
+          status: draft.status,
+          adminNotes: draft.notes,
+          adminImages: Array.isArray(draft.images)
+            ? draft.images.map((image) => image?.uri).filter(Boolean)
+            : [],
+          trackingNumber: draft.trackingNumber || undefined,
+        };
+
+        if (draft.discount?.length) {
+          payload.discount = Number(draft.discount);
+        }
+
+        const updated = await updateOrderAdmin(order.id, payload);
+        setAdminDrafts((prev) => ({
+          ...prev,
+          [order.id]: {
+            notes: updated.adminNotes || '',
+            images:
+              Array.isArray(updated.adminImages)
+                ? updated.adminImages
+                    .filter(Boolean)
+                    .map((uri, index) => ({ id: `${order.id}_admin_${index}`, uri }))
+                : [],
+            discount:
+              updated.discount !== undefined && updated.discount !== null
+                ? String(updated.discount)
+                : '',
+            trackingNumber: updated.trackingNumber || '',
+            status: updated.status || draft.status,
+          },
+        }));
+      } catch (error) {
+        // errors handled via context status message
+      }
+    },
+    [getAdminDraft, updateOrderAdmin],
+  );
+
   const renderOrderCard = (order) => {
     const primarySet = order.nailSets?.[0];
     const needsFollowUp = order.nailSets?.some((set) => set.requiresFollowUp);
-    const statusLabel =
-      order.status === 'draft'
-        ? 'Draft'
-        : order.status === 'completed'
-        ? 'Delivered'
-        : 'Submitted';
-    const statusBackground =
-      order.status === 'draft'
-        ? withOpacity(secondaryBackgroundColor, 0.2)
-        : withOpacity(accentColor, 0.12);
+    const status = (order.status || '').toLowerCase();
+    const adminDraft = getAdminDraft(order);
+    const adminImages = Array.isArray(adminDraft.images) ? adminDraft.images : [];
+    let statusLabel = 'Submitted';
+    let statusBackground = withOpacity(accentColor, 0.12);
+    let statusTextColor = accentColor;
+
+    switch (status) {
+      case 'draft':
+        statusLabel = 'Draft';
+        statusBackground = withOpacity(secondaryBackgroundColor, 0.2);
+        break;
+      case 'pending':
+        statusLabel = 'Pending';
+        statusBackground = withOpacity(accentColor, 0.1);
+        break;
+      case 'in_progress':
+        statusLabel = 'In progress';
+        statusBackground = withOpacity(accentColor, 0.12);
+        break;
+      case 'completed':
+      case 'delivered':
+        statusLabel = 'Completed';
+        statusBackground = withOpacity(accentColor, 0.18);
+        break;
+      case 'cancelled':
+        statusLabel = 'Cancelled';
+        statusBackground = withOpacity('#B33A3A', 0.12);
+        statusTextColor = '#B33A3A';
+        break;
+      default:
+        break;
+    }
 
     return (
       <View
@@ -201,7 +482,7 @@ function OrdersScreen({ route }) {
             <Text
               style={[
                 styles.statusText,
-                { color: accentColor },
+                { color: statusTextColor },
               ]}
             >
               {statusLabel}
@@ -218,6 +499,16 @@ function OrdersScreen({ route }) {
             ? `Updated ${new Date(order.updatedAt).toLocaleString()}`
             : 'Recently updated'}
         </Text>
+        {isAdmin ? (
+          <Text
+            style={[
+              styles.cardMetaSecondary,
+              { color: secondaryFontColor },
+            ]}
+          >
+            {getOrderUserLabel(order)}
+          </Text>
+        ) : null}
         <View style={styles.cardFooter}>
           <TouchableOpacity
             style={[
@@ -246,6 +537,189 @@ function OrdersScreen({ route }) {
             </Text>
           ) : null}
         </View>
+        {isAdmin && showAdminControls ? (
+          <View style={styles.adminSection}>
+            <TouchableOpacity
+              onPress={() => toggleAdminSection(order.id)}
+              style={[
+                styles.adminSectionToggle,
+                {
+                  borderColor: withOpacity(borderColor, 0.6),
+                  backgroundColor: withOpacity(surfaceColor, 0.8),
+                },
+              ]}
+            >
+              <Text style={[styles.adminSectionToggleText, { color: accentColor }]}>
+                {expandedAdminOrders[order.id] ? 'Hide admin controls' : 'Show admin controls'}
+              </Text>
+            </TouchableOpacity>
+            {expandedAdminOrders[order.id] ? (
+              <View style={styles.adminForm}>
+                <Text style={[styles.adminLabel, { color: primaryFontColor }]}>Notes</Text>
+                <TextInput
+                  value={adminDraft.notes}
+                  onChangeText={(value) => handleAdminDraftChange(order.id, 'notes', value)}
+                  placeholder="Add internal comments"
+                  placeholderTextColor={withOpacity(secondaryFontColor, 0.5)}
+                  style={[
+                    styles.adminInput,
+                    {
+                      borderColor: withOpacity(borderColor, 0.6),
+                      color: primaryFontColor,
+                    },
+                  ]}
+                  multiline
+                />
+
+                <Text style={[styles.adminLabel, { color: primaryFontColor }]}>Upload images</Text>
+                <View style={styles.adminUploadsRow}>
+                  {adminImages.length ? (
+                    adminImages.map((image) => (
+                      <View
+                        key={image.id}
+                        style={[
+                          styles.adminImageWrapper,
+                          {
+                            borderColor: withOpacity(borderColor, 0.6),
+                            backgroundColor: withOpacity(surfaceColor, 0.6),
+                          },
+                        ]}
+                      >
+                        <Image source={{ uri: image.uri }} style={styles.adminImage} />
+                        <TouchableOpacity
+                          onPress={() => handleAdminImageRemove(order.id, image.id)}
+                          style={[
+                            styles.adminImageRemove,
+                            {
+                              backgroundColor: withOpacity(primaryBackgroundColor, 0.9),
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.adminImageRemoveText, { color: accentColor }]}>×</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))
+                  ) : (
+                    <View
+                      style={[
+                        styles.adminEmptyUpload,
+                        {
+                          borderColor: withOpacity(borderColor, 0.6),
+                          backgroundColor: withOpacity(surfaceColor, 0.6),
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.adminEmptyUploadText,
+                          { color: secondaryFontColor },
+                        ]}
+                      >
+                        No images uploaded yet
+                      </Text>
+                    </View>
+                  )}
+                  <TouchableOpacity
+                    onPress={() => handleAdminImageUpload(order)}
+                    style={[
+                      styles.adminImageAddButton,
+                      {
+                        borderColor: withOpacity(accentColor, 0.5),
+                        backgroundColor: withOpacity(accentColor, 0.1),
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.adminImageAddText, { color: accentColor }]}>+ Add images</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.adminField}>
+                  <Text style={[styles.adminLabel, { color: primaryFontColor }]}>Discount</Text>
+                  <TextInput
+                    value={adminDraft.discount}
+                    onChangeText={(value) => handleAdminDraftChange(order.id, 'discount', value)}
+                    placeholder="0.00"
+                    placeholderTextColor={withOpacity(secondaryFontColor, 0.5)}
+                    keyboardType="decimal-pad"
+                    style={[
+                      styles.adminInput,
+                      {
+                        borderColor: withOpacity(borderColor, 0.6),
+                        color: primaryFontColor,
+                      },
+                    ]}
+                  />
+                </View>
+
+                <View style={styles.adminField}>
+                  <Text style={[styles.adminLabel, { color: primaryFontColor }]}>Tracking number</Text>
+                  <TextInput
+                    value={adminDraft.trackingNumber}
+                    onChangeText={(value) => handleAdminDraftChange(order.id, 'trackingNumber', value)}
+                    placeholder="Enter tracking number"
+                    placeholderTextColor={withOpacity(secondaryFontColor, 0.5)}
+                    style={[
+                      styles.adminInput,
+                      {
+                        borderColor: withOpacity(borderColor, 0.6),
+                        color: primaryFontColor,
+                      },
+                    ]}
+                  />
+                </View>
+
+                <View style={styles.adminStatusRow}>
+                  <Text style={[styles.adminLabel, { color: primaryFontColor }]}>Status</Text>
+                  <View style={styles.adminStatusChips}>
+                    {STATUS_FILTERS.filter((filter) => filter.key !== 'all').map((filter) => {
+                      const isSelected = adminDraft.status?.toLowerCase() === filter.key;
+                      return (
+                        <TouchableOpacity
+                          key={filter.key}
+                          onPress={() => handleAdminStatusSelect(order, filter.key)}
+                          style={[
+                            styles.adminStatusChip,
+                            {
+                              borderColor: isSelected
+                                ? accentColor
+                                : withOpacity(borderColor, 0.6),
+                              backgroundColor: isSelected
+                                ? withOpacity(accentColor, 0.12)
+                                : surfaceColor,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.adminStatusChipLabel,
+                              { color: isSelected ? accentColor : secondaryFontColor },
+                            ]}
+                          >
+                            {filter.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                <View style={styles.adminActionsRow}>
+                  <TouchableOpacity
+                    onPress={() => handleAdminSave(order)}
+                    style={[
+                      styles.adminSaveButton,
+                      {
+                        backgroundColor: accentColor,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.adminSaveButtonText, { color: surfaceColor }]}>Save changes</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </View>
     );
   };
@@ -257,16 +731,23 @@ function OrdersScreen({ route }) {
         { backgroundColor: primaryBackgroundColor },
       ]}
       refreshControl={
-        <RefreshControl
-          tintColor={accentColor}
-          refreshing={state.loadingConsentLogs}
-          onRefresh={() => {
-            if (state.currentUser) {
-              refreshConsentLogs(state.currentUser.id);
-            }
-          }}
-        />
+        !isAdmin
+          ? (
+              <RefreshControl
+                tintColor={accentColor}
+                refreshing={state.loadingConsentLogs}
+                onRefresh={() => {
+                  if (state.currentUser) {
+                    refreshConsentLogs(state.currentUser.id);
+                  }
+                }}
+              />
+            )
+          : undefined
       }
+      bounces={!isAdmin}
+      alwaysBounceVertical={!isAdmin}
+      overScrollMode={isAdmin ? 'never' : 'auto'}
     >
       <View style={styles.header}>
         <Text
@@ -349,9 +830,85 @@ function OrdersScreen({ route }) {
         </ScrollView>
       </View>
 
+      {isAdmin ? (
+        <View
+          style={[
+            styles.adminToolbar,
+            {
+              borderColor: withOpacity(borderColor, 0.4),
+              backgroundColor: withOpacity(surfaceColor, 0.9),
+            },
+          ]}
+        >
+          <View style={styles.adminToggleRow}>
+            <Text style={[styles.adminToggleLabel, { color: primaryFontColor }]}>Show admin controls</Text>
+            <Switch
+              value={showAdminControls}
+              onValueChange={setShowAdminControls}
+              trackColor={{ false: withOpacity(borderColor, 0.6), true: withOpacity(accentColor, 0.4) }}
+              thumbColor={showAdminControls ? accentColor : surfaceColor}
+            />
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.adminFilterRow}>
+            {STATUS_FILTERS.map((filter) => {
+              const isSelected = selectedStatusFilter === filter.key;
+              return (
+                <TouchableOpacity
+                  key={filter.key}
+                  onPress={() => setSelectedStatusFilter(filter.key)}
+                  style={[
+                    styles.adminFilterChip,
+                    {
+                      borderColor: isSelected ? accentColor : withOpacity(borderColor, 0.6),
+                      backgroundColor: isSelected ? withOpacity(accentColor, 0.14) : surfaceColor,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.adminFilterChipLabel,
+                      { color: isSelected ? accentColor : secondaryFontColor },
+                    ]}
+                  >
+                    {filter.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.adminFilterRow}>
+            {userOptions.map((option) => {
+              const isSelected = selectedUserFilter === option.email;
+              return (
+                <TouchableOpacity
+                  key={option.email}
+                  onPress={() => setSelectedUserFilter(option.email)}
+                  style={[
+                    styles.adminFilterChip,
+                    {
+                      borderColor: isSelected ? accentColor : withOpacity(borderColor, 0.6),
+                      backgroundColor: isSelected ? withOpacity(accentColor, 0.14) : surfaceColor,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.adminFilterChipLabel,
+                      { color: isSelected ? accentColor : secondaryFontColor },
+                    ]}
+                  >
+                    {option.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
+
       <View style={styles.sectionContent}>
-        {visibleOrders.length ? (
-          visibleOrders.map(renderOrderCard)
+        {filteredOrders.length ? (
+          filteredOrders.map(renderOrderCard)
         ) : (
           <View
             style={[
@@ -488,7 +1045,12 @@ const styles = StyleSheet.create({
   cardMeta: {
     fontSize: 12,
   },
+  cardMetaSecondary: {
+    fontSize: 12,
+    marginTop: 4,
+  },
   cardFooter: {
+    marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -520,6 +1082,161 @@ const styles = StyleSheet.create({
   placeholderInline: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  adminToolbar: {
+    padding: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    gap: 10,
+    marginHorizontal: 20,
+  },
+  adminToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  adminToggleLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  adminFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 2,
+  },
+  adminFilterChip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  adminFilterChipLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  adminSection: {
+    marginTop: 16,
+    gap: 12,
+  },
+  adminSectionToggle: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignSelf: 'flex-start',
+  },
+  adminSectionToggleText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  adminForm: {
+    gap: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 14,
+    padding: 12,
+  },
+  adminUploadsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 12,
+  },
+  adminImageWrapper: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    position: 'relative',
+  },
+  adminImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  adminImageRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adminImageRemoveText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  adminEmptyUpload: {
+    minWidth: 160,
+    minHeight: 80,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  adminEmptyUploadText: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  adminImageAddButton: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  adminImageAddText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  adminLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  adminInput: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 13,
+  },
+  adminField: {
+    gap: 6,
+  },
+  adminStatusRow: {
+    gap: 8,
+  },
+  adminStatusChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  adminStatusChip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  adminStatusChipLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  adminActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  adminSaveButton: {
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  adminSaveButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
 
