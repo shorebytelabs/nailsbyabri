@@ -78,6 +78,13 @@ const DEFAULT_SIZES = {
   pinky: '',
 };
 const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
+const FINGER_LABELS = {
+  thumb: 'Thumb',
+  index: 'Index',
+  middle: 'Middle',
+  ring: 'Ring',
+  pinky: 'Pinky',
+};
 
 function createEmptySetDraft() {
   return {
@@ -176,6 +183,45 @@ function normalizeDraftSizes(sizes) {
   }
 
   return base;
+}
+
+function getSetSizeDetails(set = {}) {
+  const mode = set.sizeMode || set.sizes?.mode || 'standard';
+  const sizes = set.sizes || {};
+  const presetLabel =
+    set.sizePresetLabel ||
+    set.sizePreset ||
+    set.sizeLabel ||
+    (typeof sizes.label === 'string' ? sizes.label : null);
+
+  const entries = FINGER_KEYS.map((finger, index) => {
+    const value =
+      sizes?.[finger] ||
+      sizes?.values?.[finger] ||
+      (Array.isArray(sizes?.values) ? sizes.values[index] : null);
+    if (!value) {
+      return null;
+    }
+    return {
+      finger,
+      label: FINGER_LABELS[finger] || finger,
+      value,
+    };
+  }).filter(Boolean);
+
+  if (entries.length) {
+    return { entries };
+  }
+
+  if (presetLabel) {
+    return { fallback: presetLabel };
+  }
+
+  if (mode === 'perSet') {
+    return { fallback: 'Custom sizes provided' };
+  }
+
+  return { fallback: 'Standard sizes' };
 }
 
 function NewOrderStepperScreen({ route }) {
@@ -1748,6 +1794,7 @@ function OrderSummaryStep({
               set.price ??
               (typeof set.unitPrice === 'number' ? set.unitPrice * quantity : 0);
             const requiresFollowUp = !!set.requiresFollowUp;
+            const sizeDetails = getSetSizeDetails(set);
 
             return (
               <View
@@ -1838,24 +1885,70 @@ function OrderSummaryStep({
                         </Text>
                       </View>
                     ) : null}
-                    <View style={styles.reviewMetaRow}>
-                      <Text
-                        style={[
-                          styles.reviewMetaLabel,
-                          { color: withOpacity(primaryFont, 0.7) },
-                        ]}
-                      >
-                        Quantity
-                      </Text>
-                      <Text
-                        style={[
-                          styles.reviewMetaValue,
-                          { color: primaryFont },
-                        ]}
-                      >
-                        {quantity}
-                      </Text>
-                    </View>
+                    {sizeDetails.entries?.length ? (
+                      <View style={styles.reviewMetaRow}>
+                        <Text
+                          style={[
+                            styles.reviewMetaLabel,
+                            { color: withOpacity(primaryFont, 0.7) },
+                          ]}
+                        >
+                          Nail sizes
+                        </Text>
+                        <View style={styles.sizeListInline}>
+                          {sizeDetails.entries.map((entry) => (
+                            <View
+                              key={`${set.id || index}_${entry.finger}`}
+                              style={[
+                                styles.sizeChip,
+                                {
+                                  borderColor: withOpacity(border, 0.4),
+                                  backgroundColor: withOpacity(surfaceMuted, 0.4),
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.sizeChipFinger,
+                                  { color: withOpacity(primaryFont, 0.85) },
+                                ]}
+                              >
+                                {entry.label}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.sizeChipValue,
+                                  { color: accent },
+                                ]}
+                              >
+                                {entry.value}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    ) : sizeDetails.fallback ? (
+                      <View style={styles.reviewMetaRow}>
+                        <Text
+                          style={[
+                            styles.reviewMetaLabel,
+                            { color: withOpacity(primaryFont, 0.7) },
+                          ]}
+                        >
+                          Nail sizes
+                        </Text>
+                        <Text
+                          style={[
+                            styles.reviewMetaValue,
+                            { color: secondaryFont },
+                          ]}
+                          numberOfLines={2}
+                          ellipsizeMode="tail"
+                        >
+                          {sizeDetails.fallback}
+                        </Text>
+                      </View>
+                    ) : null}
                     {requiresFollowUp ? (
                       <View style={styles.reviewMetaRow}>
                         <Text
@@ -2341,6 +2434,7 @@ function ReviewStep({
               set.price ??
               (typeof set.unitPrice === 'number' ? set.unitPrice * quantity : 0);
             const requiresFollowUp = !!set.requiresFollowUp;
+            const sizeDetails = getSetSizeDetails(set);
 
             return (
               <View
@@ -2431,24 +2525,70 @@ function ReviewStep({
                         </Text>
                       </View>
                     ) : null}
-                    <View style={styles.reviewMetaRow}>
-                      <Text
-                        style={[
-                          styles.reviewMetaLabel,
-                          { color: withOpacity(primaryFont, 0.7) },
-                        ]}
-                      >
-                        Quantity
-                      </Text>
-                      <Text
-                        style={[
-                          styles.reviewMetaValue,
-                          { color: primaryFont },
-                        ]}
-                      >
-                        {quantity}
-                      </Text>
-                    </View>
+                    {sizeDetails.entries?.length ? (
+                      <View style={styles.reviewMetaRow}>
+                        <Text
+                          style={[
+                            styles.reviewMetaLabel,
+                            { color: withOpacity(primaryFont, 0.7) },
+                          ]}
+                        >
+                          Nail sizes
+                        </Text>
+                        <View style={styles.sizeListInline}>
+                          {sizeDetails.entries.map((entry) => (
+                            <View
+                              key={`${set.id || index}_${entry.finger}`}
+                              style={[
+                                styles.sizeChip,
+                                {
+                                  borderColor: withOpacity(border, 0.4),
+                                  backgroundColor: withOpacity(surfaceMuted, 0.4),
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.sizeChipFinger,
+                                  { color: withOpacity(primaryFont, 0.85) },
+                                ]}
+                              >
+                                {entry.label}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.sizeChipValue,
+                                  { color: accent },
+                                ]}
+                              >
+                                {entry.value}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    ) : sizeDetails.fallback ? (
+                      <View style={styles.reviewMetaRow}>
+                        <Text
+                          style={[
+                            styles.reviewMetaLabel,
+                            { color: withOpacity(primaryFont, 0.7) },
+                          ]}
+                        >
+                          Nail sizes
+                        </Text>
+                        <Text
+                          style={[
+                            styles.reviewMetaValue,
+                            { color: secondaryFont },
+                          ]}
+                          numberOfLines={2}
+                          ellipsizeMode="tail"
+                        >
+                          {sizeDetails.fallback}
+                        </Text>
+                      </View>
+                    ) : null}
                     {requiresFollowUp ? (
                       <View style={styles.reviewMetaRow}>
                         <Text
@@ -3066,6 +3206,40 @@ const styles = StyleSheet.create({
   summaryMeta: {
     flex: 1,
     gap: 8,
+  },
+  sizeList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  sizeListInline: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  sizeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 999,
+  },
+  sizeChipFinger: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  sizeChipValue: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  sizeFallbackText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
   },
   summaryTitle: {
     fontSize: 15,
