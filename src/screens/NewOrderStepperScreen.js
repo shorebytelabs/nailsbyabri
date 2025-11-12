@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -231,6 +232,77 @@ function getSetSizeDetails(set = {}) {
   }
 
   return { fallback: 'Standard sizes', requiresSizingHelp };
+}
+
+function ImagePreviewModal({ preview, onClose, colors }) {
+  if (!preview || !preview.uri) {
+    return null;
+  }
+
+  const {
+    surface = '#FFFFFF',
+    border = '#D9C8A9',
+    primaryFont = '#220707',
+    secondaryFont = '#5C5F5D',
+  } = colors || {};
+
+  return (
+    <Modal transparent animationType="fade" visible onRequestClose={onClose}>
+      <View style={styles.previewModalContainer}>
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={StyleSheet.absoluteFill} />
+        </TouchableWithoutFeedback>
+        <View
+          style={[
+            styles.previewModalCard,
+            {
+              backgroundColor: surface,
+              borderColor: withOpacity(border, 0.6),
+              maxWidth: 480,
+            },
+          ]}
+        >
+          <Image
+            source={{ uri: preview.uri }}
+            style={styles.previewModalImageLarge}
+            resizeMode="contain"
+          />
+          {preview.name ? (
+            <Text
+              style={[
+                styles.previewModalSubtitle,
+                { color: secondaryFont },
+              ]}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
+              {preview.name}
+            </Text>
+          ) : null}
+          <TouchableOpacity
+            onPress={onClose}
+            accessibilityRole="button"
+            style={[
+              styles.previewCloseButton,
+              {
+                borderColor: withOpacity(border, 0.5),
+                backgroundColor: withOpacity(surface, 0.95),
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.previewCloseLabel,
+                { color: primaryFont },
+              ]}
+            >
+              Close
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
 }
 
 function NewOrderStepperScreen({ route }) {
@@ -1196,9 +1268,9 @@ function NewOrderStepperScreen({ route }) {
             {currentStep === 1 ? (
               <DesignStep
                 colors={colors}
-              description={currentSetDraft.designDescription}
-              designUploads={currentSetDraft.designUploads}
-              requiresFollowUp={currentSetDraft.requiresFollowUp}
+                description={currentSetDraft.designDescription}
+                designUploads={currentSetDraft.designUploads}
+                requiresFollowUp={currentSetDraft.requiresFollowUp}
                 onAddUpload={handleAddDesignUpload}
                 onChangeDescription={(designDescription) =>
                 setCurrentSetDraft((prev) => ({
@@ -1658,6 +1730,7 @@ function DesignStep({
 
   const uploads = Array.isArray(designUploads) ? designUploads : [];
   const uploadCount = uploads.length;
+  const [previewUpload, setPreviewUpload] = useState(null);
 
   return (
     <View style={styles.designContainer}>
@@ -1716,6 +1789,15 @@ function DesignStep({
             {uploads.map((upload) => {
               const previewUri = resolveUploadPreview(upload);
               const imageSource = previewUri ? { uri: previewUri } : null;
+              const openPreview = () => {
+                if (!previewUri) {
+                  return;
+                }
+                setPreviewUpload({
+                  uri: previewUri,
+                  name: upload.fileName || 'Inspiration image',
+                });
+              };
               return (
                 <View
                   key={upload.id}
@@ -1728,9 +1810,18 @@ function DesignStep({
                     },
                   ]}
                 >
-                  <View style={styles.designUploadThumbnailFrame}>
+                  <TouchableOpacity
+                    style={styles.designUploadThumbnailFrame}
+                    onPress={openPreview}
+                    disabled={!imageSource}
+                    activeOpacity={0.85}
+                    accessibilityRole="imagebutton"
+                    accessibilityLabel={
+                      imageSource ? `Preview ${upload.fileName || 'inspiration image'}` : 'Preview unavailable'
+                    }
+                  >
                     {imageSource ? (
-                      <Image source={imageSource} style={styles.designUploadImage} />
+                      <Image source={imageSource} style={styles.designUploadImage} resizeMode="cover" />
                     ) : (
                       <View
                         style={[
@@ -1749,7 +1840,7 @@ function DesignStep({
                         </Text>
                       </View>
                     )}
-                  </View>
+                  </TouchableOpacity>
                   <View style={styles.designUploadMeta}>
                     <Text
                       style={[
@@ -1881,6 +1972,11 @@ function DesignStep({
           ios_backgroundColor={withOpacity(border, 0.6)}
         />
       </View>
+      <ImagePreviewModal
+        preview={previewUpload}
+        onClose={() => setPreviewUpload(null)}
+        colors={{ surface, border, primaryFont, secondaryFont }}
+      />
     </View>
   );
 }
@@ -2352,6 +2448,7 @@ function SizingStep({
 
   const sizingUploadList = Array.isArray(sizingUploads) ? sizingUploads : [];
   const hasSizingUploads = sizingUploadList.length > 0;
+  const [previewUpload, setPreviewUpload] = useState(null);
 
   const optionDefinitions = useMemo(
     () => [
@@ -2467,6 +2564,15 @@ function SizingStep({
               {sizingUploadList.map((upload) => {
                 const previewUri = resolveUploadPreview(upload);
                 const imageSource = previewUri ? { uri: previewUri } : null;
+                const openPreview = () => {
+                  if (!previewUri) {
+                    return;
+                  }
+                  setPreviewUpload({
+                    uri: previewUri,
+                    name: upload.fileName || 'Sizing photo',
+                  });
+                };
                 return (
                   <View
                     key={upload.id}
@@ -2479,9 +2585,18 @@ function SizingStep({
                       },
                     ]}
                   >
-                    <View style={styles.designUploadThumbnailFrame}>
+                    <TouchableOpacity
+                      style={styles.designUploadThumbnailFrame}
+                      onPress={openPreview}
+                      disabled={!imageSource}
+                      activeOpacity={0.85}
+                      accessibilityRole="imagebutton"
+                      accessibilityLabel={
+                        imageSource ? `Preview ${upload.fileName || 'sizing photo'}` : 'Preview unavailable'
+                      }
+                    >
                       {imageSource ? (
-                        <Image source={imageSource} style={styles.designUploadImage} />
+                        <Image source={imageSource} style={styles.designUploadImage} resizeMode="cover" />
                       ) : (
                         <View
                           style={[
@@ -2500,7 +2615,7 @@ function SizingStep({
                           </Text>
                         </View>
                       )}
-                    </View>
+                    </TouchableOpacity>
                     <View style={styles.designUploadMeta}>
                       <Text
                         style={[
@@ -2639,6 +2754,43 @@ function SizingStep({
           thumbColor={requiresFollowUp ? accent : surface}
         />
       </View>
+      {previewUpload ? (
+        <Modal
+          transparent
+          animationType="fade"
+          visible
+          onRequestClose={() => setPreviewUpload(null)}
+        >
+          <View style={styles.previewModalContainer}>
+            <View
+              style={[
+                styles.previewModalCard,
+                {
+                  backgroundColor: surface,
+                  borderColor: withOpacity(border, 0.6),
+                  maxWidth: 480,
+                },
+              ]}
+            >
+              <Image
+                source={{ uri: previewUpload.uri }}
+                style={styles.previewModalImageLarge}
+                resizeMode="contain"
+              />
+              {previewUpload.name ? (
+                <Text
+                  style={[styles.previewModalSubtitle, { color: secondaryFont }]}
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                >
+                  {previewUpload.name}
+                </Text>
+              ) : null}
+              <PrimaryButton label="Close preview" onPress={() => setPreviewUpload(null)} />
+            </View>
+          </View>
+        </Modal>
+      ) : null}
     </View>
   );
 }
@@ -3496,15 +3648,16 @@ const styles = StyleSheet.create({
   designUploadGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 14,
+    gap: 10,
   },
   designUploadItem: {
-    width: '48%',
-    minWidth: 160,
+    width: '30%',
+    minWidth: 118,
+    maxWidth: 160,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 16,
-    padding: 12,
-    gap: 10,
+    padding: 10,
+    gap: 8,
     shadowOpacity: 0.12,
     shadowOffset: { width: 0, height: 6 },
     shadowRadius: 12,
@@ -3513,7 +3666,7 @@ const styles = StyleSheet.create({
   designUploadThumbnailFrame: {
     borderRadius: 12,
     overflow: 'hidden',
-    height: 120,
+    height: 96,
     backgroundColor: 'rgba(0,0,0,0.05)',
   },
   designUploadImage: {
@@ -4312,6 +4465,22 @@ const styles = StyleSheet.create({
   sizingHelpSubtitle: {
     fontSize: 12,
     lineHeight: 18,
+  },
+  previewModalImageLarge: {
+    width: '100%',
+    height: 260,
+    borderRadius: 18,
+  },
+  previewCloseButton: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  previewCloseLabel: {
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
 
