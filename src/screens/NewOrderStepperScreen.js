@@ -190,6 +190,7 @@ function normalizeDraftSizes(sizes) {
 function getSetSizeDetails(set = {}) {
   const mode = set.sizeMode || set.sizes?.mode || 'standard';
   const sizes = set.sizes || {};
+  const requiresSizingHelp = Boolean(set.requiresFollowUp);
   const presetLabel =
     set.sizePresetLabel ||
     set.sizePreset ||
@@ -216,20 +217,20 @@ function getSetSizeDetails(set = {}) {
   }
 
   if (presetLabel) {
-    return { fallback: presetLabel };
+    return { fallback: presetLabel, requiresSizingHelp };
   }
 
   const hasSizingPhotos = Array.isArray(set.sizingUploads) && set.sizingUploads.length > 0;
 
   if (hasSizingPhotos) {
-    return { fallback: 'Photos provided' };
+    return { fallback: 'Photos provided', requiresSizingHelp };
   }
 
   if (mode === 'perSet') {
-    return { fallback: 'Custom sizes provided' };
+    return { fallback: 'Custom sizes provided', requiresSizingHelp };
   }
 
-  return { fallback: 'Standard sizes' };
+  return { fallback: 'Standard sizes', requiresSizingHelp };
 }
 
 function NewOrderStepperScreen({ route }) {
@@ -2042,7 +2043,10 @@ function OrderSummaryStep({
                         <Text
                           style={[
                             styles.summaryDetailLabel,
-                            { color: withOpacity(primaryFont, 0.7) },
+                            {
+                              color: withOpacity(primaryFont, 0.7),
+                              fontWeight: sizeDetails?.requiresSizingHelp ? '700' : '600',
+                            },
                           ]}
                         >
                           Nail sizes
@@ -2050,10 +2054,12 @@ function OrderSummaryStep({
                         <Text
                           style={[
                             styles.summaryDetailValue,
-                            { color: secondaryFont },
+                            {
+                              color: sizeDetails?.requiresSizingHelp ? accent : secondaryFont,
+                            },
                           ]}
                         >
-                          {sizeText}
+                          {sizeDetails?.requiresSizingHelp ? 'Needs sizing assistance' : sizeText}
                         </Text>
                       </View>
                     ) : null}
@@ -3028,7 +3034,10 @@ function ReviewStep({
                         <Text
                           style={[
                             styles.reviewMetaLabel,
-                            { color: withOpacity(primaryFont, 0.7) },
+                            {
+                              color: withOpacity(primaryFont, 0.7),
+                              fontWeight: sizeDetails?.requiresSizingHelp ? '700' : '600',
+                            },
                           ]}
                         >
                           Nail sizes
@@ -3036,10 +3045,12 @@ function ReviewStep({
                         <Text
                           style={[
                             styles.reviewMetaValue,
-                            { color: secondaryFont },
+                            {
+                              color: sizeDetails?.requiresSizingHelp ? accent : secondaryFont,
+                            },
                           ]}
                         >
-                          {sizeText}
+                          {sizeDetails?.requiresSizingHelp ? 'Needs sizing assistance' : sizeText}
                         </Text>
                       </View>
                     ) : null}
