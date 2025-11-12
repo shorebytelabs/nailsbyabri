@@ -230,7 +230,7 @@ function getSetSizeDetails(set = {}) {
   }).filter(Boolean);
 
   if (entries.length) {
-    return { entries };
+    return { entries, requiresSizingHelp };
   }
 
   if (presetLabel) {
@@ -2187,7 +2187,7 @@ function OrderSummaryStep({
                           ]}
                         >
                           {sizeDetails?.requiresSizingHelp
-                            ? 'Needs sizing assistance'
+                            ? 'Need sizing assistance'
                             : isPhotoSizing
                             ? 'Photos provided'
                             : sizeText}
@@ -3256,7 +3256,7 @@ function ReviewStep({
                           ]}
                         >
                           {sizeDetails?.requiresSizingHelp
-                            ? 'Needs sizing assistance'
+                            ? 'Need sizing assistance'
                             : isPhotoSizing
                             ? 'Photos provided'
                             : sizeText}
