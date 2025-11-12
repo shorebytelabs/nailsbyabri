@@ -2786,7 +2786,26 @@ function SizingStep({
                   {previewUpload.name}
                 </Text>
               ) : null}
-              <PrimaryButton label="Close preview" onPress={() => setPreviewUpload(null)} />
+              <TouchableOpacity
+                onPress={() => setPreviewUpload(null)}
+                accessibilityRole="button"
+                style={[
+                  styles.previewCloseButton,
+                  {
+                    borderColor: withOpacity(border, 0.5),
+                    backgroundColor: withOpacity(surface, 0.95),
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.previewCloseLabel,
+                    { color: primaryFont },
+                  ]}
+                >
+                  Close
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
