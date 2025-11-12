@@ -211,11 +211,6 @@ function createStyles(colors) {
       justifyContent: 'center',
       gap: 2,
     },
-    itemQuantityLabel: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.primaryFont || '#354037',
-    },
     itemQuantityValue: {
       fontSize: 12,
       color: colors.secondaryFont || '#767154',
@@ -785,12 +780,11 @@ function OrderDetailsScreen({ navigation, route }) {
                               Shape: {formatTitleCase(item.shapeName || item.shapeId || 'Custom')}
                             </Text>
                           </View>
-                          <View style={styles.itemQuantityPill}>
-                            <Text style={styles.itemQuantityLabel}>Qty {item.quantity || 1}</Text>
-                            {item.unitPrice ? (
+                          {item.unitPrice ? (
+                            <View style={styles.itemQuantityPill}>
                               <Text style={styles.itemQuantityValue}>{formatCurrency(item.unitPrice)}</Text>
-                            ) : null}
-                          </View>
+                            </View>
+                          ) : null}
                         </View>
 
                         <View style={styles.itemSection}>

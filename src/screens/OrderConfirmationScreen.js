@@ -57,12 +57,6 @@ function OrderConfirmationScreen({ order, onDone, onViewOrder }) {
   const displayOrderId = orderId ? orderId.slice(0, 8).toUpperCase() : '—';
   const orderItem =
     order?.nailSets?.[0]?.name || shapeCatalog[0]?.name || 'Custom Nail Set';
-  const totalQuantity = Array.isArray(order?.nailSets)
-    ? order.nailSets.reduce(
-        (sum, set) => sum + (Number(set?.quantity) || 0),
-        0,
-      )
-    : 0;
   const fulfillmentMethod = methodConfig.label;
   const totalPaid = order?.pricing ? formatCurrency(order.pricing.total) : '—';
   const contactEmail =
@@ -75,15 +69,11 @@ function OrderConfirmationScreen({ order, onDone, onViewOrder }) {
   const summaryRows = useMemo(
     () => [
       { label: 'Order Item', value: orderItem },
-      {
-        label: 'Quantity',
-        value: totalQuantity ? `${totalQuantity}` : '—',
-      },
       { label: 'Delivery Method', value: fulfillmentMethod },
       { label: 'Delivery Timing', value: speedConfig?.description || '—' },
       { label: 'Total Paid', value: totalPaid },
     ],
-    [orderItem, totalPaid, totalQuantity, fulfillmentMethod, speedConfig?.description],
+    [orderItem, totalPaid, fulfillmentMethod, speedConfig?.description],
   );
 
   const handleCopyOrderId = useCallback(async () => {
@@ -209,17 +199,6 @@ function OrderConfirmationScreen({ order, onDone, onViewOrder }) {
               onViewOrder={handleViewOrder}
             />
           </View>
-
-          {Array.isArray(order.nailSets) && order.nailSets.length ? (
-            <View style={styles.sectionColumn}>
-              <OrderItemsCard
-                styles={styles}
-                colors={colors}
-                nailSets={order.nailSets}
-                onViewOrder={handleViewOrder}
-              />
-            </View>
-          ) : null}
         </View>
 
         <View
@@ -323,57 +302,6 @@ function OrderSummaryCard({
         ))}
       </View>
     </View>
-  );
-}
-
-function OrderItemsCard({ styles, colors, nailSets, onViewOrder }) {
-  return (
-    <Pressable
-      onPress={onViewOrder}
-      style={({ pressed }) => [
-        styles.card,
-        pressed && { opacity: 0.95 },
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel="View nail sets in this order"
-    >
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>Nail Sets</Text>
-        <Icon name="chevronRight" color={colors.secondaryFont} />
-      </View>
-      <View style={styles.itemsList}>
-        {nailSets.map((set, index) => {
-          const shapeName =
-            shapeCatalog.find((shape) => shape.id === set.shapeId)?.name ||
-            set.shapeId ||
-            '—';
-          const sizeMode =
-            set?.sizes?.mode === 'perSet'
-              ? 'Custom sizes'
-              : set?.sizes?.mode === 'standard'
-              ? 'Standard sizes'
-              : 'Sizes pending';
-
-          return (
-            <View
-              key={set.id || `set-${index}`}
-              style={[
-                styles.itemRow,
-                index < nailSets.length - 1 && styles.itemRowDivider,
-              ]}
-            >
-              <Text style={styles.itemName}>
-                {set.name || `Set #${index + 1}`} • {shapeName}
-              </Text>
-              <Text style={styles.itemMeta}>
-                {`Quantity: ${set.quantity || 1} • ${sizeMode}`}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-      <Text style={styles.cardHint}>Tap to view full order details</Text>
-    </Pressable>
   );
 }
 
@@ -539,7 +467,7 @@ function createStyles(colors, isWide) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: 12,
+      marginBottom: 16,
     },
     cardTitle: {
       fontSize: 18,
@@ -618,42 +546,9 @@ function createStyles(colors, isWide) {
       lineHeight: 20,
       color: colors.secondaryFont || '#767154',
     },
-    itemsList: {
-      gap: 12,
-    },
-    itemRow: {
-      gap: 4,
-      paddingBottom: 12,
-    },
-    itemRowDivider: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.divider || '#E6DCD0',
-    },
-    itemName: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.primaryFont || '#354037',
-    },
-    itemMeta: {
-      fontSize: 13,
-      color: colors.secondaryFont || '#767154',
-    },
-    cardHint: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.accent || '#6F171F',
-    },
-    emphasis: {
-      fontWeight: '700',
-      color: colors.primaryFont || '#354037',
-    },
-    timelineHighlight: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.accent || '#6F171F',
-    },
     supportList: {
-      gap: 8,
+      marginTop: 20,
+      gap: 12,
     },
     supportRow: {
       flexDirection: 'row',
