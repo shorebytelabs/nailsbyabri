@@ -188,6 +188,22 @@ function normalizeDraftSizes(sizes) {
   return base;
 }
 
+function resolveSizingOptionFromSet(set = {}) {
+  if (set.selectedSizingOption) {
+    return set.selectedSizingOption;
+  }
+
+  if (Array.isArray(set.sizingUploads) && set.sizingUploads.length > 0) {
+    return 'camera';
+  }
+
+  if (set.sizeMode === 'manual') {
+    return 'manual';
+  }
+
+  return 'saved';
+}
+
 function getSetSizeDetails(set = {}) {
   const mode = set.sizeMode || set.sizes?.mode || 'standard';
   const sizes = set.sizes || {};
@@ -497,6 +513,13 @@ function NewOrderStepperScreen({ route }) {
             preview: resolveUploadPreview(upload),
           }))
         : [],
+      sizingUploads: Array.isArray(set.sizingUploads)
+        ? set.sizingUploads.map((upload, uploadIndex) => ({
+            ...upload,
+            id: upload?.id || `sizing_${index}_${uploadIndex}`,
+            preview: resolveUploadPreview(upload),
+          }))
+        : [],
       requiresFollowUp: Boolean(set.requiresFollowUp),
       quantity: Number(set.quantity) || 1,
       sizeMode: set.sizes?.mode === 'perSet' ? 'perSet' : 'standard',
@@ -505,6 +528,7 @@ function NewOrderStepperScreen({ route }) {
           ? normalizeDraftSizes(set.sizes)
           : { ...DEFAULT_SIZES },
       price: set.price || null,
+      selectedSizingOption: resolveSizingOptionFromSet(set),
     }));
 
     setOrderDraft({
@@ -690,12 +714,19 @@ function NewOrderStepperScreen({ route }) {
         fileName: upload.fileName || null,
         base64: upload.base64 || null,
       })),
+      sizingUploads: (set.sizingUploads || []).map((upload, uploadIndex) => ({
+        id: upload.id || `sizing_${index}_${uploadIndex}`,
+        fileName: upload.fileName || null,
+        base64: upload.base64 || null,
+        uri: upload.uri || null,
+      })),
       requiresFollowUp: set.requiresFollowUp,
       sizes:
         set.sizeMode === 'perSet'
           ? { mode: 'perSet', values: set.sizes }
           : { mode: 'standard', values: {} },
       price: set.price || null,
+      selectedSizingOption: resolveSizingOptionFromSet(set),
     }));
 
     const fulfillment = orderDraft.deliveryDetails;
@@ -1052,6 +1083,7 @@ function NewOrderStepperScreen({ route }) {
     const preparedSizingUploads = (currentSetDraft.sizingUploads || []).map((upload, index) => ({
       ...upload,
       id: upload.id || `sizing_${setId}_${index}`,
+      preview: upload.preview || resolveUploadPreview(upload),
     }));
 
     const setToSave = {
@@ -2044,6 +2076,7 @@ function OrderSummaryStep({
                   .map((entry) => `${entry.label}: ${entry.value}`)
                   .join(' · ')
               : sizeDetails.fallback || null;
+            const isPhotoSizing = resolveSizingOptionFromSet(set) === 'camera';
 
             return (
               <View
@@ -2134,7 +2167,7 @@ function OrderSummaryStep({
                         </Text>
                       </View>
                     ) : null}
-                    {sizeText ? (
+                    {isPhotoSizing || sizeText ? (
                       <View style={styles.summaryDetailRow}>
                         <Text
                           style={[
@@ -2150,12 +2183,14 @@ function OrderSummaryStep({
                         <Text
                           style={[
                             styles.summaryDetailValue,
-                            {
-                              color: sizeDetails?.requiresSizingHelp ? accent : secondaryFont,
-                            },
+                            { color: sizeDetails?.requiresSizingHelp ? accent : secondaryFont },
                           ]}
                         >
-                          {sizeDetails?.requiresSizingHelp ? 'Needs sizing assistance' : sizeText}
+                          {sizeDetails?.requiresSizingHelp
+                            ? 'Needs sizing assistance'
+                            : isPhotoSizing
+                            ? 'Photos provided'
+                            : sizeText}
                         </Text>
                       </View>
                     ) : null}
@@ -2719,11 +2754,11 @@ function SizingStep({
             </View>
           ) : null}
 
-          <View style={styles.savedProfileRowCompact}>
+          <View style={styles.savedProfileGrid}>
             {activeProfileEntries.map((entry) => (
-              <View key={entry.finger} style={styles.savedProfileColumn}>
-                <Text style={[styles.savedProfileColumnLabel, { color: secondaryFont }]}>{entry.label}</Text>
-                <Text style={[styles.savedProfileColumnValue, { color: primaryFont }]}>{entry.value}</Text>
+              <View key={entry.finger} style={styles.savedProfileRow}>
+                <Text style={[styles.sizeLabel, { color: secondaryFont }]}>{entry.label}</Text>
+                <Text style={[styles.savedProfileValue, { color: primaryFont }]}>{entry.value}</Text>
               </View>
             ))}
           </View>
@@ -3110,6 +3145,7 @@ function ReviewStep({
                   .map((entry) => `${entry.label}: ${entry.value}`)
                   .join(' · ')
               : sizeDetails.fallback || null;
+            const isPhotoSizing = resolveSizingOptionFromSet(set) === 'camera';
 
             return (
               <View
@@ -3200,7 +3236,7 @@ function ReviewStep({
                         </Text>
                       </View>
                     ) : null}
-                    {sizeText ? (
+                    {isPhotoSizing || sizeText ? (
                       <View style={styles.reviewMetaRow}>
                         <Text
                           style={[
@@ -3216,12 +3252,14 @@ function ReviewStep({
                         <Text
                           style={[
                             styles.reviewMetaValue,
-                            {
-                              color: sizeDetails?.requiresSizingHelp ? accent : secondaryFont,
-                            },
+                            { color: sizeDetails?.requiresSizingHelp ? accent : secondaryFont },
                           ]}
                         >
-                          {sizeDetails?.requiresSizingHelp ? 'Needs sizing assistance' : sizeText}
+                          {sizeDetails?.requiresSizingHelp
+                            ? 'Needs sizing assistance'
+                            : isPhotoSizing
+                            ? 'Photos provided'
+                            : sizeText}
                         </Text>
                       </View>
                     ) : null}
@@ -4059,26 +4097,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  savedProfileRowCompact: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 12,
+  savedProfileGrid: {
     marginTop: 16,
+    gap: 10,
   },
-  savedProfileColumn: {
-    flex: 1,
+  savedProfileRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 4,
   },
-  savedProfileColumnLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  savedProfileColumnValue: {
-    fontSize: 16,
+  savedProfileValue: {
+    fontSize: 13,
     fontWeight: '700',
   },
   fulfillmentContainer: {
