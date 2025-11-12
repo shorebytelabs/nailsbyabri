@@ -2318,7 +2318,21 @@ function ReviewStep({
           >
             Order Summary
           </Text>
+          <TouchableOpacity
+            onPress={onAddAnotherSet}
+            accessibilityRole="button"
+          >
+            <Text
+              style={[
+                styles.reviewLink,
+                { color: accent },
+              ]}
+            >
+              Add another set
+            </Text>
+          </TouchableOpacity>
         </View>
+
         <View style={styles.reviewSetList}>
           {sets.map((set, index) => {
             const previewSource = resolveUploadPreview(set.designUploads?.[0]);
@@ -2515,29 +2529,6 @@ function ReviewStep({
             );
           })}
         </View>
-        <TouchableOpacity
-          onPress={onAddAnotherSet}
-          style={[
-            styles.summaryAddButton,
-            {
-              alignSelf: 'flex-end',
-              borderColor: withOpacity(accent, 0.35),
-              backgroundColor: withOpacity(accent, 0.08),
-              marginBottom: 12,
-            },
-          ]}
-          accessibilityLabel="Add another nail set"
-        >
-          <Icon name="plus" color={accent} size={16} />
-          <Text
-            style={[
-              styles.summaryAddLabel,
-              { color: accent },
-            ]}
-          >
-            Add another set
-          </Text>
-        </TouchableOpacity>
       </View>
 
       <View style={styles.reviewSection}>
@@ -3273,7 +3264,7 @@ const styles = StyleSheet.create({
   },
   reviewSectionHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
   reviewHeading: {
@@ -3282,6 +3273,12 @@ const styles = StyleSheet.create({
   },
   reviewSetList: {
     gap: 12,
+  },
+  reviewSetHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   reviewSetCard: {
     borderWidth: StyleSheet.hairlineWidth,
