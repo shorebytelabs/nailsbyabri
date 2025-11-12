@@ -42,7 +42,7 @@ const STEP_DEFINITIONS = [
   {
     key: 'size',
     title: 'Sizing',
-    subtitle: 'Select sizes for each finger or use sizing guide.',
+    subtitle: 'Get your nail sizes just right!',
   },
   {
     key: 'summary',
@@ -92,10 +92,12 @@ function createEmptySetDraft() {
     shapeId: null,
     designDescription: '',
     designUploads: [],
+    sizingUploads: [],
     requiresFollowUp: false,
     quantity: 1,
     sizeMode: 'standard',
     sizes: { ...DEFAULT_SIZES },
+    selectedSizingOption: null,
   };
 }
 
@@ -217,6 +219,12 @@ function getSetSizeDetails(set = {}) {
     return { fallback: presetLabel };
   }
 
+  const hasSizingPhotos = Array.isArray(set.sizingUploads) && set.sizingUploads.length > 0;
+
+  if (hasSizingPhotos) {
+    return { fallback: 'Photos provided' };
+  }
+
   if (mode === 'perSet') {
     return { fallback: 'Custom sizes provided' };
   }
@@ -279,6 +287,51 @@ function NewOrderStepperScreen({ route }) {
   const [previewSet, setPreviewSet] = useState(null);
   const [isPromoInputVisible, setPromoInputVisible] = useState(false);
   const [promoInputValue, setPromoInputValue] = useState('');
+
+  const savedSizeProfiles = useMemo(() => {
+    const nailSizes = state?.preferences?.nailSizes;
+    if (!nailSizes) {
+      return [];
+    }
+
+    const options = [];
+
+    const addProfileOption = (profile, fallbackLabel, isDefault, index = 0) => {
+      if (!profile) {
+        return;
+      }
+
+      const normalizedSizes = { ...DEFAULT_SIZES, ...(profile.sizes || {}) };
+      const hasValues = FINGER_KEYS.some((finger) => {
+        const value = normalizedSizes[finger];
+        return value !== undefined && value !== null && String(value).trim().length > 0;
+      });
+
+      if (!hasValues) {
+        return;
+      }
+
+      options.push({
+        id: profile.id || (isDefault ? 'default' : `profile_${index}`),
+        label:
+          typeof profile.label === 'string' && profile.label.trim().length
+            ? profile.label.trim()
+            : fallbackLabel,
+        sizes: normalizedSizes,
+        isDefault,
+      });
+    };
+
+    addProfileOption(nailSizes.defaultProfile, 'Default nail size', true, 0);
+
+    if (Array.isArray(nailSizes.profiles)) {
+      nailSizes.profiles.forEach((profile, index) => {
+        addProfileOption(profile, `Size profile ${index + 1}`, false, index);
+      });
+    }
+
+    return options;
+  }, [state?.preferences?.nailSizes]);
 
   useEffect(() => {
     logEvent('start_order_step', { step: STEP_DEFINITIONS[currentStep].key });
@@ -424,6 +477,8 @@ function NewOrderStepperScreen({ route }) {
         initialDraft = {
           ...matchedSet,
           designUploads: (matchedSet.designUploads || []).map((upload) => ({ ...upload })),
+          sizingUploads: (matchedSet.sizingUploads || []).map((upload) => ({ ...upload })),
+          selectedSizingOption: matchedSet.selectedSizingOption || null,
         };
       } else {
         initialDraft = createEmptySetDraft();
@@ -749,6 +804,70 @@ function NewOrderStepperScreen({ route }) {
     }));
   };
 
+  const handleAddSizingUpload = async () => {
+    try {
+      const response = await launchImageLibrary({
+        mediaType: 'photo',
+        includeBase64: true,
+        quality: 0.85,
+        maxWidth: 1500,
+        selectionLimit: 0,
+      });
+
+      if (response.didCancel) {
+        return;
+      }
+
+      if (response.errorCode || response.errorMessage) {
+        Alert.alert('Upload error', response.errorMessage || 'Unable to select image.');
+        return;
+      }
+
+      const assets = Array.isArray(response.assets) ? response.assets : [];
+      if (!assets.length) {
+        return;
+      }
+
+      const uploadsToAdd = assets
+        .map((asset, index) => {
+          const hasPreview = asset.base64 || asset.uri || asset.url;
+          if (!hasPreview) {
+            return null;
+          }
+
+          return {
+            id: `sizing_${Date.now()}_${index}`,
+            uri: asset.uri || asset.url || null,
+            fileName: asset.fileName || `sizing-reference-${index + 1}.jpg`,
+            base64: asset.base64 || null,
+            preview: asset.base64
+              ? `data:${asset.type || 'image/jpeg'};base64,${asset.base64}`
+              : asset.uri || asset.url || null,
+          };
+        })
+        .filter(Boolean);
+
+      if (!uploadsToAdd.length) {
+        Alert.alert('Upload error', 'Unable to read the selected images. Please try again.');
+        return;
+      }
+
+      setCurrentSetDraft((prev) => ({
+        ...prev,
+        sizingUploads: [...(prev.sizingUploads || []), ...uploadsToAdd],
+      }));
+    } catch (err) {
+      Alert.alert('Upload error', err.message || 'Something went wrong. Please try again.');
+    }
+  };
+
+  const handleRemoveSizingUpload = (uploadId) => {
+    setCurrentSetDraft((prev) => ({
+      ...prev,
+      sizingUploads: (prev.sizingUploads || []).filter((item) => item.id !== uploadId),
+    }));
+  };
+
   const handlePreviewSet = useCallback(
     (setId) => {
       const target = orderDraft.sets.find((set) => set.id === setId);
@@ -829,14 +948,16 @@ function NewOrderStepperScreen({ route }) {
       return false;
     }
 
-    const hasDescription = Boolean(
-      currentSetDraft.designDescription && currentSetDraft.designDescription.trim(),
-    );
-    const hasUploads =
-      Array.isArray(currentSetDraft.designUploads) && currentSetDraft.designUploads.length > 0;
-    if (!hasDescription && !hasUploads && !currentSetDraft.requiresFollowUp) {
-      setError('Add inspiration, describe your design, or mark for follow-up.');
-      return false;
+    if (
+      currentSetDraft.sizeMode === 'perSet' &&
+      currentSetDraft.selectedSizingOption === 'camera'
+    ) {
+      const hasSizingPhotos =
+        Array.isArray(currentSetDraft.sizingUploads) && currentSetDraft.sizingUploads.length > 0;
+      if (!hasSizingPhotos && !currentSetDraft.requiresFollowUp) {
+        setError('Add at least one sizing photo or toggle "Need sizing help?" to continue.');
+        return false;
+      }
     }
 
     setError(null);
@@ -855,11 +976,17 @@ function NewOrderStepperScreen({ route }) {
       ...upload,
       id: upload.id || `upload_${setId}_${index}`,
     }));
+    const preparedSizingUploads = (currentSetDraft.sizingUploads || []).map((upload, index) => ({
+      ...upload,
+      id: upload.id || `sizing_${setId}_${index}`,
+    }));
 
     const setToSave = {
       ...currentSetDraft,
       id: setId,
       designUploads: preparedUploads,
+      sizingUploads: preparedSizingUploads,
+      selectedSizingOption: currentSetDraft.selectedSizingOption || null,
       shapeName: pricing.shapeName,
       price: pricing.total,
       unitPrice: pricing.unitPrice,
@@ -895,6 +1022,8 @@ function NewOrderStepperScreen({ route }) {
       setCurrentSetDraft({
         ...target,
         designUploads: (target.designUploads || []).map((upload) => ({ ...upload })),
+        sizingUploads: (target.sizingUploads || []).map((upload) => ({ ...upload })),
+        selectedSizingOption: target.selectedSizingOption || null,
       });
       setCurrentStep(0);
     },
@@ -1095,8 +1224,14 @@ function NewOrderStepperScreen({ route }) {
             {currentStep === 2 ? (
               <SizingStep
                 colors={colors}
-              sizeMode={currentSetDraft.sizeMode}
-              sizes={currentSetDraft.sizes}
+                sizeMode={currentSetDraft.sizeMode}
+                sizes={currentSetDraft.sizes}
+                savedSizeProfiles={savedSizeProfiles}
+                sizingUploads={currentSetDraft.sizingUploads}
+                onAddSizingUpload={handleAddSizingUpload}
+                onRemoveSizingUpload={handleRemoveSizingUpload}
+                requiresFollowUp={currentSetDraft.requiresFollowUp}
+                selectedSizingOption={currentSetDraft.selectedSizingOption}
                 onSelectSizeMode={(sizeMode) =>
                 setCurrentSetDraft((prev) => ({
                   ...prev,
@@ -1108,6 +1243,18 @@ function NewOrderStepperScreen({ route }) {
                   ...prev,
                   sizes: { ...prev.sizes, ...sizes },
                 }))
+                }
+                onMarkSizingHelp={(value) =>
+                  setCurrentSetDraft((prev) => ({
+                    ...prev,
+                    requiresFollowUp: Boolean(value),
+                  }))
+                }
+                onChangeSizingOption={(option) =>
+                  setCurrentSetDraft((prev) => ({
+                    ...prev,
+                    selectedSizingOption: option,
+                  }))
                 }
               />
             ) : null}
@@ -2023,84 +2170,469 @@ function OrderSummaryStep({
   );
 }
 
-function SizingStep({ colors, sizeMode, sizes, onSelectSizeMode, onChangeSizes }) {
+function SizingStep({
+  colors,
+  sizeMode,
+  sizes,
+  onSelectSizeMode,
+  onChangeSizes,
+  savedSizeProfiles,
+  sizingUploads,
+  onAddSizingUpload,
+  onRemoveSizingUpload,
+  requiresFollowUp,
+  onMarkSizingHelp,
+  selectedSizingOption,
+  onChangeSizingOption,
+}) {
   const {
     primaryFont = '#220707',
     secondaryFont = '#5C5F5D',
     accent = '#6F171F',
     border = '#D9C8A9',
     surface = '#FFFFFF',
+    surfaceMuted = '#F6EFE8',
+    secondaryBackground = '#BF9B7A',
+    shadow = '#000000',
   } = colors || {};
+
+  const savedProfileOptions = useMemo(() => {
+    if (!Array.isArray(savedSizeProfiles) || !savedSizeProfiles.length) {
+      return [];
+    }
+
+    return savedSizeProfiles
+      .map((profile, index) => {
+        const normalizedSizes = { ...DEFAULT_SIZES, ...(profile?.sizes || {}) };
+        const hasValues = FINGER_KEYS.some((finger) => {
+          const value = normalizedSizes[finger];
+          return value !== undefined && value !== null && String(value).trim().length > 0;
+        });
+
+        if (!hasValues) {
+          return null;
+        }
+
+        return {
+          id: profile?.id || (profile?.isDefault ? 'default' : `profile_${index}`),
+          label:
+            typeof profile?.label === 'string' && profile.label.trim().length
+              ? profile.label.trim()
+              : profile?.isDefault
+              ? 'Default nail size'
+              : `Size profile ${index + 1}`,
+          sizes: normalizedSizes,
+          isDefault: Boolean(profile?.isDefault),
+        };
+      })
+      .filter(Boolean);
+  }, [savedSizeProfiles]);
+
+  const hasSavedProfiles = savedProfileOptions.length > 0;
+
+  const computedSelectedOption = useMemo(() => {
+    if (selectedSizingOption) {
+      if (selectedSizingOption === 'saved' && !hasSavedProfiles) {
+        return 'camera';
+      }
+      return selectedSizingOption;
+    }
+
+    return hasSavedProfiles ? 'saved' : 'camera';
+  }, [selectedSizingOption, hasSavedProfiles]);
+
+  useEffect(() => {
+    if (!selectedSizingOption) {
+      const defaultOption = hasSavedProfiles ? 'saved' : 'camera';
+      onChangeSizingOption?.(defaultOption);
+      return;
+    }
+
+    if (selectedSizingOption === 'saved' && !hasSavedProfiles) {
+      onChangeSizingOption?.('camera');
+    }
+  }, [selectedSizingOption, hasSavedProfiles, onChangeSizingOption]);
+
+  useEffect(() => {
+    if (['saved', 'camera'].includes(computedSelectedOption) && sizeMode !== 'perSet') {
+      onSelectSizeMode('perSet');
+    }
+  }, [computedSelectedOption, sizeMode, onSelectSizeMode]);
+
+  const [activeProfileId, setActiveProfileId] = useState(() => savedProfileOptions[0]?.id || null);
+
+  useEffect(() => {
+    if (!hasSavedProfiles) {
+      setActiveProfileId(null);
+      return;
+    }
+
+    setActiveProfileId((prev) => {
+      if (prev && savedProfileOptions.some((profile) => profile.id === prev)) {
+        return prev;
+      }
+      return savedProfileOptions[0]?.id || null;
+    });
+  }, [hasSavedProfiles, savedProfileOptions]);
+
+  const activeProfile = useMemo(
+    () =>
+      activeProfileId
+        ? savedProfileOptions.find((profile) => profile.id === activeProfileId) || null
+        : null,
+    [activeProfileId, savedProfileOptions],
+  );
+
+  useEffect(() => {
+    if (computedSelectedOption !== 'saved') {
+      return;
+    }
+
+    const profileToApply = activeProfile || savedProfileOptions[0];
+    if (!profileToApply) {
+      return;
+    }
+
+    const sanitized = FINGER_KEYS.reduce((acc, finger) => {
+      const value = profileToApply.sizes?.[finger];
+      acc[finger] = value === undefined || value === null ? '' : String(value);
+      return acc;
+    }, {});
+
+    const matchesCurrent = FINGER_KEYS.every((finger) => {
+      const currentRaw = sizes?.[finger];
+      const currentValue =
+        currentRaw === undefined || currentRaw === null ? '' : String(currentRaw);
+      return currentValue === sanitized[finger];
+    });
+
+    if (!matchesCurrent) {
+      onChangeSizes(sanitized);
+    }
+  }, [computedSelectedOption, activeProfile, savedProfileOptions, onChangeSizes, sizes]);
+
+  const handleSelectSaved = useCallback(() => {
+    if (!hasSavedProfiles) {
+      return;
+    }
+
+    const profile = activeProfile || savedProfileOptions[0];
+    if (profile) {
+      setActiveProfileId(profile.id);
+    }
+    onChangeSizingOption?.('saved');
+  }, [hasSavedProfiles, activeProfile, savedProfileOptions, onChangeSizingOption]);
+
+  const handleCameraSelect = useCallback(() => {
+    onChangeSizingOption?.('camera');
+    onSelectSizeMode('perSet');
+  }, [onSelectSizeMode, onChangeSizingOption]);
+
+  const activeProfileEntries = useMemo(() => {
+    if (!activeProfile) {
+      return [];
+    }
+
+    return FINGER_KEYS.map((finger) => {
+      const raw = activeProfile.sizes?.[finger];
+      const value = raw === undefined || raw === null ? '' : String(raw).trim();
+      return {
+        finger,
+        label: FINGER_LABELS[finger] || finger,
+        value: value.length ? value : '—',
+      };
+    });
+  }, [activeProfile]);
+
+  const sizingUploadList = Array.isArray(sizingUploads) ? sizingUploads : [];
+  const hasSizingUploads = sizingUploadList.length > 0;
+
+  const optionDefinitions = useMemo(
+    () => [
+      ...(hasSavedProfiles
+        ? [
+            {
+              key: 'saved',
+              label: 'Use your saved size',
+              onPress: handleSelectSaved,
+            },
+          ]
+        : []),
+      {
+        key: 'camera',
+        label: 'Take a photo to measure',
+        onPress: handleCameraSelect,
+      },
+    ],
+    [hasSavedProfiles, handleSelectSaved, handleCameraSelect],
+  );
 
   return (
     <View style={styles.sizingContainer}>
-      <Text
-        style={[
-          styles.sectionLabel,
-          { color: primaryFont },
-        ]}
-      >
-        Sizing
-      </Text>
-      <View style={styles.modeRow}>
-        {['standard', 'perSet'].map((mode) => (
+      <View style={styles.sizingOptionRow}>
+        {optionDefinitions.map((option) => (
           <TouchableOpacity
-            key={mode}
+            key={option.key}
+            onPress={option.onPress}
             style={[
-              styles.modeChip,
+              styles.sizingOptionButton,
               {
-                borderColor:
-                  sizeMode === mode ? accent : border,
-                backgroundColor:
-                  sizeMode === mode ? withOpacity(accent, 0.07) : surface,
+                borderColor: computedSelectedOption === option.key ? accent : withOpacity(border, 0.6),
+                backgroundColor: computedSelectedOption === option.key ? withOpacity(accent, 0.08) : surface,
+                shadowColor: shadow,
               },
             ]}
-            onPress={() => onSelectSizeMode(mode)}
+            accessibilityRole="button"
           >
             <Text
               style={[
-                styles.modeLabel,
-                {
-                  color:
-                    sizeMode === mode ? accent : secondaryFont,
-                },
+                styles.sizingOptionLabel,
+                { color: computedSelectedOption === option.key ? accent : primaryFont },
               ]}
             >
-              {mode === 'standard' ? 'Standard sizes' : 'Enter sizes'}
+              {option.label}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {sizeMode === 'perSet' ? (
-        <View style={styles.sizeGrid}>
-          {Object.keys(sizes).map((finger) => (
-            <View key={finger} style={styles.sizeCell}>
+      {computedSelectedOption === 'camera' ? (
+        <View
+          style={[
+            styles.designUploadCard,
+            {
+              borderColor: border,
+              backgroundColor: surface,
+            },
+          ]}
+        >
+          <View style={styles.designUploadHeader}>
+            <View style={styles.designUploadHeaderCopy}>
               <Text
                 style={[
-                  styles.sizeLabel,
+                  styles.sectionLabel,
+                  { color: primaryFont },
+                ]}
+              >
+                Let&apos;s get the right fit!
+              </Text>
+              <Text
+                style={[
+                  styles.designUploadHint,
                   { color: secondaryFont },
                 ]}
               >
-                {finger.toUpperCase()}
+                Take clear photos so we can size your nails accurately.
               </Text>
-              <TextInput
-                value={sizes[finger]}
-                onChangeText={(value) => onChangeSizes({ [finger]: value })}
-                placeholder="Size"
-                placeholderTextColor={secondaryFont}
-                style={[
-                  styles.sizeInput,
-                  {
-                    borderColor: border,
-                    color: primaryFont,
-                  },
-                ]}
-              />
             </View>
-          ))}
+            <TouchableOpacity
+              onPress={onAddSizingUpload}
+              accessibilityRole="button"
+              disabled={!onAddSizingUpload}
+              style={[
+                styles.designUploadAction,
+                {
+                  borderColor: withOpacity(accent, 0.35),
+                  backgroundColor: withOpacity(accent, 0.08),
+                  opacity: onAddSizingUpload ? 1 : 0.5,
+                },
+              ]}
+            >
+              <Icon name="plus" color={accent} size={16} />
+              <Text
+                style={[
+                  styles.designUploadActionLabel,
+                  { color: accent },
+                ]}
+              >
+                Add image
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.sizingInstructionList}>
+            <Text style={[styles.sizingInstructionItem, { color: secondaryFont }]}>• Place your hand on a flat surface with a quarter above</Text>
+            <Text style={[styles.sizingInstructionItem, { color: secondaryFont }]}>• Make sure the quarter is visible in every photo — one of your full hand, then one per finger</Text>
+          </View>
+          <Text style={[styles.sizingActionHint, { color: withOpacity(primaryFont, 0.7) }]}>Please keep personal info out of the photo frame</Text>
+
+          {hasSizingUploads ? (
+            <View style={styles.designUploadGrid}>
+              {sizingUploadList.map((upload) => {
+                const previewUri = resolveUploadPreview(upload);
+                const imageSource = previewUri ? { uri: previewUri } : null;
+                return (
+                  <View
+                    key={upload.id}
+                    style={[
+                      styles.designUploadItem,
+                      {
+                        borderColor: withOpacity(border, 0.6),
+                        backgroundColor: surfaceMuted,
+                        shadowColor: shadow,
+                      },
+                    ]}
+                  >
+                    <View style={styles.designUploadThumbnailFrame}>
+                      {imageSource ? (
+                        <Image source={imageSource} style={styles.designUploadImage} />
+                      ) : (
+                        <View
+                          style={[
+                            styles.designUploadEmpty,
+                            { backgroundColor: withOpacity(secondaryBackground, 0.35) },
+                          ]}
+                        >
+                          <Icon name="image" color={withOpacity(primaryFont, 0.4)} size={18} />
+                          <Text
+                            style={[
+                              styles.designUploadEmptyText,
+                              { color: primaryFont },
+                            ]}
+                          >
+                            No preview
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.designUploadMeta}>
+                      <Text
+                        style={[
+                          styles.designUploadName,
+                          { color: primaryFont },
+                        ]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {upload.fileName || 'Sizing photo'}
+                      </Text>
+                      <TouchableOpacity onPress={() => onRemoveSizingUpload?.(upload.id)}>
+                        <Text
+                          style={[
+                            styles.designUploadRemove,
+                            { color: accent },
+                          ]}
+                        >
+                          Remove
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.designUploadPlaceholder,
+                {
+                  borderColor: withOpacity(border, 0.4),
+                  backgroundColor: withOpacity(surfaceMuted, 0.75),
+                },
+              ]}
+            >
+              <Icon name="image" color={withOpacity(accent, 0.5)} size={28} />
+              <Text
+                style={[
+                  styles.designUploadPlaceholderTitle,
+                  { color: primaryFont },
+                ]}
+              >
+                No images yet
+              </Text>
+            </View>
+          )}
         </View>
       ) : null}
+
+      {computedSelectedOption === 'saved' && hasSavedProfiles ? (
+        <View
+          style={[
+            styles.sizingInlineCard,
+            {
+              borderColor: withOpacity(border, 0.5),
+              backgroundColor: surface,
+              shadowColor: shadow,
+            },
+          ]}
+        >
+          <View style={styles.savedProfileHeader}>
+            <Text style={[styles.sizingInlineTitle, { color: primaryFont }]}>Default nail size</Text>
+            {activeProfile?.label && activeProfile.label !== 'Default nail size' ? (
+              <Text style={[styles.savedProfileSubtitle, { color: secondaryFont }]}>{activeProfile.label}</Text>
+            ) : null}
+          </View>
+
+          {savedProfileOptions.length > 1 ? (
+            <View style={styles.savedProfileSwitcher}>
+              {savedProfileOptions.map((profile) => {
+                const isActive = profile.id === activeProfileId;
+                return (
+                  <TouchableOpacity
+                    key={profile.id}
+                    onPress={() => {
+                      setActiveProfileId(profile.id);
+                      onChangeSizingOption?.('saved');
+                    }}
+                    accessibilityRole="button"
+                    style={[
+                      styles.savedProfileChip,
+                      {
+                        borderColor: isActive ? accent : withOpacity(border, 0.6),
+                        backgroundColor: isActive ? withOpacity(accent, 0.1) : surface,
+                        shadowColor: shadow,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.savedProfileChipLabel,
+                        { color: isActive ? accent : primaryFont },
+                      ]}
+                    >
+                      {profile.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : null}
+
+          <View style={styles.savedProfileGrid}>
+            {activeProfileEntries.map((entry) => (
+              <View key={entry.finger} style={styles.savedProfileRow}>
+                <Text style={[styles.sizeLabel, { color: secondaryFont }]}>{entry.label}</Text>
+                <Text style={[styles.savedProfileValue, { color: primaryFont }]}>{entry.value}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      <View
+        style={[
+          styles.sizingHelpCard,
+          {
+            borderColor: withOpacity(border, 0.4),
+            backgroundColor: withOpacity(surfaceMuted, 0.75),
+            shadowColor: shadow,
+          },
+        ]}
+      >
+        <View style={styles.sizingHelpCopy}>
+          <Text style={[styles.sizingHelpTitle, { color: primaryFont }]}>Need sizing help?</Text>
+          <Text style={[styles.sizingHelpSubtitle, { color: secondaryFont }]}>Toggle on for Abri to assist and make sure your set fits just right.</Text>
+        </View>
+        <Switch
+          value={Boolean(requiresFollowUp)}
+          onValueChange={(value) => onMarkSizingHelp?.(value)}
+          trackColor={{
+            true: withOpacity(accent, 0.4),
+            false: withOpacity(border, 0.5),
+          }}
+          thumbColor={requiresFollowUp ? accent : surface}
+        />
+      </View>
     </View>
   );
 }
@@ -3246,20 +3778,55 @@ const styles = StyleSheet.create({
   sizingContainer: {
     gap: 20,
   },
-  modeRow: {
+  sizingOptionRow: {
     flexDirection: 'row',
     gap: 12,
+    flexWrap: 'wrap',
   },
-  modeChip: {
+  sizingOptionButton: {
     flex: 1,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
-    paddingVertical: 12,
+    borderRadius: 14,
+    paddingVertical: 14,
     alignItems: 'center',
+    justifyContent: 'center',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 1,
   },
-  modeLabel: {
+  sizingOptionLabel: {
     fontSize: 13,
     fontWeight: '700',
+  },
+  sizingInlineCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
+    padding: 18,
+    gap: 12,
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  sizingInlineTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  sizingInlineCopy: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  sizingInstructionList: {
+    gap: 6,
+  },
+  sizingInstructionItem: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  sizingActionHint: {
+    fontSize: 11,
+    lineHeight: 16,
   },
   sizeGrid: {
     flexDirection: 'row',
@@ -3279,6 +3846,48 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 10,
     fontSize: 13,
+  },
+  savedProfileHeader: {
+    gap: 4,
+  },
+  savedProfileSubtitle: {
+    fontSize: 12,
+  },
+  savedProfileSwitcher: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  savedProfileChip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    minHeight: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  savedProfileChipLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  savedProfileGrid: {
+    marginTop: 16,
+    gap: 10,
+  },
+  savedProfileRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  savedProfileValue: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   fulfillmentContainer: {
     gap: 18,
@@ -3670,6 +4279,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     flex: 1,
     textAlign: 'right',
+  },
+  sizingHelpCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  sizingHelpCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  sizingHelpTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  sizingHelpSubtitle: {
+    fontSize: 12,
+    lineHeight: 18,
   },
 });
 
