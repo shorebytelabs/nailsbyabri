@@ -229,13 +229,13 @@ function ProfileScreen() {
     logEvent('profile_manage_shipping');
     Alert.alert(
       'Shipping Address',
-      'Shipping address management will be available soon. Email us at NailsByAbri@gmail.com with any updates.',
+      'Shipping address management will be available soon. Email us at NailsByAbriannaC@gmail.com with any updates.',
     );
   };
 
   const handleContact = async () => {
     logEvent('profile_contact_support');
-    Alert.alert('Contact Support', 'Please email NailsByAbri@gmail.com for assistance.');
+    Alert.alert('Contact Support', 'Please email NailsByAbriannaC@gmail.com for assistance.');
   };
 
   const handleSaveAccountDetails = () => {
