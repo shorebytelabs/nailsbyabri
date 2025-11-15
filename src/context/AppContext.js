@@ -7,6 +7,8 @@ import React, {
   useState,
 } from 'react';
 import { fetchConsentLogs, fetchOrders, updateOrder } from '../services/api';
+import { upsertProfile } from '../services/supabaseService';
+import { runSupabaseHealthCheck } from '../utils/supabaseHealthCheck';
 import {
   defaultPreferences,
   loadPreferences,
@@ -54,6 +56,12 @@ const initialState = {
 
 export function AppStateProvider({ children }) {
   const [state, setState] = useState(initialState);
+
+  useEffect(() => {
+    if (__DEV__) {
+      runSupabaseHealthCheck();
+    }
+  }, []);
 
   const refreshConsentLogs = useCallback(async (userId) => {
     setState((prev) => ({ ...prev, loadingConsentLogs: true }));
@@ -248,6 +256,23 @@ export function AppStateProvider({ children }) {
           orders: adminUser.isAdmin ? prev.orders : [],
           ordersLoaded: adminUser.isAdmin ? prev.ordersLoaded : false,
         }));
+        
+        // Sync profile to Supabase
+        try {
+          await upsertProfile({
+            id: adminUser.id,
+            email: adminUser.email,
+            full_name: adminUser.name,
+            date_of_birth: adminUser.dob || null,
+            requires_parental_consent: false, // Already approved if no consent required
+          });
+          if (__DEV__) {
+            console.log('[supabase] ✅ Profile synced to Supabase after signup');
+          }
+        } catch (error) {
+          console.warn('[supabase] ⚠️  Failed to sync profile to Supabase (non-critical):', error.message);
+        }
+        
         if (adminUser.isAdmin) {
           loadOrdersForUser(adminUser);
         }
@@ -258,7 +283,7 @@ export function AppStateProvider({ children }) {
   );
 
   const handleLoginSuccess = useCallback(
-    (payload) => {
+    async (payload) => {
       const adminUser = applyAdminFlag(payload.user);
       setState((prev) => ({
         ...prev,
@@ -267,6 +292,23 @@ export function AppStateProvider({ children }) {
         orders: adminUser.isAdmin ? prev.orders : [],
         ordersLoaded: adminUser.isAdmin ? prev.ordersLoaded : false,
       }));
+      
+      // Sync profile to Supabase
+      try {
+        await upsertProfile({
+          id: adminUser.id,
+          email: adminUser.email,
+          full_name: adminUser.name,
+          date_of_birth: adminUser.dob || null,
+          requires_parental_consent: adminUser.pendingConsent || false,
+        });
+        if (__DEV__) {
+          console.log('[supabase] ✅ Profile synced to Supabase after login');
+        }
+      } catch (error) {
+        console.warn('[supabase] ⚠️  Failed to sync profile to Supabase (non-critical):', error?.message || error || 'Unknown error');
+      }
+      
       if (adminUser.isAdmin) {
         loadOrdersForUser(adminUser);
       }
@@ -297,6 +339,23 @@ export function AppStateProvider({ children }) {
         orders: adminUser.isAdmin ? prev.orders : [],
         ordersLoaded: adminUser.isAdmin ? prev.ordersLoaded : false,
       }));
+      
+      // Sync profile to Supabase (consent is now approved)
+      try {
+        await upsertProfile({
+          id: adminUser.id,
+          email: adminUser.email,
+          full_name: adminUser.name,
+          date_of_birth: adminUser.dob || null,
+          requires_parental_consent: false, // Consent is now approved
+        });
+        if (__DEV__) {
+          console.log('[supabase] ✅ Profile synced to Supabase after consent approval');
+        }
+      } catch (error) {
+        console.warn('[supabase] ⚠️  Failed to sync profile to Supabase (non-critical):', error?.message || error || 'Unknown error');
+      }
+      
       if (adminUser.isAdmin) {
         await loadOrdersForUser(adminUser);
       }
