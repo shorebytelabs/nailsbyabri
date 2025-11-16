@@ -259,7 +259,7 @@ export function AppStateProvider({ children }) {
         
         // Sync profile to Supabase
         try {
-          await upsertProfile({
+          const result = await upsertProfile({
             id: adminUser.id,
             email: adminUser.email,
             full_name: adminUser.name,
@@ -267,7 +267,11 @@ export function AppStateProvider({ children }) {
             requires_parental_consent: false, // Already approved if no consent required
           });
           if (__DEV__) {
-            console.log('[supabase] ✅ Profile synced to Supabase after signup');
+            if (result?._simulator_skip) {
+              console.log('[supabase] ⏭️  Profile sync skipped (iOS simulator QUIC limitation - profile saved locally)');
+            } else {
+              console.log('[supabase] ✅ Profile synced to Supabase after signup');
+            }
           }
         } catch (error) {
           console.warn('[supabase] ⚠️  Failed to sync profile to Supabase (non-critical):', error.message);
@@ -295,7 +299,7 @@ export function AppStateProvider({ children }) {
       
       // Sync profile to Supabase
       try {
-        await upsertProfile({
+        const result = await upsertProfile({
           id: adminUser.id,
           email: adminUser.email,
           full_name: adminUser.name,
@@ -303,7 +307,11 @@ export function AppStateProvider({ children }) {
           requires_parental_consent: adminUser.pendingConsent || false,
         });
         if (__DEV__) {
-          console.log('[supabase] ✅ Profile synced to Supabase after login');
+          if (result?._simulator_skip) {
+            console.log('[supabase] ⏭️  Profile sync skipped (iOS simulator QUIC limitation - profile saved locally)');
+          } else {
+            console.log('[supabase] ✅ Profile synced to Supabase after login');
+          }
         }
       } catch (error) {
         console.warn('[supabase] ⚠️  Failed to sync profile to Supabase (non-critical):', error?.message || error || 'Unknown error');
@@ -342,7 +350,7 @@ export function AppStateProvider({ children }) {
       
       // Sync profile to Supabase (consent is now approved)
       try {
-        await upsertProfile({
+        const result = await upsertProfile({
           id: adminUser.id,
           email: adminUser.email,
           full_name: adminUser.name,
@@ -350,7 +358,11 @@ export function AppStateProvider({ children }) {
           requires_parental_consent: false, // Consent is now approved
         });
         if (__DEV__) {
-          console.log('[supabase] ✅ Profile synced to Supabase after consent approval');
+          if (result?._simulator_skip) {
+            console.log('[supabase] ⏭️  Profile sync skipped (iOS simulator QUIC limitation - profile saved locally)');
+          } else {
+            console.log('[supabase] ✅ Profile synced to Supabase after consent approval');
+          }
         }
       } catch (error) {
         console.warn('[supabase] ⚠️  Failed to sync profile to Supabase (non-critical):', error?.message || error || 'Unknown error');

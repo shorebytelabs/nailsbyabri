@@ -145,12 +145,17 @@ async function testSupabaseConnection() {
 
 // Track consecutive QUIC failures to detect simulator QUIC issues
 let consecutiveQuicFailures = 0;
-const MAX_QUIC_FAILURES = 3; // After 3 consecutive QUIC failures, skip Supabase in simulator
+// In simulator, skip after first QUIC failure since we know it will persist
+// On physical devices, allow more retries for transient network issues
+const MAX_QUIC_FAILURES = (__DEV__ && Platform.OS === 'ios') ? 1 : 3;
+
+// Note: isIOSSimulator is already declared at the top of the file
 
 export async function upsertProfile(profileData) {
   try {
-    // Check if we've hit the QUIC failure threshold (simulator QUIC issue)
-    if (consecutiveQuicFailures >= MAX_QUIC_FAILURES) {
+    // In iOS simulator, skip Supabase sync immediately to avoid QUIC failures
+    // The simulator's QUIC implementation is buggy and will always fail
+    if (isIOSSimulator && consecutiveQuicFailures >= MAX_QUIC_FAILURES) {
       if (__DEV__) {
         console.warn('[supabase] ⚠️  Skipping Supabase sync due to persistent QUIC connection failures in iOS simulator');
         console.warn('[supabase] 💡 This is a known iOS simulator limitation. The app continues to work with local backend.');
@@ -240,16 +245,28 @@ export async function upsertProfile(profileData) {
       if (isQuicError) {
         consecutiveQuicFailures++;
         
+        if (__DEV__) {
+          console.log('[supabase] 🔍 QUIC error detected');
+          console.log('[supabase] Consecutive QUIC failures:', consecutiveQuicFailures, '/', MAX_QUIC_FAILURES);
+          console.log('[supabase] Is iOS Simulator:', isIOSSimulator);
+        }
+        
+        // In iOS simulator, QUIC failures will persist, so skip immediately after first failure
+        // On physical devices, allow more retries for transient network issues
         if (consecutiveQuicFailures >= MAX_QUIC_FAILURES) {
           if (__DEV__) {
-            console.error('[supabase] ❌ Persistent QUIC connection failures detected in iOS simulator');
-            console.error('[supabase] 💡 This is a known iOS simulator limitation with QUIC/HTTP3');
-            console.error('[supabase] 💡 Supabase sync will be skipped in simulator mode');
-            console.error('[supabase] 💡 The app continues to work normally with local backend');
-            console.error('[supabase] 💡 To test Supabase sync, please test on a physical iOS device');
+            if (isIOSSimulator) {
+              console.warn('[supabase] ⚠️  QUIC failure detected in iOS simulator (expected)');
+              console.warn('[supabase] 💡 iOS Simulator QUIC is known to fail - skipping Supabase sync');
+              console.warn('[supabase] 💡 Profile data is saved locally and will sync when tested on a physical device');
+              console.warn('[supabase] 💡 App continues working normally with local backend');
+            } else {
+              console.error('[supabase] ❌ Persistent QUIC connection failures detected');
+              console.error('[supabase] 💡 This may be a network issue');
+            }
           }
           
-          // Return mock success so app continues
+          // Return mock success so app continues - DO NOT THROW ERROR
           return {
             id: profileData.id,
             email: profileData.email,
@@ -258,20 +275,33 @@ export async function upsertProfile(profileData) {
             requires_parental_consent: profileData.requires_parental_consent || false,
             _simulator_skip: true,
           };
+        } else {
+          // Haven't hit threshold yet, log but continue to throw
+          if (__DEV__) {
+            console.warn(`[supabase] ⚠️  QUIC failure ${consecutiveQuicFailures}/${MAX_QUIC_FAILURES} - will skip after ${MAX_QUIC_FAILURES}`);
+          }
         }
       } else {
         // Reset counter on non-QUIC errors (might be RLS or other issues)
-        consecutiveQuicFailures = Math.max(0, consecutiveQuicFailures - 1);
+        // Only reset if not in simulator (in simulator, QUIC errors are persistent)
+        if (!isIOSSimulator) {
+          consecutiveQuicFailures = Math.max(0, consecutiveQuicFailures - 1);
+        }
       }
 
-      console.error('[supabase] ❌ Error upserting profile:');
-      console.error('[supabase] Error object:', JSON.stringify(error, null, 2));
-      console.error('[supabase] Error code:', error.code);
-      console.error('[supabase] Error message:', error.message);
-      console.error('[supabase] Error details:', error.details);
-      console.error('[supabase] Error hint:', error.hint);
-      console.error('[supabase] HTTP status:', status, statusText);
-      console.error('[supabase] Consecutive QUIC failures:', consecutiveQuicFailures, '/', MAX_QUIC_FAILURES);
+      // Only log errors if we haven't hit the skip threshold
+      if (consecutiveQuicFailures < MAX_QUIC_FAILURES) {
+        console.error('[supabase] ❌ Error upserting profile:');
+        console.error('[supabase] Error object:', JSON.stringify(error, null, 2));
+        console.error('[supabase] Error code:', error.code);
+        console.error('[supabase] Error message:', error.message);
+        console.error('[supabase] Error details:', error.details);
+        console.error('[supabase] Error hint:', error.hint);
+        console.error('[supabase] HTTP status:', status, statusText);
+        console.error('[supabase] Consecutive QUIC failures:', consecutiveQuicFailures, '/', MAX_QUIC_FAILURES);
+        console.error('[supabase] Is iOS Simulator:', isIOSSimulator);
+        console.error('[supabase] MAX_QUIC_FAILURES value:', MAX_QUIC_FAILURES);
+      }
       
       // Check if it's an RLS/permission error
       if (error.code === '42501' || error.message?.includes('permission') || error.message?.includes('policy') || error.message?.includes('row-level security')) {

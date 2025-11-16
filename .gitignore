@@ -78,3 +78,4 @@ backend/data/db.json
 .env.server
 .env.development
 .env.*
+DOCS/

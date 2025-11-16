@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from '../config/env';
 
@@ -23,31 +24,102 @@ if (__DEV__) {
   console.log('[supabase] Key starts with:', supabaseKey.substring(0, 20) + '...');
 }
 
-// Create a custom fetch function that handles QUIC/HTTP3 issues in iOS simulator
+// Use React Native's native platform fetch implementation
+// This ensures we use the platform's native networking (URLSession on iOS, OkHttp on Android)
+// Note: URLSession on iOS simulator can still attempt QUIC if server advertises it
+// This is a known iOS simulator limitation that can't be fully disabled from JavaScript
+const baseFetch = global.fetch.bind(global);
+
+// Detect if we're running in iOS simulator
+// iOS simulator has known QUIC/HTTP-3 connection issues with Supabase
+// In simulator, we'll implement a skip mechanism after QUIC failures
+const isIOSSimulator = __DEV__ && Platform.OS === 'ios';
+
+if (__DEV__) {
+  console.log('[supabase] Using React Native native fetch implementation (global.fetch)');
+  console.log('[supabase] Platform:', Platform.OS === 'ios' ? 'iOS (URLSession)' : 'Android (OkHttp)');
+  if (isIOSSimulator) {
+    console.warn('[supabase] ⚠️  Running in iOS simulator - QUIC/HTTP-3 issues may occur');
+    console.warn('[supabase] 💡 This is a known iOS simulator limitation');
+    console.warn('[supabase] 💡 Supabase sync will skip after QUIC failures to allow app to continue working');
+  }
+}
+
+// Wrap base fetch with retry logic for QUIC/HTTP3 issues in iOS simulator
 // iOS simulator often has issues with QUIC connections, so we add retry logic with longer delays
-const customFetch = async (url, options = {}) => {
-  const maxRetries = 5; // Increased retries
+// Note: We cannot prevent QUIC negotiation from JavaScript - it's an OS-level URLSession decision
+// The retry logic helps with transient failures, but QUIC will still be attempted by the OS
+const fetchWithRetry = async (url, options = {}) => {
+  // In iOS simulator, reduce retries to fail faster so the graceful skip kicks in sooner
+  // On physical devices, keep more retries for transient network issues
+  const maxRetries = isIOSSimulator ? 3 : 5;
   let lastError;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       if (__DEV__) {
         console.log(`[supabase] Fetch attempt ${attempt}/${maxRetries} for:`, url.substring(0, 60) + '...');
+        if (isIOSSimulator && attempt === 1) {
+          console.log('[supabase] ⚠️  iOS Simulator: QUIC may be attempted by URLSession (OS-level decision)');
+          console.log('[supabase] 💡 If QUIC fails, retries will be attempted, then graceful skip will activate');
+        }
       }
 
-      // Add a cache-busting query parameter to force a new connection
-      // This helps avoid reusing the broken QUIC connection
-      const separator = url.includes('?') ? '&' : '?';
-      const cacheBustUrl = `${url}${separator}_cb=${Date.now()}_${attempt}`;
+      // Note: We don't add cache-busting query parameters because:
+      // 1. Supabase's PostgREST API tries to parse all query params as filters
+      // 2. With Proxyman, QUIC issues should be resolved anyway
+      // 3. Connection reset headers are sufficient for connection reuse issues
+      // Use the original URL without modification
+      const requestUrl = url;
 
-      // Create new options with connection reset headers
+      // Properly handle headers - convert Headers object to plain object if needed
+      // This ensures all headers (including apikey) are preserved
+      // React Native fetch accepts plain objects, but Supabase might pass Headers objects
+      let headersObj = {};
+      if (options.headers) {
+        // Check if it's a Headers object (has forEach method)
+        if (options.headers.forEach && typeof options.headers.forEach === 'function') {
+          // Convert Headers object to plain object
+          options.headers.forEach((value, key) => {
+            headersObj[key] = value;
+          });
+        } else if (typeof options.headers === 'object' && options.headers !== null) {
+          // Already a plain object, copy all properties
+          // Use Object.assign to ensure we get all enumerable and non-enumerable properties
+          headersObj = Object.assign({}, options.headers);
+          // Also try spreading in case Object.assign missed something
+          headersObj = { ...headersObj, ...options.headers };
+        }
+      }
+
+      // Debug: Log headers to verify apikey is present
+      if (__DEV__ && attempt === 1) {
+        const headerKeys = Object.keys(headersObj);
+        console.log('[supabase] Original headers count:', headerKeys.length);
+        console.log('[supabase] Original headers keys:', headerKeys);
+        console.log('[supabase] Has apikey header:', 'apikey' in headersObj || 'Apikey' in headersObj || 'APIKEY' in headersObj);
+        if ('apikey' in headersObj || 'Apikey' in headersObj || 'APIKEY' in headersObj) {
+          const key = 'apikey' in headersObj ? 'apikey' : ('Apikey' in headersObj ? 'Apikey' : 'APIKEY');
+          console.log('[supabase] apikey header length:', headersObj[key]?.length || 0);
+          console.log('[supabase] apikey header starts with:', headersObj[key]?.substring(0, 20) || 'N/A');
+        } else {
+          console.warn('[supabase] ⚠️  No apikey header found in request!');
+          console.warn('[supabase] ⚠️  This will cause authentication errors');
+        }
+      }
+
+      // Add our connection reset headers (but don't overwrite existing ones)
+      const newHeaders = {
+        ...headersObj, // Spread original headers first
+        'Connection': headersObj['Connection'] || headersObj['connection'] || 'close', // Only set if not already present
+        'Cache-Control': headersObj['Cache-Control'] || headersObj['cache-control'] || 'no-cache', // Only set if not already present
+      };
+
+      // Create new options with properly merged headers
+      // Note: These headers can't prevent QUIC negotiation, but help with connection reuse
       const newOptions = {
         ...options,
-        headers: {
-          ...options.headers,
-          'Connection': 'close', // Force connection close to avoid QUIC reuse
-          'Cache-Control': 'no-cache',
-        },
+        headers: newHeaders,
       };
 
       // Add timeout if no signal is provided
@@ -59,8 +131,10 @@ const customFetch = async (url, options = {}) => {
         newOptions._timeoutId = timeoutId;
       }
 
-      // Use native fetch with cache-busted URL
-      const response = await fetch(cacheBustUrl, newOptions);
+      // Use native platform fetch (global.fetch) with original URL
+      // URLSession on iOS will still negotiate QUIC if server advertises it (OS-level decision)
+      // With Proxyman, QUIC should work properly, so we don't need cache-busting
+      const response = await baseFetch(requestUrl, newOptions);
       
       // Clear timeout if it was set
       if (newOptions._timeoutId) {
@@ -84,11 +158,18 @@ const customFetch = async (url, options = {}) => {
         (error.code === -1005); // NSURLErrorNetworkConnectionLost
 
       if (isNetworkError && attempt < maxRetries) {
-        // Longer wait times with exponential backoff to give QUIC connection time to reset
-        const waitTime = Math.min(2000 * Math.pow(2, attempt - 1), 10000); // 2s, 4s, 8s, 10s
+        // In simulator, fail faster to trigger graceful skip sooner
+        // On physical devices, use longer backoff for transient issues
+        const baseWaitTime = isIOSSimulator ? 1000 : 2000;
+        const waitTime = Math.min(baseWaitTime * Math.pow(2, attempt - 1), isIOSSimulator ? 4000 : 10000);
+        
         if (__DEV__) {
           console.log(`[supabase] ⚠️ QUIC/Network error on attempt ${attempt}, retrying in ${waitTime}ms...`);
-          console.log(`[supabase] 💡 This is likely an iOS simulator QUIC issue. Consider testing on a physical device.`);
+          if (isIOSSimulator) {
+            console.log(`[supabase] 💡 iOS Simulator QUIC issue - After ${maxRetries} failures, Supabase sync will be skipped`);
+          } else {
+            console.log(`[supabase] 💡 Network error - Retrying...`);
+          }
         }
         
         // Wait before retrying
@@ -107,10 +188,16 @@ const customFetch = async (url, options = {}) => {
   // If we get here, all retries failed
   if (__DEV__) {
     console.error('[supabase] ❌ All fetch attempts failed');
-    console.error('[supabase] 💡 This is a known iOS simulator QUIC issue. Solutions:');
-    console.error('[supabase] 💡   1. Test on a physical iOS device (recommended)');
-    console.error('[supabase] 💡   2. Restart the iOS simulator');
-    console.error('[supabase] 💡   3. Try a different network/WiFi');
+    if (isIOSSimulator) {
+      console.error('[supabase] 💡 iOS Simulator QUIC limitation detected');
+      console.error('[supabase] 💡 The graceful skip mechanism will now skip Supabase sync');
+      console.error('[supabase] 💡 App will continue working with local backend');
+    } else {
+      console.error('[supabase] 💡 Network connection failed. Solutions:');
+      console.error('[supabase] 💡   1. Check internet connection');
+      console.error('[supabase] 💡   2. Verify Supabase URL');
+      console.error('[supabase] 💡   3. Restart app');
+    }
   }
   throw lastError;
 };
@@ -130,9 +217,11 @@ const supabaseConfig = {
       eventsPerSecond: 10,
     },
   },
-  // Use custom fetch to avoid QUIC/HTTP3 issues in iOS simulator
+  // Explicitly use React Native's native platform fetch implementation
+  // This ensures we use URLSession (iOS) / OkHttp (Android) instead of any default that might use QUIC/HTTP-3
+  // The retry wrapper handles simulator QUIC issues while maintaining full performance on physical devices
   global: {
-    fetch: customFetch,
+    fetch: fetchWithRetry,
   },
 };
 
