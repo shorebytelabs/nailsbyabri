@@ -34,9 +34,7 @@ export async function signup(payload) {
       name: payload.name,
       email: payload.email,
       password: payload.password,
-      dob: payload.dob,
-      parent_email: payload.parentEmail,
-      parent_phone: payload.parentPhone,
+      age_group: payload.ageGroup,
     }),
   });
   return handleResponse(response);

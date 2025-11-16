@@ -63,8 +63,6 @@ export async function getProfile(userId) {
  * @param {string} profileData.id - User ID
  * @param {string} profileData.email - Email
  * @param {string} profileData.full_name - Full name
- * @param {string} [profileData.date_of_birth] - Date of birth (YYYY-MM-DD)
- * @param {boolean} [profileData.requires_parental_consent] - Whether consent is required
  * @returns {Promise<Object>} Created/updated profile
  */
 // Test function to verify Supabase URL is reachable
@@ -167,8 +165,6 @@ export async function upsertProfile(profileData) {
         id: profileData.id,
         email: profileData.email,
         full_name: profileData.full_name,
-        date_of_birth: profileData.date_of_birth || null,
-        requires_parental_consent: profileData.requires_parental_consent || false,
         _simulator_skip: true, // Flag to indicate this was skipped
       };
     }
@@ -212,8 +208,6 @@ export async function upsertProfile(profileData) {
       id: profileData.id,
       email: profileData.email,
       full_name: profileData.full_name,
-      date_of_birth: profileData.date_of_birth || null,
-      requires_parental_consent: profileData.requires_parental_consent || false,
     };
 
     if (__DEV__) {
@@ -271,8 +265,6 @@ export async function upsertProfile(profileData) {
             id: profileData.id,
             email: profileData.email,
             full_name: profileData.full_name,
-            date_of_birth: profileData.date_of_birth || null,
-            requires_parental_consent: profileData.requires_parental_consent || false,
             _simulator_skip: true,
           };
         } else {
@@ -322,8 +314,6 @@ export async function upsertProfile(profileData) {
           id: profileData.id,
           email: profileData.email,
           full_name: profileData.full_name,
-          date_of_birth: profileData.date_of_birth || null,
-          requires_parental_consent: profileData.requires_parental_consent || false,
           _simulator_skip: true,
         };
       }

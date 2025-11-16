@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
@@ -9,13 +9,20 @@ import { withOpacity } from '../utils/color';
 
 const LOGO_SOURCE = require('../../assets/images/NailsByAbriLogo.png');
 
+const AGE_GROUPS = [
+  { value: '13-17', label: '13-17 years' },
+  { value: '18-24', label: '18-24 years' },
+  { value: '25-34', label: '25-34 years' },
+  { value: '35-44', label: '35-44 years' },
+  { value: '45-54', label: '45-54 years' },
+  { value: '55+', label: '55+ years' },
+];
+
 function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [dob, setDob] = useState('');
-  const [parentEmail, setParentEmail] = useState('');
-  const [parentPhone, setParentPhone] = useState('');
+  const [ageGroup, setAgeGroup] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -33,13 +40,18 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} })
   const accentColor = colors.accent || '#6F171F';
   const errorColor = colors.error || '#B33A3A';
 
-  const age = useMemo(() => calculateAge(dob), [dob]);
-  const isMinor = typeof age === 'number' && age < 18;
-
   const handleSubmit = async () => {
     if (loading) {
       return;
     }
+    
+    // Validate age group - must be 13 or older
+    // All our age groups start at 13+, so if ageGroup is set, it's valid
+    if (!ageGroup) {
+      setError('Please select your age group.');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     setEmailError('');
@@ -49,16 +61,14 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} })
         name,
         email,
         password,
-        dob,
-        parentEmail: parentEmail || undefined,
-        parentPhone: parentPhone || undefined,
+        ageGroup,
       });
       setSuccessPayload(response);
       setSuccessVisible(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to complete signup, please try again.';
       if (message.toLowerCase().includes('account already exists')) {
-        setEmailError('An account already exists for this email. Try logging in or use “Forgot password”.');
+        setEmailError('An account already exists for this email. Try logging in or use "Forgot password".');
       } else {
         setError(message);
       }
@@ -68,7 +78,7 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} })
   };
 
   const isSubmitDisabled =
-    !name.trim() || !email.trim() || !password.trim() || !dob.trim();
+    !name.trim() || !email.trim() || !password.trim() || !ageGroup;
 
   return (
     <ScreenContainer scroll={false} style={styles.screen}>
@@ -151,37 +161,41 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} })
                 placeholder="Create a strong password"
                 secureTextEntry
               />
-              <FormField
-                label="Date of Birth"
-                value={dob}
-                onChangeText={setDob}
-                placeholder="YYYY-MM-DD"
-                keyboardType="numbers-and-punctuation"
-              />
-              <Text style={[styles.helperText, { color: withOpacity(primaryFontColor, 0.65) }]}>Enter your date of birth to verify if parental consent is required.</Text>
-            </View>
-
-            {isMinor ? (
-              <View style={styles.guardianBlock}>
-                <View style={[styles.sectionDivider, { backgroundColor: withOpacity(borderColor, 0.6) }]} />
-                <Text style={[styles.guardianTitle, { color: primaryFontColor }]}>Parent or Guardian Contact</Text>
-                <FormField
-                  label="Parent Email"
-                  value={parentEmail}
-                  onChangeText={setParentEmail}
-                  placeholder="parent@example.com"
-                  keyboardType="email-address"
-                />
-                <FormField
-                  label="Parent Phone"
-                  value={parentPhone}
-                  onChangeText={setParentPhone}
-                  placeholder="+1 555-555-5555"
-                  keyboardType="phone-pad"
-                />
-                <Text style={[styles.guardianHint, { color: withOpacity(primaryFontColor, 0.65) }]}>Provide at least one contact method if the child is under 18.</Text>
+              <View style={styles.ageGroupContainer}>
+                <Text style={[styles.ageGroupLabel, { color: primaryFontColor }]}>Age Group</Text>
+                <View style={styles.ageGroupOptions}>
+                  {AGE_GROUPS.map((group) => (
+                    <TouchableOpacity
+                      key={group.value}
+                      style={[
+                        styles.ageGroupOption,
+                        {
+                          backgroundColor: ageGroup === group.value ? accentColor : surfaceColor,
+                          borderColor: ageGroup === group.value ? accentColor : borderColor,
+                        },
+                      ]}
+                      onPress={() => setAgeGroup(group.value)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Select age group ${group.label}`}
+                    >
+                      <Text
+                        style={[
+                          styles.ageGroupOptionText,
+                          {
+                            color: ageGroup === group.value ? '#FFFFFF' : primaryFontColor,
+                          },
+                        ]}
+                      >
+                        {group.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={[styles.helperText, { color: withOpacity(primaryFontColor, 0.65) }]}>
+                  You must be 13 years or older to create an account.
+                </Text>
               </View>
-            ) : null}
+            </View>
 
             {error ? <Text style={[styles.error, { color: errorColor }]}>{error}</Text> : null}
 
@@ -215,7 +229,7 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} })
             ]}
           >
             <Text style={[styles.successTitle, { color: colors.success || '#4B7A57' }]}>Account created</Text>
-            <Text style={[styles.successMessage, { color: withOpacity(primaryFontColor, 0.85) }]}>If account requires parental consent, you’ll be directed to the Consent form now.</Text>
+            <Text style={[styles.successMessage, { color: withOpacity(primaryFontColor, 0.85) }]}>Your account has been created successfully. You can now start placing orders.</Text>
             <PrimaryButton
               label="Continue"
               onPress={() => {
@@ -231,26 +245,6 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} })
       </Modal>
     </ScreenContainer>
   );
-}
-
-function calculateAge(dobString) {
-  if (!dobString) {
-    return null;
-  }
-
-  const dob = new Date(dobString);
-  if (Number.isNaN(dob.getTime())) {
-    return null;
-  }
-
-  const today = new Date();
-  let age = today.getFullYear() - dob.getFullYear();
-  const monthDiff = today.getMonth() - dob.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-    age -= 1;
-  }
-
-  return age;
 }
 
 const styles = StyleSheet.create({
@@ -344,21 +338,33 @@ const styles = StyleSheet.create({
   helperText: {
     fontSize: 12,
     fontWeight: '500',
+    marginTop: 8,
   },
-  guardianBlock: {
-    gap: 12,
+  ageGroupContainer: {
+    marginBottom: 4,
   },
-  sectionDivider: {
-    height: StyleSheet.hairlineWidth,
-  },
-  guardianTitle: {
+  ageGroupLabel: {
     fontSize: 14,
     fontWeight: '600',
+    marginBottom: 8,
   },
-  guardianHint: {
-    fontSize: 12,
-    fontWeight: '500',
-    lineHeight: 18,
+  ageGroupOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 4,
+  },
+  ageGroupOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  ageGroupOptionText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   error: {
     marginTop: -4,

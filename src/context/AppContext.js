@@ -263,8 +263,6 @@ export function AppStateProvider({ children }) {
             id: adminUser.id,
             email: adminUser.email,
             full_name: adminUser.name,
-            date_of_birth: adminUser.dob || null,
-            requires_parental_consent: false, // Already approved if no consent required
           });
           if (__DEV__) {
             if (result?._simulator_skip) {
@@ -303,8 +301,6 @@ export function AppStateProvider({ children }) {
           id: adminUser.id,
           email: adminUser.email,
           full_name: adminUser.name,
-          date_of_birth: adminUser.dob || null,
-          requires_parental_consent: adminUser.pendingConsent || false,
         });
         if (__DEV__) {
           if (result?._simulator_skip) {
@@ -354,8 +350,6 @@ export function AppStateProvider({ children }) {
           id: adminUser.id,
           email: adminUser.email,
           full_name: adminUser.name,
-          date_of_birth: adminUser.dob || null,
-          requires_parental_consent: false, // Consent is now approved
         });
         if (__DEV__) {
           if (result?._simulator_skip) {
