@@ -4,7 +4,6 @@
  */
 import { supabase } from '../lib/supabaseClient';
 import { upsertProfile } from './supabaseService';
-import { createConsentLog } from './consentLogService';
 
 /**
  * Sign up a new user
@@ -65,20 +64,8 @@ export async function signup({ email, password, name, ageGroup }) {
       // Continue even if profile creation fails - it can be retried
     }
 
-    // Create consent log (all users 13+ are approved)
-    try {
-      await createConsentLog({
-        user_id: userId,
-        status: 'approved',
-        channel: 'self',
-        contact: email,
-        approved_at: now,
-        approver_name: name,
-      });
-    } catch (consentError) {
-      console.warn('[auth] ⚠️  Failed to create consent log (non-critical):', consentError.message);
-      // Continue even if consent log creation fails
-    }
+    // Note: Consent logs are no longer created automatically
+    // The consent flow has been removed - all users 13+ can sign up directly
 
     // Transform user data to match expected format
     const user = {
