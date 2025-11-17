@@ -6,7 +6,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { fetchConsentLogs, fetchOrders, updateOrder } from '../services/api';
+import { fetchOrders, updateOrder } from '../services/api';
 import { upsertProfile } from '../services/supabaseService';
 import { runSupabaseHealthCheck } from '../utils/supabaseHealthCheck';
 import {
@@ -63,26 +63,6 @@ export function AppStateProvider({ children }) {
     }
   }, []);
 
-  const refreshConsentLogs = useCallback(async (userId) => {
-    setState((prev) => ({ ...prev, loadingConsentLogs: true }));
-    try {
-      const logs = await fetchConsentLogs();
-      const filtered = logs.filter((log) => log.userId === userId);
-      setState((prev) => ({
-        ...prev,
-        consentLogs: filtered,
-      }));
-      return filtered;
-    } catch (error) {
-      setState((prev) => ({
-        ...prev,
-        statusMessage: 'Unable to load consent activity.',
-      }));
-      return [];
-    } finally {
-      setState((prev) => ({ ...prev, loadingConsentLogs: false }));
-    }
-  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -169,38 +149,13 @@ export function AppStateProvider({ children }) {
     [setAuthRedirect, state.currentUser],
   );
 
+  // Consent flow has been removed - this function is kept for compatibility but does nothing
   const enterConsentFlow = useCallback(
     async (user, token, initialLog) => {
-      let logToUse = initialLog;
-      if (!logToUse) {
-        const logs = await refreshConsentLogs(user.id);
-        logToUse = logs.find((log) => log.status === 'pending') || null;
-      }
-
-      if (!logToUse) {
-        setState((prev) => ({
-          ...prev,
-          statusMessage: 'No consent request found. Please contact support.',
-        }));
-        return false;
-      }
-
-      const adminUser = applyAdminFlag(user);
-      setState((prev) => ({
-        ...prev,
-        pendingConsent: {
-          user: adminUser,
-          token,
-          consentLog: logToUse,
-        },
-        currentUser: null,
-        consentLogs: [],
-        preferences: defaultPreferences,
-        activeOrder: null,
-      }));
-      return true;
+      // Consent flow removed - users 13+ can sign up directly
+      return false;
     },
-    [refreshConsentLogs],
+    [],
   );
 
   const loadOrdersForUser = useCallback(async (user) => {
@@ -291,10 +246,9 @@ export function AppStateProvider({ children }) {
         if (adminUser.isAdmin) {
           loadOrdersForUser(adminUser);
         }
-        refreshConsentLogs(adminUser.id);
       }
     },
-    [enterConsentFlow, refreshConsentLogs, loadOrdersForUser],
+    [enterConsentFlow, loadOrdersForUser],
   );
 
   const handleLoginSuccess = useCallback(
@@ -329,9 +283,8 @@ export function AppStateProvider({ children }) {
       if (adminUser.isAdmin) {
         loadOrdersForUser(adminUser);
       }
-      refreshConsentLogs(adminUser.id);
     },
-    [refreshConsentLogs, loadOrdersForUser],
+    [loadOrdersForUser],
   );
 
   const handleConsentPendingLogin = useCallback(
@@ -378,9 +331,8 @@ export function AppStateProvider({ children }) {
       if (adminUser.isAdmin) {
         await loadOrdersForUser(adminUser);
       }
-      await refreshConsentLogs(adminUser.id);
     },
-    [refreshConsentLogs, loadOrdersForUser],
+    [loadOrdersForUser],
   );
 
   const handleUpdatePreferences = useCallback(
@@ -505,7 +457,6 @@ export function AppStateProvider({ children }) {
   const contextValue = useMemo(
     () => ({
       state,
-      refreshConsentLogs,
       clearStatusMessage,
       handleSignupSuccess,
       handleLoginSuccess,
@@ -526,7 +477,6 @@ export function AppStateProvider({ children }) {
     }),
     [
       state,
-      refreshConsentLogs,
       clearStatusMessage,
       handleSignupSuccess,
       handleLoginSuccess,

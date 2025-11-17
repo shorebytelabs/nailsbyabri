@@ -49,7 +49,6 @@ function ProfileScreen() {
     state,
     handleUpdatePreferences,
     handleLogout,
-    refreshConsentLogs,
     setState,
   } = useAppState();
   const colors = theme?.colors || {};
@@ -229,14 +228,9 @@ function ProfileScreen() {
     }
   };
 
+  // Consent flow removed - this function is no longer needed
   const handleRefreshConsent = async () => {
-    try {
-      setRefreshingConsent(true);
-      await refreshConsentLogs(user.id);
-      setConfirmation('Consent history refreshed');
-    } finally {
-      setRefreshingConsent(false);
-    }
+    // No-op: consent flow has been removed
   };
 
   const handleChangePassword = () => {

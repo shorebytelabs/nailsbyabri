@@ -21,7 +21,7 @@ function OrdersScreen({ route }) {
   const initialTabFromRoute = route?.params?.initialTab;
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const { state, refreshConsentLogs, setState, loadOrdersForUser, updateOrderAdmin } = useAppState();
+  const { state, setState, loadOrdersForUser, updateOrderAdmin } = useAppState();
   const currentUserId = state.currentUser?.id;
   const colors = theme?.colors || {};
   const {
@@ -752,11 +752,9 @@ function OrdersScreen({ route }) {
           ? (
               <RefreshControl
                 tintColor={accentColor}
-                refreshing={state.loadingConsentLogs}
+                refreshing={false}
                 onRefresh={() => {
-                  if (state.currentUser) {
-                    refreshConsentLogs(state.currentUser.id);
-                  }
+                  // Consent flow removed - no refresh needed
                 }}
               />
             )
