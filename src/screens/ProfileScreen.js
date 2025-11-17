@@ -21,6 +21,7 @@ import {
   normalizeNailSizes as normalizeStoredNailSizes,
   createEmptySizeValues,
 } from '../storage/preferences';
+import { deleteNailSizeProfile } from '../services/supabaseService';
 
 const FINGER_DISPLAY = [
   { key: 'thumb', label: 'Thumb' },
@@ -183,12 +184,33 @@ function ProfileScreen() {
     logEvent('profile_add_size_profile');
   };
 
-  const handleRemoveSizeProfile = (profileId) => {
-    setNailSizesDraft((prev) => ({
-      ...prev,
-      profiles: prev.profiles.filter((profile) => profile.id !== profileId),
-    }));
-    logEvent('profile_remove_size_profile', { profile_id: profileId });
+  const handleRemoveSizeProfile = async (profileId) => {
+    // Don't delete if it's the default profile or a temporary ID
+    if (profileId === 'default' || profileId.startsWith('profile_') || profileId.startsWith('temp_')) {
+      setNailSizesDraft((prev) => ({
+        ...prev,
+        profiles: prev.profiles.filter((profile) => profile.id !== profileId),
+      }));
+      logEvent('profile_remove_size_profile', { profile_id: profileId });
+      return;
+    }
+
+    // Delete from Supabase if it's a real profile
+    try {
+      await deleteNailSizeProfile(user.id, profileId);
+      setNailSizesDraft((prev) => ({
+        ...prev,
+        profiles: prev.profiles.filter((profile) => profile.id !== profileId),
+      }));
+      logEvent('profile_remove_size_profile', { profile_id: profileId });
+    } catch (error) {
+      console.error('Failed to delete nail size profile:', error);
+      // Still remove from UI even if Supabase delete fails
+      setNailSizesDraft((prev) => ({
+        ...prev,
+        profiles: prev.profiles.filter((profile) => profile.id !== profileId),
+      }));
+    }
   };
 
   const handleSaveNailSizes = async () => {

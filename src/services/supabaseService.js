@@ -384,11 +384,15 @@ export async function updateProfile(userId, updates) {
 
 /**
  * Get nail size profiles for a user
- * @param {string} userId - User ID
+ * @param {string} userId - User ID (or target user ID for admin)
  * @returns {Promise<Array>} Array of nail size profiles
  */
 export async function getNailSizeProfiles(userId) {
   try {
+    if (__DEV__) {
+      console.log('[supabase] Fetching nail size profiles for user:', userId);
+    }
+
     const { data, error } = await supabase
       .from('nail_size_profiles')
       .select('*')
@@ -401,6 +405,10 @@ export async function getNailSizeProfiles(userId) {
       throw error;
     }
 
+    if (__DEV__) {
+      console.log('[supabase] ✅ Fetched', data?.length || 0, 'nail size profiles');
+    }
+
     return data || [];
   } catch (error) {
     console.error('[supabase] Failed to get nail size profiles:', error);
@@ -410,7 +418,7 @@ export async function getNailSizeProfiles(userId) {
 
 /**
  * Create or update a nail size profile
- * @param {string} userId - User ID
+ * @param {string} userId - User ID (or target user ID for admin)
  * @param {Object} profileData - Nail size profile data
  * @param {string} [profileData.id] - Profile ID (for updates)
  * @param {string} profileData.label - Profile label
@@ -433,22 +441,27 @@ export async function upsertNailSizeProfile(userId, profileData) {
       }
     }
 
+    // Normalize sizes to ensure all fingers are present
+    const normalizedSizes = {
+      thumb: profileData.sizes?.thumb || '',
+      index: profileData.sizes?.index || '',
+      middle: profileData.sizes?.middle || '',
+      ring: profileData.sizes?.ring || '',
+      pinky: profileData.sizes?.pinky || '',
+    };
+
     const payload = {
       user_id: userId,
-      label: profileData.label,
+      label: profileData.label || 'Untitled Profile',
       is_default: profileData.is_default || false,
-      thumb_size: profileData.sizes?.thumb || null,
-      index_size: profileData.sizes?.index || null,
-      middle_size: profileData.sizes?.middle || null,
-      ring_size: profileData.sizes?.ring || null,
-      pinky_size: profileData.sizes?.pinky || null,
+      sizes: normalizedSizes,
     };
 
     // Don't manually set updated_at - trigger handles it
 
     let query;
-    if (profileData.id) {
-      // Update existing
+    if (profileData.id && profileData.id !== 'default') {
+      // Update existing (skip if id is 'default' - that's a special case)
       if (__DEV__) {
         console.log('[supabase] Updating nail size profile:', profileData.id);
       }
@@ -494,12 +507,16 @@ export async function upsertNailSizeProfile(userId, profileData) {
 
 /**
  * Delete a nail size profile
- * @param {string} userId - User ID
+ * @param {string} userId - User ID (or target user ID for admin)
  * @param {string} profileId - Profile ID
  * @returns {Promise<boolean>} Success
  */
 export async function deleteNailSizeProfile(userId, profileId) {
   try {
+    if (__DEV__) {
+      console.log('[supabase] Deleting nail size profile:', profileId, 'for user:', userId);
+    }
+
     const { error } = await supabase
       .from('nail_size_profiles')
       .delete()
