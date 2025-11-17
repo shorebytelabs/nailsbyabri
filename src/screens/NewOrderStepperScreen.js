@@ -98,9 +98,10 @@ function createEmptySetDraft() {
     quantity: 1,
     sizeMode: 'standard',
     sizes: { ...DEFAULT_SIZES },
-    selectedSizingOption: null,
-  };
-}
+      selectedSizingOption: null,
+      selectedProfileId: null,
+    };
+  }
 
 function createDefaultDeliveryDetails() {
   return {
@@ -364,6 +365,7 @@ function NewOrderStepperScreen({ route }) {
     sets: [],
     deliveryDetails: createDefaultDeliveryDetails(),
     promoCode: '',
+    customerSizes: null, // Store customerSizes at order level for easy access
   });
   const [editingSetId, setEditingSetId] = useState(null);
   const [stepErrors, setStepErrors] = useState({
@@ -490,6 +492,15 @@ function NewOrderStepperScreen({ route }) {
     const speed =
       resumeDraft.fulfillment?.speed || methodConfigForDraft?.defaultSpeed || 'standard';
 
+    if (__DEV__) {
+      console.log('[NewOrderStepper] Loading draft order:', {
+        orderId: resumeDraft.id,
+        customerSizes: resumeDraft.customerSizes,
+        customerSizesProfileId: resumeDraft.customerSizes?.profileId,
+        setsCount: draftSets.length,
+      });
+    }
+
     const normalizedAddress = {
       name: '',
       line1: '',
@@ -500,36 +511,67 @@ function NewOrderStepperScreen({ route }) {
       ...(resumeDraft.fulfillment?.address || {}),
     };
 
+    const mappedSets = draftSets.map((set, index) => {
+      // Determine if this set uses saved sizing
+      const usesSavedSizing = set.selectedSizingOption === 'saved' || 
+        (set.sizes?.mode !== 'perSet' && !set.sizingUploads?.length && resumeDraft?.customerSizes?.profileId);
+      
+      // Restore sizes - if using saved profile, get from customerSizes
+      const restoredSizes = set.sizes?.mode === 'perSet'
+        ? normalizeDraftSizes(set.sizes)
+        : (usesSavedSizing && resumeDraft?.customerSizes?.values
+          ? resumeDraft.customerSizes.values
+          : (set.sizes?.values || { ...DEFAULT_SIZES }));
+
+      // Restore profile ID - prioritize customerSizes.profileId (order-level) over set-level
+      const restoredProfileId = resumeDraft?.customerSizes?.profileId || set.selectedProfileId || null;
+
+      // Preserve selectedSizingOption, but if we have a profileId in customerSizes, ensure it's 'saved'
+      const restoredSizingOption = usesSavedSizing && restoredProfileId
+        ? 'saved'
+        : (set.selectedSizingOption || resolveSizingOptionFromSet(set));
+
+      if (__DEV__) {
+        console.log('[NewOrderStepper] Restoring set:', {
+          setId: set.id,
+          usesSavedSizing,
+          restoredSizingOption,
+          restoredProfileId,
+          hasCustomerSizes: !!resumeDraft?.customerSizes,
+          customerSizesProfileId: resumeDraft?.customerSizes?.profileId,
+        });
+      }
+
+      return {
+        id: set.id || `set_${index}`,
+        name: set.name || null,
+        shapeId: set.shapeId || null,
+        designDescription: set.description || '',
+        designUploads: Array.isArray(set.designUploads)
+          ? set.designUploads.map((upload, uploadIndex) => ({
+              ...upload,
+              id: upload?.id || `upload_${index}_${uploadIndex}`,
+              preview: resolveUploadPreview(upload),
+            }))
+          : [],
+        sizingUploads: Array.isArray(set.sizingUploads)
+          ? set.sizingUploads.map((upload, uploadIndex) => ({
+              ...upload,
+              id: upload?.id || `sizing_${index}_${uploadIndex}`,
+              preview: resolveUploadPreview(upload),
+            }))
+          : [],
+        requiresFollowUp: Boolean(set.requiresFollowUp),
+        quantity: Number(set.quantity) || 1,
+        sizeMode: set.sizes?.mode === 'perSet' ? 'perSet' : 'standard',
+        sizes: restoredSizes,
+        price: set.price || null,
+        selectedSizingOption: restoredSizingOption,
+        selectedProfileId: restoredProfileId,
+      };
+    });
+
     setDraftOrderId(resumeDraft.id || mappedSets[0]?.id || null);
-    const mappedSets = draftSets.map((set, index) => ({
-      id: set.id || `set_${index}`,
-      name: set.name || null,
-      shapeId: set.shapeId || null,
-      designDescription: set.description || '',
-      designUploads: Array.isArray(set.designUploads)
-        ? set.designUploads.map((upload, uploadIndex) => ({
-            ...upload,
-            id: upload?.id || `upload_${index}_${uploadIndex}`,
-            preview: resolveUploadPreview(upload),
-          }))
-        : [],
-      sizingUploads: Array.isArray(set.sizingUploads)
-        ? set.sizingUploads.map((upload, uploadIndex) => ({
-            ...upload,
-            id: upload?.id || `sizing_${index}_${uploadIndex}`,
-            preview: resolveUploadPreview(upload),
-          }))
-        : [],
-      requiresFollowUp: Boolean(set.requiresFollowUp),
-      quantity: Number(set.quantity) || 1,
-      sizeMode: set.sizes?.mode === 'perSet' ? 'perSet' : 'standard',
-      sizes:
-        set.sizes?.mode === 'perSet'
-          ? normalizeDraftSizes(set.sizes)
-          : { ...DEFAULT_SIZES },
-      price: set.price || null,
-      selectedSizingOption: resolveSizingOptionFromSet(set),
-    }));
 
     setOrderDraft({
       sets: mappedSets,
@@ -540,6 +582,7 @@ function NewOrderStepperScreen({ route }) {
         notes: resumeDraft.fulfillment?.notes || '',
       },
       promoCode: resumeDraft.promoCode || '',
+      customerSizes: resumeDraft.customerSizes || null, // Store customerSizes for easy access
     });
 
     const resolvedStepKey = (() => {
@@ -576,6 +619,7 @@ function NewOrderStepperScreen({ route }) {
           designUploads: (matchedSet.designUploads || []).map((upload) => ({ ...upload })),
           sizingUploads: (matchedSet.sizingUploads || []).map((upload) => ({ ...upload })),
           selectedSizingOption: matchedSet.selectedSizingOption || null,
+          selectedProfileId: matchedSet.selectedProfileId || null,
         };
       } else {
         initialDraft = createEmptySetDraft();
@@ -731,10 +775,51 @@ function NewOrderStepperScreen({ route }) {
 
     const fulfillment = orderDraft.deliveryDetails;
 
+    // Find the set with saved sizing option to get the selected profile ID and sizes
+    // Check both orderDraft.sets AND currentSetDraft (if we're editing a set)
+    // For saved sizing, sizes are stored at order level in customerSizes
+    // Note: saved sizing can be used with either 'standard' or 'perSet' sizeMode
+    let savedSizingSet = orderDraft.sets.find(
+      (set) => set.selectedSizingOption === 'saved',
+    );
+    
+    // If we're currently editing a set and it uses saved sizing, use that instead
+    if (editingSetId && currentSetDraft.selectedSizingOption === 'saved') {
+      savedSizingSet = currentSetDraft;
+    } else if (!editingSetId && currentSetDraft.selectedSizingOption === 'saved') {
+      // If we're creating a new set and it uses saved sizing, use currentSetDraft
+      savedSizingSet = currentSetDraft;
+    }
+    
+    const selectedProfileId = savedSizingSet?.selectedProfileId || null;
+    const savedSizes = savedSizingSet?.sizes || {};
+
+    if (__DEV__) {
+      console.log('[buildOrderPayload] Saved sizing set:', {
+        found: !!savedSizingSet,
+        selectedProfileId,
+        savedSizes,
+        editingSetId,
+        currentSetDraftSelectedProfileId: currentSetDraft.selectedProfileId,
+        currentSetDraftSelectedSizingOption: currentSetDraft.selectedSizingOption,
+      });
+    }
+
+    // Build customerSizes with profile ID and sizes if using saved profile
+    // For saved sizing, we always store at order level regardless of sizeMode
+    const customerSizes = savedSizingSet && savedSizingSet.selectedSizingOption === 'saved'
+      ? {
+          mode: savedSizingSet.sizeMode || 'standard', // Preserve the sizeMode
+          values: savedSizes,
+          profileId: selectedProfileId, // Store the selected profile ID
+        }
+      : { mode: 'standard', values: {} };
+
     return {
       id: draftOrderId,
       userId: state.currentUser?.id,
       nailSets: mappedSets,
+      customerSizes,
       fulfillment: {
         method: fulfillment.method,
         speed: fulfillment.speed,
@@ -1092,6 +1177,7 @@ function NewOrderStepperScreen({ route }) {
       designUploads: preparedUploads,
       sizingUploads: preparedSizingUploads,
       selectedSizingOption: currentSetDraft.selectedSizingOption || null,
+      selectedProfileId: currentSetDraft.selectedProfileId || null,
       shapeName: pricing.shapeName,
       price: pricing.total,
       unitPrice: pricing.unitPrice,
@@ -1123,16 +1209,59 @@ function NewOrderStepperScreen({ route }) {
       if (!target) {
         return;
       }
+      
+      // If the set uses saved sizing but doesn't have selectedProfileId, try to get it from order-level customerSizes
+      // This handles the case where the profile ID is stored at the order level in customerSizes
+      // Note: saved sizing can be used with either 'standard' or 'perSet' sizeMode
+      let profileId = target.selectedProfileId;
+      if (!profileId && target.selectedSizingOption === 'saved') {
+        // Try to get from order-level customerSizes (stored in orderDraft or resumeDraft)
+        if (__DEV__) {
+          console.log('[NewOrderStepper] handleEditSet - set uses saved sizing but no profileId in set, checking customerSizes:', {
+            setId,
+            selectedSizingOption: target.selectedSizingOption,
+            sizeMode: target.sizeMode,
+            orderDraftCustomerSizes: orderDraft.customerSizes,
+            hasResumeDraft: !!resumeDraft,
+            resumeDraftCustomerSizes: resumeDraft?.customerSizes,
+          });
+        }
+        // Try to get from orderDraft.customerSizes first (if we stored it there)
+        if (orderDraft.customerSizes?.profileId) {
+          profileId = orderDraft.customerSizes.profileId;
+          if (__DEV__) {
+            console.log('[NewOrderStepper] handleEditSet - found profileId in orderDraft.customerSizes:', profileId);
+          }
+        } else if (resumeDraft?.customerSizes?.profileId) {
+          // Fall back to resumeDraft if available
+          profileId = resumeDraft.customerSizes.profileId;
+          if (__DEV__) {
+            console.log('[NewOrderStepper] handleEditSet - found profileId in resumeDraft.customerSizes:', profileId);
+          }
+        }
+      }
+      
+      if (__DEV__) {
+        console.log('[NewOrderStepper] handleEditSet - restoring set:', {
+          setId,
+          targetSelectedProfileId: target.selectedProfileId,
+          finalSelectedProfileId: profileId || target.selectedProfileId,
+          selectedSizingOption: target.selectedSizingOption,
+          sizeMode: target.sizeMode,
+        });
+      }
+      
       setEditingSetId(setId);
       setCurrentSetDraft({
         ...target,
         designUploads: (target.designUploads || []).map((upload) => ({ ...upload })),
         sizingUploads: (target.sizingUploads || []).map((upload) => ({ ...upload })),
         selectedSizingOption: target.selectedSizingOption || null,
+        selectedProfileId: profileId || target.selectedProfileId || null,
       });
       setCurrentStep(0);
     },
-    [orderDraft.sets],
+    [orderDraft.sets, orderDraft.customerSizes, resumeDraft],
   );
 
   const handleRemoveSet = useCallback(
@@ -1337,6 +1466,20 @@ function NewOrderStepperScreen({ route }) {
                 onRemoveSizingUpload={handleRemoveSizingUpload}
                 requiresFollowUp={currentSetDraft.requiresFollowUp}
                 selectedSizingOption={currentSetDraft.selectedSizingOption}
+                selectedProfileId={currentSetDraft.selectedProfileId}
+                // Add debug logging
+                key={`sizing-${currentSetDraft.id || 'new'}-${currentSetDraft.selectedProfileId || 'none'}`}
+                // Log when SizingStep receives props
+                {...(__DEV__ && {
+                  _debugProps: () => {
+                    console.log('[NewOrderStepper] SizingStep props:', {
+                      selectedProfileId: currentSetDraft.selectedProfileId,
+                      selectedSizingOption: currentSetDraft.selectedSizingOption,
+                      sizeMode: currentSetDraft.sizeMode,
+                      editingSetId,
+                    });
+                  },
+                })}
                 onSelectSizeMode={(sizeMode) =>
                 setCurrentSetDraft((prev) => ({
                   ...prev,
@@ -1361,6 +1504,21 @@ function NewOrderStepperScreen({ route }) {
                     selectedSizingOption: option,
                   }))
                 }
+                onSelectProfile={(profileId) => {
+                  if (__DEV__) {
+                    console.log('[NewOrderStepper] Profile selected, updating currentSetDraft:', profileId);
+                  }
+                  setCurrentSetDraft((prev) => {
+                    const updated = {
+                      ...prev,
+                      selectedProfileId: profileId,
+                    };
+                    if (__DEV__) {
+                      console.log('[NewOrderStepper] Updated currentSetDraft.selectedProfileId:', updated.selectedProfileId);
+                    }
+                    return updated;
+                  });
+                }}
               />
             ) : null}
 
@@ -2321,7 +2479,24 @@ function SizingStep({
   onMarkSizingHelp,
   selectedSizingOption,
   onChangeSizingOption,
+  selectedProfileId,
+  onSelectProfile,
+  _debugProps,
 }) {
+  // Log props when component receives them
+  useEffect(() => {
+    if (__DEV__) {
+      console.log('[SizingStep] Component received props:', {
+        selectedProfileId,
+        selectedSizingOption,
+        sizeMode,
+      });
+      if (_debugProps) {
+        _debugProps();
+      }
+    }
+  }, [selectedProfileId, selectedSizingOption, sizeMode, _debugProps]);
+
   const {
     primaryFont = '#220707',
     secondaryFont = '#5C5F5D',
@@ -2396,21 +2571,65 @@ function SizingStep({
     }
   }, [computedSelectedOption, sizeMode, onSelectSizeMode]);
 
-  const [activeProfileId, setActiveProfileId] = useState(() => savedProfileOptions[0]?.id || null);
+  // Initialize activeProfileId from selectedProfileId prop if available, otherwise use first profile
+  const [activeProfileId, setActiveProfileId] = useState(() => {
+    // At initialization, savedProfileOptions might be empty, so we'll set it in useEffect
+    return null;
+  });
 
   useEffect(() => {
+    if (__DEV__) {
+      console.log('[SizingStep] Profile selection effect:', {
+        hasSavedProfiles,
+        selectedProfileId,
+        savedProfileOptionsCount: savedProfileOptions.length,
+        savedProfileIds: savedProfileOptions.map((p) => p.id),
+        currentActiveProfileId: activeProfileId,
+      });
+    }
+
     if (!hasSavedProfiles) {
       setActiveProfileId(null);
       return;
     }
 
+    // If selectedProfileId prop is provided and valid, use it (this is the saved profile from the draft)
+    // This takes priority over the current activeProfileId
+    if (selectedProfileId) {
+      const profileExists = savedProfileOptions.some((profile) => profile.id === selectedProfileId);
+      if (profileExists) {
+        // Only update if it's different from current activeProfileId
+        if (activeProfileId !== selectedProfileId) {
+          if (__DEV__) {
+            console.log('[SizingStep] ✅ Restoring saved profile:', selectedProfileId);
+          }
+          setActiveProfileId(selectedProfileId);
+        }
+        return; // Don't fall through to default logic
+      } else {
+        if (__DEV__) {
+          console.warn('[SizingStep] ⚠️  Saved profile ID not found in options:', selectedProfileId);
+        }
+        // If selectedProfileId is provided but not found, don't reset - keep current selection
+        return;
+      }
+    }
+
+    // If no selectedProfileId prop, only set default if we don't have a valid activeProfileId
+    // This prevents the effect from overriding a user's manual selection
     setActiveProfileId((prev) => {
+      // If we already have a valid selection, keep it
       if (prev && savedProfileOptions.some((profile) => profile.id === prev)) {
         return prev;
       }
-      return savedProfileOptions[0]?.id || null;
+      // No valid selection, use first profile as default
+      const firstProfileId = savedProfileOptions[0]?.id || null;
+      if (__DEV__) {
+        console.log('[SizingStep] Using first profile as default:', firstProfileId);
+      }
+      return firstProfileId;
     });
-  }, [hasSavedProfiles, savedProfileOptions]);
+  }, [hasSavedProfiles, savedProfileOptions, selectedProfileId]); // Removed activeProfileId from deps to prevent reset loop
 
   const activeProfile = useMemo(
     () =>
@@ -2425,7 +2644,12 @@ function SizingStep({
       return;
     }
 
-    const profileToApply = activeProfile || savedProfileOptions[0];
+    // If we have a selectedProfileId prop, use that profile (from draft/order)
+    // Otherwise, use the activeProfile (from UI selection)
+    const profileToApply = selectedProfileId
+      ? savedProfileOptions.find((p) => p.id === selectedProfileId) || activeProfile
+      : activeProfile;
+    
     if (!profileToApply) {
       return;
     }
@@ -2443,22 +2667,44 @@ function SizingStep({
       return currentValue === sanitized[finger];
     });
 
+    // Only update sizes if they don't match
+    // If we have a selectedProfileId, the sizes should match that profile
+    // If we don't have a selectedProfileId, apply the active profile's sizes
     if (!matchesCurrent) {
+      if (__DEV__) {
+        console.log('[SizingStep] Applying profile sizes:', profileToApply.id, {
+          hasSelectedProfileId: !!selectedProfileId,
+          activeProfileId,
+        });
+      }
       onChangeSizes(sanitized);
+    } else {
+      if (__DEV__) {
+        console.log('[SizingStep] Sizes already match profile, skipping update:', profileToApply.id);
+      }
     }
-  }, [computedSelectedOption, activeProfile, savedProfileOptions, onChangeSizes, sizes]);
+  }, [computedSelectedOption, activeProfile, savedProfileOptions, onChangeSizes, sizes, selectedProfileId, activeProfileId]);
 
   const handleSelectSaved = useCallback(() => {
     if (!hasSavedProfiles) {
       return;
     }
 
-    const profile = activeProfile || savedProfileOptions[0];
-    if (profile) {
-      setActiveProfileId(profile.id);
+    // Use the currently active profile if available, otherwise use the first one
+    // But if selectedProfileId is provided (from draft), use that profile instead
+    const profileToUse = selectedProfileId
+      ? savedProfileOptions.find((p) => p.id === selectedProfileId) || activeProfile || savedProfileOptions[0]
+      : activeProfile || savedProfileOptions[0];
+    
+    if (profileToUse) {
+      if (__DEV__) {
+        console.log('[SizingStep] handleSelectSaved - using profile:', profileToUse.id, profileToUse.label);
+      }
+      setActiveProfileId(profileToUse.id);
+      onSelectProfile?.(profileToUse.id); // Save the selected profile ID
     }
     onChangeSizingOption?.('saved');
-  }, [hasSavedProfiles, activeProfile, savedProfileOptions, onChangeSizingOption]);
+  }, [hasSavedProfiles, activeProfile, savedProfileOptions, onChangeSizingOption, onSelectProfile, selectedProfileId]);
 
   const handleCameraSelect = useCallback(() => {
     onChangeSizingOption?.('camera');
@@ -2727,7 +2973,18 @@ function SizingStep({
                   <TouchableOpacity
                     key={profile.id}
                     onPress={() => {
+                      if (__DEV__) {
+                        console.log('[SizingStep] Profile chip clicked:', profile.id, profile.label);
+                      }
                       setActiveProfileId(profile.id);
+                      onSelectProfile?.(profile.id); // Save the selected profile ID
+                      // Also update sizes to match the selected profile
+                      const sanitized = FINGER_KEYS.reduce((acc, finger) => {
+                        const value = profile.sizes?.[finger];
+                        acc[finger] = value === undefined || value === null ? '' : String(value);
+                        return acc;
+                      }, {});
+                      onChangeSizes?.(sanitized);
                       onChangeSizingOption?.('saved');
                     }}
                     accessibilityRole="button"
