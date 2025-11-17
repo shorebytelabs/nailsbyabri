@@ -417,19 +417,42 @@ export function AppStateProvider({ children }) {
     }));
 
     try {
-      const updated = await updateOrder(orderId, payload);
+      const response = await updateOrder(orderId, payload);
+      const updated = response?.order || response; // Handle both { order: ... } and direct order
+      
+      if (__DEV__) {
+        console.log('[AppContext] Order updated, admin fields:', {
+          adminNotes: updated.adminNotes,
+          adminImages: updated.adminImages?.length || 0,
+          trackingNumber: updated.trackingNumber,
+        });
+      }
+      
       setState((prev) => {
+        // Fully replace the order (don't merge) to ensure all fields are updated
         const nextOrders = Array.isArray(prev.orders)
-          ? prev.orders.map((order) => (order.id === updated.id ? { ...order, ...updated } : order))
+          ? prev.orders.map((order) => (order.id === updated.id ? updated : order))
           : prev.orders;
 
         const nextActiveOrder = prev.activeOrder?.id === updated.id
-          ? { ...prev.activeOrder, ...updated }
+          ? updated
           : prev.activeOrder;
 
         const nextLastCompletedOrder = prev.lastCompletedOrder?.id === updated.id
-          ? { ...prev.lastCompletedOrder, ...updated }
+          ? updated
           : prev.lastCompletedOrder;
+
+        if (__DEV__) {
+          const updatedOrderInState = nextOrders.find((o) => o.id === updated.id);
+          console.log('[AppContext] Order state updated, checking stored order:', {
+            orderId: updated.id,
+            hasAdminNotes: !!updatedOrderInState?.adminNotes,
+            adminNotes: updatedOrderInState?.adminNotes,
+            hasAdminImages: Array.isArray(updatedOrderInState?.adminImages) && updatedOrderInState.adminImages.length > 0,
+            adminImagesCount: updatedOrderInState?.adminImages?.length || 0,
+            trackingNumber: updatedOrderInState?.trackingNumber,
+          });
+        }
 
         return {
           ...prev,

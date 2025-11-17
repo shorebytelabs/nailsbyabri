@@ -242,7 +242,18 @@ function OrdersScreen({ route }) {
     (order) => {
       const existing = adminDrafts[order.id];
       if (existing) {
+        if (__DEV__) {
+          console.log('[OrdersScreen] Using cached draft for order:', order.id);
+        }
         return existing;
+      }
+
+      if (__DEV__) {
+        console.log('[OrdersScreen] Creating new draft from order:', order.id, {
+          adminNotes: order.adminNotes,
+          adminImages: order.adminImages?.length || 0,
+          trackingNumber: order.trackingNumber,
+        });
       }
 
       const storedImages = Array.isArray(order.adminImages)
@@ -351,15 +362,23 @@ function OrdersScreen({ route }) {
       if ((previousStatus || '').toLowerCase() === nextStatus.toLowerCase()) {
         return;
       }
+      
+      // Optimistically update the draft
       handleAdminDraftChange(order.id, 'status', nextStatus);
 
       try {
-        await updateOrderAdmin(order.id, { status: nextStatus });
+        const updated = await updateOrderAdmin(order.id, { status: nextStatus });
+        
+        // Update draft with the confirmed status from server
+        if (updated?.status) {
+          handleAdminDraftChange(order.id, 'status', updated.status);
+        }
       } catch (error) {
         setState((prev) => ({
           ...prev,
           statusMessage: error?.message || 'Unable to update status.',
         }));
+        // Revert to previous status on error
         handleAdminDraftChange(order.id, 'status', previousStatus);
       }
     },
@@ -367,16 +386,38 @@ function OrdersScreen({ route }) {
   );
 
   const toggleAdminSection = useCallback((orderId) => {
-    setExpandedAdminOrders((prev) => ({
-      ...prev,
-      [orderId]: !prev[orderId],
-    }));
+    setExpandedAdminOrders((prev) => {
+      const isCurrentlyExpanded = prev[orderId];
+      const willBeExpanded = !isCurrentlyExpanded;
+      
+      // If closing the admin section, clear the draft so it re-reads from updated order on next open
+      // This ensures that when reopening, we see the latest saved data from the order in state
+      if (isCurrentlyExpanded && !willBeExpanded) {
+        setAdminDrafts((draftPrev) => {
+          const { [orderId]: removed, ...rest } = draftPrev;
+          if (__DEV__) {
+            console.log('[OrdersScreen] Clearing draft for order:', orderId, 'so it re-reads from updated order');
+          }
+          return rest;
+        });
+      }
+      
+      return {
+        ...prev,
+        [orderId]: willBeExpanded,
+      };
+    });
   }, []);
 
   const handleAdminSave = useCallback(
     async (order) => {
       const draft = getAdminDraft(order);
       try {
+        setState((prev) => ({
+          ...prev,
+          ordersUpdating: true,
+        }));
+
         const payload = {
           status: draft.status,
           adminNotes: draft.notes,
@@ -391,36 +432,82 @@ function OrdersScreen({ route }) {
         }
 
         const updated = await updateOrderAdmin(order.id, payload);
+        
+        if (__DEV__) {
+          console.log('[OrdersScreen] Order updated, checking admin fields:', {
+            adminNotes: updated?.adminNotes,
+            adminImages: updated?.adminImages?.length || 0,
+            trackingNumber: updated?.trackingNumber,
+            status: updated?.status,
+            hasAdminNotes: !!updated?.adminNotes,
+            hasAdminImages: Array.isArray(updated?.adminImages) && updated.adminImages.length > 0,
+          });
+        }
+        
+        // Update the draft with the saved data from the server
+        // This ensures the draft matches what's saved, so if admin section stays open, it shows saved data
         setAdminDrafts((prev) => ({
           ...prev,
           [order.id]: {
-            notes: updated.adminNotes || '',
+            notes: updated?.adminNotes || '',
             images:
-              Array.isArray(updated.adminImages)
+              Array.isArray(updated?.adminImages)
                 ? updated.adminImages
                     .filter(Boolean)
                     .map((uri, index) => ({ id: `${order.id}_admin_${index}`, uri }))
                 : [],
             discount:
-              updated.discount !== undefined && updated.discount !== null
+              updated?.discount !== undefined && updated?.discount !== null
                 ? String(updated.discount)
                 : '',
-            trackingNumber: updated.trackingNumber || '',
-            status: updated.status || draft.status,
+            trackingNumber: updated?.trackingNumber || '',
+            status: updated?.status || draft.status,
           },
         }));
+
+        // The order in state.orders should already be updated by updateOrderAdmin
+        // Force a re-render by toggling the updating flag
+        // This ensures the UI reflects the updated order data
+        setState((prev) => {
+          // Verify the order was updated in state
+          const updatedOrderInList = prev.orders?.find((o) => o.id === order.id);
+          if (__DEV__ && updatedOrderInList) {
+            console.log('[OrdersScreen] Verifying order in state after save:', {
+              orderId: order.id,
+              status: updatedOrderInList.status,
+              hasAdminNotes: !!updatedOrderInList.adminNotes,
+              adminNotes: updatedOrderInList.adminNotes,
+              trackingNumber: updatedOrderInList.trackingNumber,
+            });
+          }
+          return {
+            ...prev,
+            ordersUpdating: false,
+          };
+        });
       } catch (error) {
+        setState((prev) => ({
+          ...prev,
+          ordersUpdating: false,
+        }));
         // errors handled via context status message
       }
     },
-    [getAdminDraft, updateOrderAdmin],
+    [getAdminDraft, updateOrderAdmin, setState],
   );
 
   const renderOrderCard = (order) => {
     const primarySet = order.nailSets?.[0];
     const needsFollowUp = order.nailSets?.some((set) => set.requiresFollowUp);
-    const status = (order.status || '').toLowerCase();
+    
+    // Get the current status - use draft status if admin section is expanded, otherwise use order status
     const adminDraft = getAdminDraft(order);
+    const isAdminSectionExpanded = expandedAdminOrders[order.id];
+    const currentStatus = isAdminSectionExpanded && adminDraft.status 
+      ? adminDraft.status 
+      : (order.status || '');
+    const status = (currentStatus || '').toLowerCase();
+    
     const adminImages = Array.isArray(adminDraft.images) ? adminDraft.images : [];
     let statusLabel = 'Submitted';
     let statusBackground = withOpacity(accentColor, 0.12);

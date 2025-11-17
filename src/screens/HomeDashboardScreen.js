@@ -259,34 +259,36 @@ function HomeDashboardScreen() {
           contentContainerStyle={styles.orderStrip}
         >
           {activeOrders.length === 0 ? (
-            <View
-              key="no-orders-placeholder"
-              style={[
-                styles.orderCard,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: colors.surface,
-                  width: cardWidth,
-                },
-              ]}
-            >
-              <Text
+            [
+              <View
+                key="no-orders-placeholder"
                 style={[
-                  styles.orderName,
-                  { color: colors.primaryFont },
+                  styles.orderCard,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.surface,
+                    width: cardWidth,
+                  },
                 ]}
               >
-                No active orders
-              </Text>
-              <Text
-                style={[
-                  styles.orderMeta,
-                  { color: colors.secondaryFont },
-                ]}
-              >
-                Start your first custom set to track it here.
-              </Text>
-            </View>
+                <Text
+                  style={[
+                    styles.orderName,
+                    { color: colors.primaryFont },
+                  ]}
+                >
+                  No active orders
+                </Text>
+                <Text
+                  style={[
+                    styles.orderMeta,
+                    { color: colors.secondaryFont },
+                  ]}
+                >
+                  Start your first custom set to track it here.
+                </Text>
+              </View>
+            ]
           ) : (
             activeOrders.map((order) => (
               <View

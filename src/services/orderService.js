@@ -460,6 +460,12 @@ export async function updateOrder(orderId, updates) {
 
     if (__DEV__) {
       console.log('[orders] ✅ Order updated successfully');
+      console.log('[orders] Updated order admin fields:', {
+        adminNotes: completeOrder.adminNotes,
+        adminImages: completeOrder.adminImages?.length || 0,
+        trackingNumber: completeOrder.trackingNumber,
+        status: completeOrder.status,
+      });
     }
 
     return { order: completeOrder };
