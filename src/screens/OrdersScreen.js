@@ -42,19 +42,12 @@ function OrdersScreen({ route }) {
   const borderColor = border || '#D9C8A9';
 
   const isAdmin = Boolean(state.currentUser?.isAdmin);
-  const [hasRequestedAdminOrders, setHasRequestedAdminOrders] = useState(false);
+  const [hasRequestedOrders, setHasRequestedOrders] = useState(false);
 
   useEffect(() => {
-    if (!isAdmin) {
-      if (hasRequestedAdminOrders) {
-        setHasRequestedAdminOrders(false);
-      }
-      return;
-    }
-
     if (__DEV__) {
-      console.log('[OrdersScreen] Admin orders check:', {
-        hasRequestedAdminOrders,
+      console.log('[OrdersScreen] Orders check:', {
+        hasRequestedOrders,
         ordersLoaded: state.ordersLoaded,
         ordersLoading: state.ordersLoading,
         ordersCount: state.orders?.length || 0,
@@ -63,7 +56,7 @@ function OrdersScreen({ route }) {
       });
     }
 
-    if (!hasRequestedAdminOrders || (!state.ordersLoaded && !state.ordersLoading)) {
+    if (!hasRequestedOrders || (!state.ordersLoaded && !state.ordersLoading)) {
       if (!state.currentUser) {
         if (__DEV__) {
           console.log('[OrdersScreen] ⚠️  No current user, cannot load orders');
@@ -71,32 +64,24 @@ function OrdersScreen({ route }) {
         return;
       }
       if (__DEV__) {
-        console.log('[OrdersScreen] 📥 Requesting orders for admin user:', state.currentUser.email);
+        console.log('[OrdersScreen] 📥 Requesting orders for user:', state.currentUser.email, isAdmin ? '(admin)' : '(regular)');
       }
-      setHasRequestedAdminOrders(true);
+      setHasRequestedOrders(true);
       loadOrdersForUser(state.currentUser);
     }
-  }, [isAdmin, loadOrdersForUser, state.ordersLoaded, state.ordersLoading, hasRequestedAdminOrders, currentUserId, state.currentUser, state.orders]);
+  }, [isAdmin, loadOrdersForUser, state.ordersLoaded, state.ordersLoading, hasRequestedOrders, currentUserId, state.currentUser, state.orders]);
 
   const baseOrders = useMemo(() => {
     const map = new Map();
 
-    if (isAdmin) {
-      (state.orders || []).forEach((order) => {
-        if (order && order.id && !map.has(order.id)) {
-          map.set(order.id, order);
-        }
-      });
-    } else {
-      if (state.activeOrder?.id) {
-        map.set(state.activeOrder.id, state.activeOrder);
+    // For all users (admin and regular), include orders from state.orders
+    (state.orders || []).forEach((order) => {
+      if (order && order.id && !map.has(order.id)) {
+        map.set(order.id, order);
       }
-      if (state.lastCompletedOrder?.id && !map.has(state.lastCompletedOrder.id)) {
-        map.set(state.lastCompletedOrder.id, state.lastCompletedOrder);
-      }
-    }
+    });
 
-    // Ensure locally cached orders (like drafts) are shown for admins too
+    // Also include locally cached orders (activeOrder, lastCompletedOrder) for all users
     const localOrders = [state.activeOrder, state.lastCompletedOrder];
     localOrders.forEach((order) => {
       if (order && order.id && !map.has(order.id)) {
@@ -110,7 +95,7 @@ function OrdersScreen({ route }) {
       const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
       return bTime - aTime;
     });
-  }, [isAdmin, state.activeOrder, state.lastCompletedOrder, state.orders]);
+  }, [state.activeOrder, state.lastCompletedOrder, state.orders]);
 
   const categorizedOrders = useMemo(() => {
     const drafts = [];
@@ -922,7 +907,7 @@ function OrdersScreen({ route }) {
       ) : null}
 
       <View style={styles.sectionContent}>
-        {state.ordersError && isAdmin ? (
+        {state.ordersError ? (
           <View
             style={[
               styles.placeholder,
@@ -964,7 +949,7 @@ function OrdersScreen({ route }) {
               </Text>
             </TouchableOpacity>
           </View>
-        ) : state.ordersLoading && isAdmin ? (
+        ) : state.ordersLoading ? (
           <View
             style={[
               styles.placeholder,

@@ -159,7 +159,7 @@ export function AppStateProvider({ children }) {
   );
 
   const loadOrdersForUser = useCallback(async (user) => {
-    if (!user || !user.isAdmin) {
+    if (!user) {
       setState((prev) => ({
         ...prev,
         orders: [],
@@ -177,14 +177,18 @@ export function AppStateProvider({ children }) {
 
     try {
       if (__DEV__) {
-        console.log('[AppContext] Loading orders for admin user:', user.id, user.email);
+        console.log('[AppContext] Loading orders for user:', user.id, user.email, user.isAdmin ? '(admin)' : '(regular)');
       }
+      
       // For admin users, fetch ALL orders (no user filter)
-      const response = await fetchOrders({ allOrders: true });
+      // For regular users, fetch only their own orders
+      const response = await fetchOrders(user.isAdmin ? { allOrders: true } : {});
       const orders = Array.isArray(response?.orders) ? response.orders : [];
+      
       if (__DEV__) {
-        console.log('[AppContext] ✅ Loaded', orders.length, 'orders for admin');
+        console.log('[AppContext] ✅ Loaded', orders.length, 'orders for', user.isAdmin ? 'admin' : 'user');
       }
+      
       setState((prev) => ({
         ...prev,
         orders,
@@ -193,7 +197,7 @@ export function AppStateProvider({ children }) {
       }));
     } catch (error) {
       if (__DEV__) {
-        console.error('[AppContext] ❌ Failed to load orders for admin:', error);
+        console.error('[AppContext] ❌ Failed to load orders:', error);
         console.error('[AppContext] Error details:', error.message, error.code);
       }
       setState((prev) => ({
@@ -221,8 +225,8 @@ export function AppStateProvider({ children }) {
           pendingConsent: null,
           preferences: defaultPreferences,
           activeOrder: null,
-          orders: adminUser.isAdmin ? prev.orders : [],
-          ordersLoaded: adminUser.isAdmin ? prev.ordersLoaded : false,
+          orders: [],
+          ordersLoaded: false,
         }));
         
         // Sync profile to Supabase
@@ -243,9 +247,8 @@ export function AppStateProvider({ children }) {
           console.warn('[supabase] ⚠️  Failed to sync profile to Supabase (non-critical):', error.message);
         }
         
-        if (adminUser.isAdmin) {
-          loadOrdersForUser(adminUser);
-        }
+        // Load orders for all users (admin and regular)
+        loadOrdersForUser(adminUser);
       }
     },
     [enterConsentFlow, loadOrdersForUser],
@@ -258,8 +261,8 @@ export function AppStateProvider({ children }) {
         ...prev,
         currentUser: adminUser,
         pendingConsent: null,
-        orders: adminUser.isAdmin ? prev.orders : [],
-        ordersLoaded: adminUser.isAdmin ? prev.ordersLoaded : false,
+        orders: [],
+        ordersLoaded: false,
       }));
       
       // Sync profile to Supabase
@@ -280,9 +283,8 @@ export function AppStateProvider({ children }) {
         console.warn('[supabase] ⚠️  Failed to sync profile to Supabase (non-critical):', error?.message || error || 'Unknown error');
       }
       
-      if (adminUser.isAdmin) {
-        loadOrdersForUser(adminUser);
-      }
+      // Load orders for all users (admin and regular)
+      loadOrdersForUser(adminUser);
     },
     [loadOrdersForUser],
   );
@@ -306,8 +308,8 @@ export function AppStateProvider({ children }) {
         currentUser: adminUser,
         pendingConsent: null,
         statusMessage: 'Consent approved successfully.',
-        orders: adminUser.isAdmin ? prev.orders : [],
-        ordersLoaded: adminUser.isAdmin ? prev.ordersLoaded : false,
+        orders: [],
+        ordersLoaded: false,
       }));
       
       // Sync profile to Supabase (consent is now approved)
@@ -328,9 +330,8 @@ export function AppStateProvider({ children }) {
         console.warn('[supabase] ⚠️  Failed to sync profile to Supabase (non-critical):', error?.message || error || 'Unknown error');
       }
       
-      if (adminUser.isAdmin) {
-        await loadOrdersForUser(adminUser);
-      }
+      // Load orders for all users (admin and regular)
+      await loadOrdersForUser(adminUser);
     },
     [loadOrdersForUser],
   );
