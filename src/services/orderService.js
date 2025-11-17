@@ -268,13 +268,53 @@ export async function fetchOrder(orderId) {
       throw setsError;
     }
 
-    const completeOrder = transformOrderFromDB(order, orderSets || []);
+    const transformed = transformOrderFromDB(order, orderSets || []);
+    
+    // Fetch user profile information
+    if (order.user_id) {
+      if (__DEV__) {
+        console.log('[orders] Fetching profile for order:', orderId, 'user_id:', order.user_id);
+      }
+      
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .eq('id', order.user_id)
+        .single();
+      
+      if (profileError) {
+        if (__DEV__) {
+          console.warn('[orders] ⚠️  Failed to fetch profile for order:', orderId, profileError);
+        }
+      } else if (profile) {
+        if (__DEV__) {
+          console.log('[orders] ✅ Profile found for order:', orderId, {
+            profileName: profile.full_name,
+            profileEmail: profile.email,
+          });
+        }
+        
+        transformed.user = {
+          id: profile.id,
+          name: profile.full_name || null,
+          email: profile.email || null,
+        };
+        // Also add for backward compatibility
+        transformed.userName = profile.full_name || null;
+        transformed.userEmail = profile.email || null;
+        transformed.customerName = profile.full_name || null;
+      } else {
+        if (__DEV__) {
+          console.warn('[orders] ⚠️  No profile found for order:', orderId, 'user_id:', order.user_id);
+        }
+      }
+    }
 
     if (__DEV__) {
       console.log('[orders] ✅ Order fetched successfully');
     }
 
-    return { order: completeOrder };
+    return { order: transformed };
   } catch (error) {
     console.error('[orders] ❌ Failed to fetch order:', error);
     throw error;
@@ -299,10 +339,22 @@ export async function fetchOrders(params = {}) {
     const { data: { session } } = await supabase.auth.getSession();
     const currentUserId = session?.user?.id;
 
-    let query = supabase.from('orders').select('*');
+    // Use a join to fetch orders with profile information in one query
+    // Try using left join syntax (profiles!left) so orders without profiles still return
+    // Note: Without a foreign key, this might not work, so we'll fall back to separate queries
+    let query = supabase
+      .from('orders')
+      .select(`
+        *,
+        profile:profiles (
+          id,
+          full_name,
+          email
+        )
+      `);
 
-    // If allOrders is true (admin), fetch all orders
-    // Otherwise, filter by userId or current user
+    // If the foreign key join doesn't work, fall back to manual join
+    // Try using the relationship syntax first
     if (params.allOrders) {
       // Admin: fetch all orders (no user filter)
     } else if (params.userId) {
@@ -322,17 +374,60 @@ export async function fetchOrders(params = {}) {
 
     query = query.order('created_at', { ascending: false });
 
-    const { data: orders, error: ordersError } = await query;
-
+    let orders;
+    let ordersError;
+    
+    try {
+      const result = await query;
+      orders = result.data;
+      ordersError = result.error;
+    } catch (err) {
+      ordersError = err;
+      orders = null;
+    }
+    
+    // If the join failed (likely because no foreign key), fall back to separate queries
     if (ordersError) {
       if (__DEV__) {
-        console.error('[orders] ❌ Error fetching orders:', ordersError);
-        console.error('[orders] Error code:', ordersError.code);
-        console.error('[orders] Error message:', ordersError.message);
-        console.error('[orders] Error details:', ordersError.details);
-        console.error('[orders] Query params were:', params);
+        console.log('[orders] Join syntax failed, error:', ordersError.code, ordersError.message);
+        console.log('[orders] Falling back to separate queries');
       }
-      throw ordersError;
+      
+      // Fall back to separate queries (the current approach)
+      // Re-run the query without the join
+      let fallbackQuery = supabase.from('orders').select('*');
+      
+      if (params.allOrders) {
+        // Admin: fetch all orders
+      } else if (params.userId) {
+        fallbackQuery = fallbackQuery.eq('user_id', params.userId);
+      } else if (currentUserId) {
+        fallbackQuery = fallbackQuery.eq('user_id', currentUserId);
+      } else {
+        return { orders: [] };
+      }
+      
+      if (params.status) {
+        fallbackQuery = fallbackQuery.eq('status', params.status);
+      }
+      
+      fallbackQuery = fallbackQuery.order('created_at', { ascending: false });
+      
+      const { data: fallbackOrders, error: fallbackError } = await fallbackQuery;
+      
+      if (fallbackError) {
+        if (__DEV__) {
+          console.error('[orders] ❌ Error fetching orders:', fallbackError);
+          console.error('[orders] Error code:', fallbackError.code);
+          console.error('[orders] Error message:', fallbackError.message);
+          console.error('[orders] Error details:', fallbackError.details);
+          console.error('[orders] Query params were:', params);
+        }
+        throw fallbackError;
+      }
+      
+      // Continue with the fallback orders (will fetch profiles separately below)
+      orders = fallbackOrders;
     }
 
     if (__DEV__) {
@@ -369,10 +464,145 @@ export async function fetchOrders(params = {}) {
       setsByOrderId[set.order_id].push(set);
     });
 
-    // Transform orders with their sets
-    const transformedOrders = (orders || []).map((order) =>
-      transformOrderFromDB(order, setsByOrderId[order.id] || []),
-    );
+    // Extract user information from joined profile or fetch separately
+    let profilesMap = {};
+    
+    // Check if profiles were joined in the query
+    const hasJoinedProfiles = orders && orders.length > 0 && orders[0].profile !== undefined;
+    
+    if (hasJoinedProfiles) {
+      // Profiles were joined - extract them from the orders
+      if (__DEV__) {
+        console.log('[orders] Using joined profile data');
+      }
+      
+      orders.forEach((order) => {
+        const profile = Array.isArray(order.profile) ? order.profile[0] : order.profile;
+        if (profile && profile.id) {
+          profilesMap[profile.id] = profile;
+        }
+      });
+    } else {
+      // No joined profiles - fetch them separately
+      const userIds = [...new Set((orders || []).map((o) => o.user_id).filter(Boolean))];
+      
+      if (userIds.length > 0) {
+        if (__DEV__) {
+          console.log('[orders] Fetching profiles separately for user IDs:', userIds);
+        }
+        
+        // Try fetching profiles one by one to see if RLS is blocking
+        // First, try the batch query
+        const { data: profiles, error: profilesError, count } = await supabase
+          .from('profiles')
+          .select('id, full_name, email', { count: 'exact' })
+          .in('id', userIds);
+        
+        if (__DEV__) {
+          console.log('[orders] Profile query result:', {
+            profiles: profiles,
+            profilesLength: profiles?.length || 0,
+            error: profilesError,
+            errorCode: profilesError?.code,
+            errorMessage: profilesError?.message,
+            errorDetails: profilesError?.details,
+            errorHint: profilesError?.hint,
+            count: count,
+          });
+        }
+        
+        if (profilesError) {
+          if (__DEV__) {
+            console.error('[orders] ❌ Failed to fetch profiles:', profilesError);
+            console.error('[orders] Error code:', profilesError.code);
+            console.error('[orders] Error message:', profilesError.message);
+            console.error('[orders] Error details:', profilesError.details);
+            console.error('[orders] Error hint:', profilesError.hint);
+          }
+          
+          // If RLS is blocking, try fetching one at a time to see which ones work
+          if (profilesError.code === '42501' || profilesError.message?.includes('row-level security')) {
+            if (__DEV__) {
+              console.log('[orders] RLS might be blocking - trying individual profile fetches');
+            }
+            
+            // Try fetching each profile individually
+            for (const userId of userIds) {
+              const { data: singleProfile, error: singleError } = await supabase
+                .from('profiles')
+                .select('id, full_name, email')
+                .eq('id', userId)
+                .single();
+              
+              if (__DEV__) {
+                console.log(`[orders] Profile fetch for ${userId}:`, {
+                  found: !!singleProfile,
+                  error: singleError?.code,
+                  message: singleError?.message,
+                });
+              }
+              
+              if (!singleError && singleProfile) {
+                profilesMap[userId] = singleProfile;
+              }
+            }
+          }
+        } else {
+          if (__DEV__) {
+            console.log('[orders] ✅ Fetched', profiles?.length || 0, 'profiles');
+            console.log('[orders] Profiles:', profiles);
+          }
+          
+          // Create a map of user_id -> profile
+          profilesMap = (profiles || []).reduce((acc, profile) => {
+            acc[profile.id] = profile;
+            return acc;
+          }, {});
+          
+          if (__DEV__) {
+            console.log('[orders] Profiles map:', profilesMap);
+            console.log('[orders] User IDs in orders:', userIds);
+            console.log('[orders] User IDs with profiles:', Object.keys(profilesMap));
+          }
+        }
+      }
+    }
+
+    // Transform orders with their sets and user information
+    const transformedOrders = (orders || []).map((order) => {
+      // Remove the joined profile from the order object before transforming
+      const { profile: joinedProfile, ...orderWithoutProfile } = order;
+      const transformed = transformOrderFromDB(orderWithoutProfile, setsByOrderId[order.id] || []);
+      
+      // Add user information from profiles map or joined profile
+      const profile = profilesMap[order.user_id] || (Array.isArray(joinedProfile) ? joinedProfile[0] : joinedProfile);
+      
+      if (profile) {
+        if (__DEV__) {
+          console.log('[orders] Attaching profile to order:', order.id, {
+            userId: order.user_id,
+            profileName: profile.full_name,
+            profileEmail: profile.email,
+          });
+        }
+        
+        transformed.user = {
+          id: profile.id,
+          name: profile.full_name || null,
+          email: profile.email || null,
+        };
+        // Also add for backward compatibility
+        transformed.userName = profile.full_name || null;
+        transformed.userEmail = profile.email || null;
+        transformed.customerName = profile.full_name || null;
+      } else {
+        if (__DEV__) {
+          console.warn('[orders] ⚠️  No profile found for order:', order.id, 'user_id:', order.user_id);
+        }
+      }
+      
+      return transformed;
+    });
 
     if (__DEV__) {
       console.log('[orders] ✅ Fetched', transformedOrders.length, 'orders');
@@ -434,6 +664,7 @@ export async function updateOrder(orderId, updates) {
         updates.trackingNumber === null ? '' : String(updates.trackingNumber).trim();
     }
 
+    // Update order
     const { data: updatedOrder, error: updateError } = await supabase
       .from('orders')
       .update(updatePayload)
@@ -456,7 +687,30 @@ export async function updateOrder(orderId, updates) {
       throw setsError;
     }
 
-    const completeOrder = transformOrderFromDB(updatedOrder, orderSets || []);
+    const transformed = transformOrderFromDB(updatedOrder, orderSets || []);
+    
+    // Fetch user profile information
+    if (updatedOrder.user_id) {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .eq('id', updatedOrder.user_id)
+        .single();
+      
+      if (!profileError && profile) {
+        transformed.user = {
+          id: profile.id,
+          name: profile.full_name || null,
+          email: profile.email || null,
+        };
+        // Also add for backward compatibility
+        transformed.userName = profile.full_name || null;
+        transformed.userEmail = profile.email || null;
+        transformed.customerName = profile.full_name || null;
+      }
+    }
+    
+    const completeOrder = transformed;
 
     if (__DEV__) {
       console.log('[orders] ✅ Order updated successfully');

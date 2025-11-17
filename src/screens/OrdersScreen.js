@@ -230,6 +230,19 @@ function OrdersScreen({ route }) {
     if (!isAdmin) {
       return null;
     }
+    
+    if (__DEV__) {
+      console.log('[OrdersScreen] getOrderUserLabel for order:', order.id, {
+        hasUser: !!order.user,
+        userName: order.user?.name,
+        userEmail: order.user?.email,
+        userNameAlt: order.userName,
+        userEmailAlt: order.userEmail,
+        customerName: order.customerName,
+        userId: order.userId,
+      });
+    }
+    
     const name = order.user?.name || order.userName || order.customerName;
     const email = order.user?.email || order.userEmail;
     if (name && email) {
