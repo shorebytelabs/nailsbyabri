@@ -7,6 +7,8 @@ import React, {
   useState,
 } from 'react';
 import { fetchConsentLogs, fetchOrders, updateOrder } from '../services/api';
+import { upsertProfile } from '../services/supabaseService';
+import { runSupabaseHealthCheck } from '../utils/supabaseHealthCheck';
 import {
   defaultPreferences,
   loadPreferences,
@@ -54,6 +56,12 @@ const initialState = {
 
 export function AppStateProvider({ children }) {
   const [state, setState] = useState(initialState);
+
+  useEffect(() => {
+    if (__DEV__) {
+      runSupabaseHealthCheck();
+    }
+  }, []);
 
   const refreshConsentLogs = useCallback(async (userId) => {
     setState((prev) => ({ ...prev, loadingConsentLogs: true }));
@@ -213,17 +221,30 @@ export function AppStateProvider({ children }) {
     }));
 
     try {
-      const response = await fetchOrders();
+      if (__DEV__) {
+        console.log('[AppContext] Loading orders for admin user:', user.id, user.email);
+      }
+      // For admin users, fetch ALL orders (no user filter)
+      const response = await fetchOrders({ allOrders: true });
       const orders = Array.isArray(response?.orders) ? response.orders : [];
+      if (__DEV__) {
+        console.log('[AppContext] ✅ Loaded', orders.length, 'orders for admin');
+      }
       setState((prev) => ({
         ...prev,
         orders,
         ordersLoaded: true,
+        ordersError: null,
       }));
     } catch (error) {
+      if (__DEV__) {
+        console.error('[AppContext] ❌ Failed to load orders for admin:', error);
+        console.error('[AppContext] Error details:', error.message, error.code);
+      }
       setState((prev) => ({
         ...prev,
         ordersError: error?.message || 'Unable to load orders.',
+        ordersLoaded: false,
       }));
     } finally {
       setState((prev) => ({
@@ -248,6 +269,25 @@ export function AppStateProvider({ children }) {
           orders: adminUser.isAdmin ? prev.orders : [],
           ordersLoaded: adminUser.isAdmin ? prev.ordersLoaded : false,
         }));
+        
+        // Sync profile to Supabase
+        try {
+          const result = await upsertProfile({
+            id: adminUser.id,
+            email: adminUser.email,
+            full_name: adminUser.name,
+          });
+          if (__DEV__) {
+            if (result?._simulator_skip) {
+              console.log('[supabase] ⏭️  Profile sync skipped (iOS simulator QUIC limitation - profile saved locally)');
+            } else {
+              console.log('[supabase] ✅ Profile synced to Supabase after signup');
+            }
+          }
+        } catch (error) {
+          console.warn('[supabase] ⚠️  Failed to sync profile to Supabase (non-critical):', error.message);
+        }
+        
         if (adminUser.isAdmin) {
           loadOrdersForUser(adminUser);
         }
@@ -258,7 +298,7 @@ export function AppStateProvider({ children }) {
   );
 
   const handleLoginSuccess = useCallback(
-    (payload) => {
+    async (payload) => {
       const adminUser = applyAdminFlag(payload.user);
       setState((prev) => ({
         ...prev,
@@ -267,6 +307,25 @@ export function AppStateProvider({ children }) {
         orders: adminUser.isAdmin ? prev.orders : [],
         ordersLoaded: adminUser.isAdmin ? prev.ordersLoaded : false,
       }));
+      
+      // Sync profile to Supabase
+      try {
+        const result = await upsertProfile({
+          id: adminUser.id,
+          email: adminUser.email,
+          full_name: adminUser.name,
+        });
+        if (__DEV__) {
+          if (result?._simulator_skip) {
+            console.log('[supabase] ⏭️  Profile sync skipped (iOS simulator QUIC limitation - profile saved locally)');
+          } else {
+            console.log('[supabase] ✅ Profile synced to Supabase after login');
+          }
+        }
+      } catch (error) {
+        console.warn('[supabase] ⚠️  Failed to sync profile to Supabase (non-critical):', error?.message || error || 'Unknown error');
+      }
+      
       if (adminUser.isAdmin) {
         loadOrdersForUser(adminUser);
       }
@@ -297,6 +356,25 @@ export function AppStateProvider({ children }) {
         orders: adminUser.isAdmin ? prev.orders : [],
         ordersLoaded: adminUser.isAdmin ? prev.ordersLoaded : false,
       }));
+      
+      // Sync profile to Supabase (consent is now approved)
+      try {
+        const result = await upsertProfile({
+          id: adminUser.id,
+          email: adminUser.email,
+          full_name: adminUser.name,
+        });
+        if (__DEV__) {
+          if (result?._simulator_skip) {
+            console.log('[supabase] ⏭️  Profile sync skipped (iOS simulator QUIC limitation - profile saved locally)');
+          } else {
+            console.log('[supabase] ✅ Profile synced to Supabase after consent approval');
+          }
+        }
+      } catch (error) {
+        console.warn('[supabase] ⚠️  Failed to sync profile to Supabase (non-critical):', error?.message || error || 'Unknown error');
+      }
+      
       if (adminUser.isAdmin) {
         await loadOrdersForUser(adminUser);
       }

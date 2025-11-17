@@ -1,6 +1,10 @@
 import { Platform } from 'react-native';
 import shapeCatalog from '../../shared/catalog/shapes.json';
+import * as authService from './authService';
+import { getConsentLogs } from './consentLogService';
 
+// Legacy backend URL - only used for shapes catalog now
+// Auth and orders have been migrated to Supabase
 const DEFAULT_BASE_URL = 'http://localhost:4000';
 
 const API_BASE_URL =
@@ -26,47 +30,38 @@ async function handleResponse(response) {
   return payload;
 }
 
+// Migrated to Supabase Auth
 export async function signup(payload) {
-  const response = await fetch(`${API_BASE_URL}/auth/signup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name: payload.name,
-      email: payload.email,
-      password: payload.password,
-      dob: payload.dob,
-      parent_email: payload.parentEmail,
-      parent_phone: payload.parentPhone,
-    }),
+  return authService.signup({
+    email: payload.email,
+    password: payload.password,
+    name: payload.name,
+    ageGroup: payload.ageGroup,
   });
-  return handleResponse(response);
 }
 
+// Migrated to Supabase Auth
 export async function login(payload) {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+  return authService.login({
+    email: payload.email,
+    password: payload.password,
   });
-  return handleResponse(response);
 }
 
+// Migrated to Supabase Auth
 export async function submitConsent(payload) {
-  const response = await fetch(`${API_BASE_URL}/auth/consent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      token: payload.token,
-      approver_name: payload.approverName,
-    }),
+  return authService.submitConsent({
+    token: payload.token,
+    approverName: payload.approverName,
   });
-  return handleResponse(response);
 }
 
-export async function fetchConsentLogs() {
-  const response = await fetch(`${API_BASE_URL}/auth/consent/logs`);
-  const data = await handleResponse(response);
-  return data.logs;
+// Migrated to Supabase
+export async function fetchConsentLogs(userId) {
+  if (!userId) {
+    throw new Error('User ID is required to fetch consent logs');
+  }
+  return getConsentLogs(userId);
 }
 
 export async function fetchShapes() {
@@ -82,16 +77,16 @@ export async function fetchShapes() {
   }
 }
 
+// Migrated to Supabase
+import * as orderService from './orderService';
+
 export async function createOrUpdateOrder(orderPayload) {
-  const response = await fetch(`${API_BASE_URL}/orders`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(orderPayload),
-  });
-  return handleResponse(response);
+  return orderService.createOrUpdateOrder(orderPayload);
 }
 
 export async function createPaymentIntent(orderId) {
+  // Payment intents still need backend for Stripe secret key
+  // Keep using backend endpoint for now, or set up Supabase Edge Function
   const response = await fetch(`${API_BASE_URL}/orders/${orderId}/payment-intent`, {
     method: 'POST',
   });
@@ -99,35 +94,18 @@ export async function createPaymentIntent(orderId) {
 }
 
 export async function completeOrder(orderId, payload = {}) {
-  const response = await fetch(`${API_BASE_URL}/orders/${orderId}/complete`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return handleResponse(response);
+  return orderService.completeOrder(orderId, payload);
 }
 
 export async function fetchOrder(orderId) {
-  const response = await fetch(`${API_BASE_URL}/orders/${orderId}`);
-  return handleResponse(response);
+  return orderService.fetchOrder(orderId);
 }
 
 export async function fetchOrders(params = {}) {
-  const query = Object.entries(params)
-    .filter(([, value]) => value !== undefined && value !== null && String(value).length)
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-    .join('&');
-
-  const response = await fetch(`${API_BASE_URL}/orders${query ? `?${query}` : ''}`);
-  return handleResponse(response);
+  return orderService.fetchOrders(params);
 }
 
 export async function updateOrder(orderId, payload) {
-  const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return handleResponse(response);
+  return orderService.updateOrder(orderId, payload);
 }
 

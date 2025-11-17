@@ -208,30 +208,23 @@ app.post('/auth/signup', async (req, res) => {
     name,
     email,
     password,
-    dob,
-    parent_email: parentEmailRaw,
-    parent_phone: parentPhoneRaw,
+    age_group: ageGroup,
   } = req.body || {};
 
-  if (!name || !email || !password || !dob) {
+  if (!name || !email || !password || !ageGroup) {
     return res
       .status(400)
-      .json({ error: 'Missing required fields: name, email, password, dob' });
+      .json({ error: 'Missing required fields: name, email, password, age_group' });
   }
 
   const normalizedEmail = normalizeEmail(email);
-  const parentEmail = parentEmailRaw ? normalizeEmail(parentEmailRaw) : null;
-  const parentPhone = parentPhoneRaw ? String(parentPhoneRaw).trim() : null;
 
-  const age = calculateAge(dob);
-  if (age === null) {
-    return res.status(400).json({ error: 'Invalid date of birth' });
-  }
-
-  const isMinor = age < 18;
-  if (isMinor && !parentEmail && !parentPhone) {
-    return res.status(400).json({
-      error: 'Parent or guardian contact is required for minors',
+  // Validate age group - must be 13 or older
+  // All valid age groups start at 13+
+  const validAgeGroups = ['13-17', '18-24', '25-34', '35-44', '45-54', '55+'];
+  if (!validAgeGroups.includes(ageGroup)) {
+    return res.status(400).json({ 
+      error: 'Invalid age group. You must be 13 years or older to create an account.' 
     });
   }
 
@@ -248,39 +241,36 @@ app.post('/auth/signup', async (req, res) => {
   const now = new Date().toISOString();
   const userId = uuid();
 
+  // Extract minimum age from age group for validation
+  const minAge = ageGroup === '55+' ? 55 : parseInt(ageGroup.split('-')[0]);
+
   const newUser = {
     id: userId,
     name: name.trim(),
     email: normalizedEmail,
-    dob: new Date(dob).toISOString().split('T')[0],
-    age,
-    parentEmail,
-    parentPhone,
+    age_group: ageGroup,
+    age: minAge, // Store minimum age from group for backward compatibility
     createdAt: now,
-    pendingConsent: isMinor,
-    consentedAt: isMinor ? null : now,
-    consentApprover: isMinor ? null : name.trim(),
-    consentChannel: isMinor ? null : 'self',
+    // Parental consent fields removed - all users 13+ are approved
+    pendingConsent: false,
+    consentedAt: now,
+    consentApprover: name.trim(),
+    consentChannel: 'self',
     passwordHash,
   };
 
-  let consentToken = null;
+  // Create consent log for record keeping (approved immediately)
   const consentLog = {
     id: uuid(),
     userId,
-    status: isMinor ? 'pending' : 'approved',
-    channel: isMinor ? (parentEmail ? 'email' : 'sms') : 'self',
-    contact: isMinor ? parentEmail || parentPhone : normalizedEmail,
+    status: 'approved',
+    channel: 'self',
+    contact: normalizedEmail,
     createdAt: now,
-    approvedAt: isMinor ? null : now,
-    approverName: isMinor ? null : name.trim(),
+    approvedAt: now,
+    approverName: name.trim(),
     token: null,
   };
-
-  if (isMinor) {
-    consentToken = uuid();
-    consentLog.token = consentToken;
-  }
 
   state.users.push(newUser);
   state.consentLogs.push(consentLog);
@@ -288,8 +278,7 @@ app.post('/auth/signup', async (req, res) => {
 
   return res.status(201).json({
     user: sanitizeUser(newUser),
-    consentRequired: isMinor,
-    consentToken: consentToken || undefined,
+    consentRequired: false,
     consentLog: publicConsentLog(consentLog),
   });
 });

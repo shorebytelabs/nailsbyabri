@@ -20,7 +20,7 @@ import { formatCurrency } from '../utils/pricing';
 import { withOpacity } from '../utils/color';
 
 const LOGO_SOURCE = require('../../assets/images/NailsByAbriLogo.png');
-const SUPPORT_EMAIL = 'mailto:NailsByAbri@gmail.com';
+const SUPPORT_EMAIL = 'mailto:NailsByAbriannaC@gmail.com';
 const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 
 function createStyles(colors) {
@@ -589,7 +589,7 @@ function OrderDetailsScreen({ navigation, route }) {
     } catch (error) {
       // ignore
     }
-    Alert.alert('Contact Support', 'Please email NailsByAbri@gmail.com for assistance.');
+    Alert.alert('Contact Support', 'Please email NailsByAbriannaC@gmail.com for assistance.');
   }, []);
 
   const handlePreviewImage = useCallback((upload) => {

@@ -191,9 +191,11 @@ function HomeDashboardScreen() {
                 ]}
               />
               <View style={styles.swatchPaletteRow}>
-                {[colors.swatchTone1, colors.swatchTone2, colors.swatchTone3].map((tone) => (
+                {[colors.swatchTone1, colors.swatchTone2, colors.swatchTone3]
+                  .filter((tone) => tone) // Filter out undefined/null values
+                  .map((tone, index) => (
                   <View
-                    key={tone}
+                    key={tone || `swatch-${index}`}
                     style={[
                       styles.swatchDot,
                       {
@@ -258,6 +260,7 @@ function HomeDashboardScreen() {
         >
           {activeOrders.length === 0 ? (
             <View
+              key="no-orders-placeholder"
               style={[
                 styles.orderCard,
                 {
