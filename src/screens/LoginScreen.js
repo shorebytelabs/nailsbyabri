@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
+import Icon from '../icons/Icon';
 import { login } from '../services/api';
 import { useTheme } from '../theme';
 import { withOpacity } from '../utils/color';
@@ -70,18 +71,15 @@ function LoginScreen({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <TouchableOpacity
+        <Pressable
           onPress={onCancel}
-          style={styles.backButton}
+          style={({ pressed }) => [styles.backLink, { opacity: pressed ? 0.7 : 1 }]}
           accessibilityRole="button"
           accessibilityLabel="Go back to Home"
         >
-          <Text
-            style={[styles.backText, { color: withOpacity(primaryFontColor, 0.7) }]}
-          >
-            ← Back to Home
-          </Text>
-        </TouchableOpacity>
+          <Icon name="chevronRight" color={accentColor} style={styles.backIcon} size={20} />
+          <Text style={[styles.backLinkLabel, { color: accentColor }]}>Back to Home</Text>
+        </Pressable>
 
         <View style={styles.formStack}>
           <View style={styles.logoWrapper}>
@@ -194,15 +192,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 24,
   },
-  backButton: {
-    alignSelf: 'flex-start',
-    marginLeft: 4,
+  backLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingLeft: 6,
+    paddingRight: 12,
+    paddingVertical: 8,
     marginBottom: 8,
+    alignSelf: 'flex-start',
   },
-  backText: {
-    fontSize: 13,
+  backIcon: {
+    transform: [{ rotate: '180deg' }],
+  },
+  backLinkLabel: {
+    fontSize: 14,
     fontWeight: '600',
-    letterSpacing: 0.2,
   },
   ambientAccent: {
     position: 'absolute',
