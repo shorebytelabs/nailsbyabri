@@ -845,3 +845,61 @@ export async function createPaymentIntent(orderId) {
   );
 }
 
+/**
+ * Delete an order (only allowed for draft orders)
+ * @param {string} orderId - Order ID to delete
+ * @returns {Promise<void>}
+ */
+export async function deleteOrder(orderId) {
+  try {
+    if (__DEV__) {
+      console.log('[orders] Deleting order:', orderId);
+    }
+
+    // First, check if the order exists and is a draft
+    const { data: order, error: fetchError } = await supabase
+      .from('orders')
+      .select('status')
+      .eq('id', orderId)
+      .single();
+
+    if (fetchError) {
+      if (fetchError.code === 'PGRST116') {
+        throw new Error('Order not found');
+      }
+      throw fetchError;
+    }
+
+    if (order.status !== 'draft') {
+      throw new Error('Only draft orders can be deleted');
+    }
+
+    // Delete order sets first (foreign key constraint)
+    const { error: setsError } = await supabase
+      .from('order_sets')
+      .delete()
+      .eq('order_id', orderId);
+
+    if (setsError) {
+      throw setsError;
+    }
+
+    // Delete the order
+    const { error: deleteError } = await supabase
+      .from('orders')
+      .delete()
+      .eq('id', orderId);
+
+    if (deleteError) {
+      throw deleteError;
+    }
+
+    if (__DEV__) {
+      console.log('[orders] ✅ Order deleted successfully');
+    }
+  } catch (error) {
+    console.error('[orders] ❌ Failed to delete order:', error);
+    throw error;
+  }
+}
+

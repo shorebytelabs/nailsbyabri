@@ -109,3 +109,8 @@ export async function updateOrder(orderId, payload) {
   return orderService.updateOrder(orderId, payload);
 }
 
+// Migrated to Supabase
+export async function deleteOrder(orderId) {
+  return orderService.deleteOrder(orderId);
+}
+

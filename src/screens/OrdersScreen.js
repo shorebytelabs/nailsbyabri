@@ -9,6 +9,7 @@ import {
   View,
   Switch,
   Image,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme';
@@ -16,6 +17,8 @@ import { useAppState } from '../context/AppContext';
 import { logEvent } from '../utils/analytics';
 import { withOpacity } from '../utils/color';
 import { launchImageLibrary } from 'react-native-image-picker';
+import Icon from '../icons/Icon';
+import { deleteOrder } from '../services/api';
 
 function OrdersScreen({ route }) {
   const initialTabFromRoute = route?.params?.initialTab;
@@ -226,6 +229,14 @@ function OrdersScreen({ route }) {
     [navigateToRoot, setState],
   );
 
+  const getOrderNumber = useCallback((order) => {
+    if (!order?.id) {
+      return '—';
+    }
+    // Display first 8 characters of order ID in uppercase
+    return order.id.slice(0, 8).toUpperCase();
+  }, []);
+
   const getOrderUserLabel = useCallback((order) => {
     if (!isAdmin) {
       return null;
@@ -250,6 +261,66 @@ function OrdersScreen({ route }) {
     }
     return name || email || 'Unknown customer';
   }, [isAdmin]);
+
+  const handleDeleteOrder = useCallback(
+    async (order) => {
+      if (order.status !== 'draft') {
+        Alert.alert('Cannot delete', 'Only draft orders can be deleted.');
+        return;
+      }
+
+      Alert.alert(
+        'Delete draft order',
+        'Are you sure you want to delete this draft? This action cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                setState((prev) => ({
+                  ...prev,
+                  ordersUpdating: true,
+                }));
+
+                await deleteOrder(order.id);
+                
+                logEvent('delete_order', { orderId: order.id, status: order.status });
+
+                // Remove order from state
+                setState((prev) => {
+                  const updatedOrders = (prev.orders || []).filter((o) => o.id !== order.id);
+                  
+                  // Also clear from activeOrder if it's the deleted one
+                  const updatedActiveOrder = prev.activeOrder?.id === order.id ? null : prev.activeOrder;
+                  
+                  // Also clear from lastCompletedOrder if it's the deleted one
+                  const updatedLastCompletedOrder = prev.lastCompletedOrder?.id === order.id ? null : prev.lastCompletedOrder;
+
+                  return {
+                    ...prev,
+                    orders: updatedOrders,
+                    activeOrder: updatedActiveOrder,
+                    lastCompletedOrder: updatedLastCompletedOrder,
+                    ordersUpdating: false,
+                    statusMessage: 'Draft order deleted successfully.',
+                  };
+                });
+              } catch (error) {
+                setState((prev) => ({
+                  ...prev,
+                  ordersUpdating: false,
+                  statusMessage: error?.message || 'Unable to delete order. Please try again.',
+                }));
+              }
+            },
+          },
+        ],
+      );
+    },
+    [setState],
+  );
 
   const getAdminDraft = useCallback(
     (order) => {
@@ -565,30 +636,58 @@ function OrdersScreen({ route }) {
         ]}
       >
         <View style={styles.cardHeader}>
-          <Text
-            style={[
-              styles.cardTitle,
-              { color: primaryFontColor },
-            ]}
-          >
-            {primarySet?.name || 'Custom Set'}
-          </Text>
-          <View
-            style={[
-              styles.statusPill,
-              {
-                backgroundColor: statusBackground,
-              },
-            ]}
-          >
+          <View style={styles.cardHeaderLeft}>
             <Text
               style={[
-                styles.statusText,
-                { color: statusTextColor },
+                styles.cardTitle,
+                { color: primaryFontColor },
               ]}
             >
-              {statusLabel}
+              {primarySet?.name || 'Custom Set'}
             </Text>
+            <Text
+              style={[
+                styles.cardOrderNumber,
+                { color: secondaryFontColor },
+              ]}
+            >
+              Order #{getOrderNumber(order)}
+            </Text>
+          </View>
+          <View style={styles.cardHeaderRight}>
+            {status === 'draft' ? (
+              <TouchableOpacity
+                onPress={() => handleDeleteOrder(order)}
+                style={[
+                  styles.deleteButton,
+                  {
+                    backgroundColor: withOpacity('#B33A3A', 0.1),
+                    borderColor: withOpacity('#B33A3A', 0.3),
+                  },
+                ]}
+                accessibilityLabel="Delete draft order"
+                accessibilityRole="button"
+              >
+                <Icon name="trash" color="#B33A3A" size={18} />
+              </TouchableOpacity>
+            ) : null}
+            <View
+              style={[
+                styles.statusPill,
+                {
+                  backgroundColor: statusBackground,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusText,
+                  { color: statusTextColor },
+                ]}
+              >
+                {statusLabel}
+              </Text>
+            </View>
           </View>
         </View>
         <Text
@@ -1189,11 +1288,34 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  cardHeaderLeft: {
+    flex: 1,
+    gap: 4,
+  },
+  cardHeaderRight: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: '700',
+  },
+  cardOrderNumber: {
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: 0.3,
+  },
+  deleteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statusPill: {
     paddingHorizontal: 12,
