@@ -52,14 +52,31 @@ function OrdersScreen({ route }) {
       return;
     }
 
+    if (__DEV__) {
+      console.log('[OrdersScreen] Admin orders check:', {
+        hasRequestedAdminOrders,
+        ordersLoaded: state.ordersLoaded,
+        ordersLoading: state.ordersLoading,
+        ordersCount: state.orders?.length || 0,
+        currentUser: state.currentUser?.email,
+        isAdmin,
+      });
+    }
+
     if (!hasRequestedAdminOrders || (!state.ordersLoaded && !state.ordersLoading)) {
       if (!state.currentUser) {
+        if (__DEV__) {
+          console.log('[OrdersScreen] ⚠️  No current user, cannot load orders');
+        }
         return;
+      }
+      if (__DEV__) {
+        console.log('[OrdersScreen] 📥 Requesting orders for admin user:', state.currentUser.email);
       }
       setHasRequestedAdminOrders(true);
       loadOrdersForUser(state.currentUser);
     }
-  }, [isAdmin, loadOrdersForUser, state.ordersLoaded, state.ordersLoading, hasRequestedAdminOrders, currentUserId]);
+  }, [isAdmin, loadOrdersForUser, state.ordersLoaded, state.ordersLoading, hasRequestedAdminOrders, currentUserId, state.currentUser, state.orders]);
 
   const baseOrders = useMemo(() => {
     const map = new Map();
@@ -907,7 +924,68 @@ function OrdersScreen({ route }) {
       ) : null}
 
       <View style={styles.sectionContent}>
-        {filteredOrders.length ? (
+        {state.ordersError && isAdmin ? (
+          <View
+            style={[
+              styles.placeholder,
+              {
+                borderColor: accentColor,
+                backgroundColor: withOpacity(accentColor, 0.1),
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.placeholderTitle,
+                { color: accentColor },
+              ]}
+            >
+              Error loading orders
+            </Text>
+            <Text
+              style={[
+                styles.placeholderSubtitle,
+                { color: secondaryFontColor },
+              ]}
+            >
+              {state.ordersError}
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                if (state.currentUser) {
+                  loadOrdersForUser(state.currentUser);
+                }
+              }}
+              style={[
+                styles.retryButton,
+                { borderColor: accentColor },
+              ]}
+            >
+              <Text style={[styles.retryButtonText, { color: accentColor }]}>
+                Retry
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : state.ordersLoading && isAdmin ? (
+          <View
+            style={[
+              styles.placeholder,
+              {
+                borderColor,
+                backgroundColor: surfaceColor,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.placeholderTitle,
+                { color: primaryFontColor },
+              ]}
+            >
+              Loading orders...
+            </Text>
+          </View>
+        ) : filteredOrders.length ? (
           filteredOrders.map(renderOrderCard)
         ) : (
           <View
@@ -937,6 +1015,8 @@ function OrdersScreen({ route }) {
             >
               {activeTab === 'drafts'
                 ? 'Start a new order to begin.'
+                : isAdmin
+                ? 'No orders found. Create a test order to verify the system is working.'
                 : 'Once you have orders in this category, they will appear here.'}
             </Text>
           </View>
@@ -1082,6 +1162,18 @@ const styles = StyleSheet.create({
   placeholderInline: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  retryButton: {
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignSelf: 'flex-start',
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   adminToolbar: {
     padding: 14,

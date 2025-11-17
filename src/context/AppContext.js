@@ -221,17 +221,30 @@ export function AppStateProvider({ children }) {
     }));
 
     try {
-      const response = await fetchOrders();
+      if (__DEV__) {
+        console.log('[AppContext] Loading orders for admin user:', user.id, user.email);
+      }
+      // For admin users, fetch ALL orders (no user filter)
+      const response = await fetchOrders({ allOrders: true });
       const orders = Array.isArray(response?.orders) ? response.orders : [];
+      if (__DEV__) {
+        console.log('[AppContext] ✅ Loaded', orders.length, 'orders for admin');
+      }
       setState((prev) => ({
         ...prev,
         orders,
         ordersLoaded: true,
+        ordersError: null,
       }));
     } catch (error) {
+      if (__DEV__) {
+        console.error('[AppContext] ❌ Failed to load orders for admin:', error);
+        console.error('[AppContext] Error details:', error.message, error.code);
+      }
       setState((prev) => ({
         ...prev,
         ordersError: error?.message || 'Unable to load orders.',
+        ordersLoaded: false,
       }));
     } finally {
       setState((prev) => ({

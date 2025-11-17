@@ -325,7 +325,21 @@ export async function fetchOrders(params = {}) {
     const { data: orders, error: ordersError } = await query;
 
     if (ordersError) {
+      if (__DEV__) {
+        console.error('[orders] ❌ Error fetching orders:', ordersError);
+        console.error('[orders] Error code:', ordersError.code);
+        console.error('[orders] Error message:', ordersError.message);
+        console.error('[orders] Error details:', ordersError.details);
+        console.error('[orders] Query params were:', params);
+      }
       throw ordersError;
+    }
+
+    if (__DEV__) {
+      console.log('[orders] ✅ Fetched', orders?.length || 0, 'orders from Supabase');
+      if (params.allOrders) {
+        console.log('[orders] Admin mode: fetched ALL orders');
+      }
     }
 
     // Fetch order sets for all orders
