@@ -457,11 +457,13 @@ function OrdersScreen({ route }) {
                     statusMessage: 'Draft order deleted successfully.',
                   };
                 });
-              } catch (error) {
+              } catch (err) {
+                const errorMessage = err?.message || err?.error?.message || 'Unable to delete order. Please try again.';
+                console.error('[orders] ❌ Failed to delete order:', err);
                 setState((prev) => ({
                   ...prev,
                   ordersUpdating: false,
-                  statusMessage: error?.message || 'Unable to delete order. Please try again.',
+                  statusMessage: errorMessage,
                 }));
               }
             },

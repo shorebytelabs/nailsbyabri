@@ -1030,7 +1030,9 @@ export async function deleteOrder(orderId) {
       throw fetchError;
     }
 
-    if (order.status !== 'draft') {
+    // Check for draft status (case-insensitive to handle both 'draft' and 'Draft')
+    const statusLower = (order.status || '').toLowerCase();
+    if (statusLower !== 'draft') {
       throw new Error('Only draft orders can be deleted');
     }
 
