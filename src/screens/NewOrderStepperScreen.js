@@ -94,6 +94,10 @@ function createEmptySetDraft() {
     designDescription: '',
     designUploads: [],
     sizingUploads: [],
+    // Separate help flags for design and sizing
+    requiresDesignHelp: false,
+    requiresSizingHelp: false,
+    // Keep requiresFollowUp for backward compatibility (derived from the above)
     requiresFollowUp: false,
     quantity: 1,
     sizeMode: 'standard',
@@ -208,7 +212,8 @@ function resolveSizingOptionFromSet(set = {}) {
 function getSetSizeDetails(set = {}) {
   const mode = set.sizeMode || set.sizes?.mode || 'standard';
   const sizes = set.sizes || {};
-  const requiresSizingHelp = Boolean(set.requiresFollowUp);
+  // Use requiresSizingHelp if available, fall back to requiresFollowUp for backward compatibility
+  const requiresSizingHelp = Boolean(set.requiresSizingHelp ?? set.requiresFollowUp);
   const presetLabel =
     set.sizePresetLabel ||
     set.sizePreset ||
@@ -582,7 +587,11 @@ function NewOrderStepperScreen({ route }) {
               };
             })
           : [],
-        requiresFollowUp: Boolean(set.requiresFollowUp),
+        // Handle backward compatibility: if requiresFollowUp exists but separate fields don't, use it for both
+        requiresDesignHelp: Boolean(set.requiresDesignHelp ?? set.requiresFollowUp),
+        requiresSizingHelp: Boolean(set.requiresSizingHelp ?? set.requiresFollowUp),
+        // Keep requiresFollowUp for backward compatibility (derived from the separate fields)
+        requiresFollowUp: Boolean(set.requiresDesignHelp || set.requiresSizingHelp || set.requiresFollowUp),
         quantity: Number(set.quantity) || 1,
         sizeMode: set.sizes?.mode === 'perSet' ? 'perSet' : 'standard',
         sizes: restoredSizes,
@@ -726,7 +735,8 @@ function NewOrderStepperScreen({ route }) {
       );
       const hasUploads =
         Array.isArray(currentSetDraft.designUploads) && currentSetDraft.designUploads.length > 0;
-      if (!hasDescription && !hasUploads && !currentSetDraft.requiresFollowUp) {
+      // Check for design help specifically (not sizing help)
+      if (!hasDescription && !hasUploads && !currentSetDraft.requiresDesignHelp) {
         setError('Add inspiration, describe your design, or mark for follow-up.');
         setStepErrors((prev) => ({ ...prev, design: true }));
         return;
@@ -785,7 +795,11 @@ function NewOrderStepperScreen({ route }) {
         base64: upload.base64 || null,
         uri: upload.uri || null,
       })),
-      requiresFollowUp: set.requiresFollowUp,
+      // Save separate help flags
+      requiresDesignHelp: set.requiresDesignHelp ?? set.requiresFollowUp,
+      requiresSizingHelp: set.requiresSizingHelp ?? false,
+      // Keep requiresFollowUp for backward compatibility (derived from the separate fields)
+      requiresFollowUp: set.requiresDesignHelp || set.requiresSizingHelp || set.requiresFollowUp,
       sizes:
         set.sizeMode === 'perSet'
           ? { mode: 'perSet', values: set.sizes }
@@ -1166,7 +1180,8 @@ function NewOrderStepperScreen({ route }) {
     ) {
       const hasSizingPhotos =
         Array.isArray(currentSetDraft.sizingUploads) && currentSetDraft.sizingUploads.length > 0;
-      if (!hasSizingPhotos && !currentSetDraft.requiresFollowUp) {
+      // Check for sizing help specifically (not design help)
+      if (!hasSizingPhotos && !currentSetDraft.requiresSizingHelp) {
         setError('Add at least one sizing photo or toggle "Need sizing help?" to continue.');
         return false;
       }
@@ -1304,6 +1319,15 @@ function NewOrderStepperScreen({ route }) {
             preview: preview || (base64Data ? `data:image/jpeg;base64,${base64Data}` : null),
           };
         }),
+        // Preserve help flags correctly
+        requiresDesignHelp: target.requiresDesignHelp !== null && target.requiresDesignHelp !== undefined
+          ? Boolean(target.requiresDesignHelp)
+          : Boolean(target.requiresFollowUp),
+        requiresSizingHelp: target.requiresSizingHelp !== null && target.requiresSizingHelp !== undefined
+          ? Boolean(target.requiresSizingHelp)
+          : false,
+        // Update requiresFollowUp for backward compatibility
+        requiresFollowUp: Boolean(target.requiresDesignHelp || target.requiresSizingHelp || target.requiresFollowUp),
         selectedSizingOption: target.selectedSizingOption || null,
         selectedProfileId: profileId || target.selectedProfileId || null,
       });
@@ -1479,7 +1503,7 @@ function NewOrderStepperScreen({ route }) {
                 colors={colors}
                 description={currentSetDraft.designDescription}
                 designUploads={currentSetDraft.designUploads}
-                requiresFollowUp={currentSetDraft.requiresFollowUp}
+                requiresDesignHelp={currentSetDraft.requiresDesignHelp}
                 onAddUpload={handleAddDesignUpload}
                 onChangeDescription={(designDescription) =>
                 setCurrentSetDraft((prev) => ({
@@ -1488,10 +1512,12 @@ function NewOrderStepperScreen({ route }) {
                 }))
                 }
                 onRemoveUpload={handleRemoveDesignUpload}
-                onToggleFollowUp={(requiresFollowUp) =>
+                onToggleDesignHelp={(requiresDesignHelp) =>
                 setCurrentSetDraft((prev) => ({
                   ...prev,
-                  requiresFollowUp,
+                  requiresDesignHelp,
+                  // Update requiresFollowUp for backward compatibility (derived from both help flags)
+                  requiresFollowUp: requiresDesignHelp || prev.requiresSizingHelp,
                 }))
                 }
               />
@@ -1512,7 +1538,7 @@ function NewOrderStepperScreen({ route }) {
                 sizingUploads={currentSetDraft.sizingUploads}
                 onAddSizingUpload={handleAddSizingUpload}
                 onRemoveSizingUpload={handleRemoveSizingUpload}
-                requiresFollowUp={currentSetDraft.requiresFollowUp}
+                requiresSizingHelp={currentSetDraft.requiresSizingHelp}
                 selectedSizingOption={currentSetDraft.selectedSizingOption}
                 selectedProfileId={currentSetDraft.selectedProfileId}
                 // Add debug logging
@@ -1541,11 +1567,13 @@ function NewOrderStepperScreen({ route }) {
                 }))
                 }
                 onMarkSizingHelp={(value) =>
-                  setCurrentSetDraft((prev) => ({
-                    ...prev,
-                    requiresFollowUp: Boolean(value),
-                  }))
-                }
+                    setCurrentSetDraft((prev) => ({
+                      ...prev,
+                      requiresSizingHelp: Boolean(value),
+                      // Update requiresFollowUp for backward compatibility (derived from both help flags)
+                      requiresFollowUp: prev.requiresDesignHelp || Boolean(value),
+                    }))
+                  }
                 onChangeSizingOption={(option) =>
                   setCurrentSetDraft((prev) => ({
                     ...prev,
@@ -1949,11 +1977,11 @@ function DesignStep({
   colors,
   description,
   designUploads,
-  requiresFollowUp,
+  requiresDesignHelp,
   onAddUpload,
   onChangeDescription,
   onRemoveUpload,
-  onToggleFollowUp,
+  onToggleDesignHelp,
 }) {
   const {
     primaryFont = '#220707',
@@ -2200,13 +2228,13 @@ function DesignStep({
           </Text>
         </View>
         <Switch
-          value={requiresFollowUp}
-          onValueChange={onToggleFollowUp}
+          value={requiresDesignHelp}
+          onValueChange={onToggleDesignHelp}
           trackColor={{
             false: withOpacity(border, 0.6),
             true: withOpacity(accent, 0.4),
           }}
-          thumbColor={requiresFollowUp ? accent : surface}
+          thumbColor={requiresDesignHelp ? accent : surface}
           ios_backgroundColor={withOpacity(border, 0.6)}
         />
       </View>
@@ -2523,7 +2551,7 @@ function SizingStep({
   sizingUploads,
   onAddSizingUpload,
   onRemoveSizingUpload,
-  requiresFollowUp,
+  requiresSizingHelp,
   onMarkSizingHelp,
   selectedSizingOption,
   onChangeSizingOption,
@@ -3085,13 +3113,13 @@ function SizingStep({
           <Text style={[styles.sizingHelpSubtitle, { color: secondaryFont }]}>Toggle on for Abri to assist and make sure your set fits just right.</Text>
         </View>
         <Switch
-          value={Boolean(requiresFollowUp)}
+          value={Boolean(requiresSizingHelp)}
           onValueChange={(value) => onMarkSizingHelp?.(value)}
           trackColor={{
             true: withOpacity(accent, 0.4),
             false: withOpacity(border, 0.5),
           }}
-          thumbColor={requiresFollowUp ? accent : surface}
+          thumbColor={requiresSizingHelp ? accent : surface}
         />
       </View>
       {previewUpload ? (

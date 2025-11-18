@@ -45,12 +45,20 @@ function normalizeNailSetForStorage(set) {
         .filter(Boolean)
     : [];
 
+  // Extract separate help flags (with backward compatibility)
+  const requiresDesignHelp = Boolean(set.requiresDesignHelp ?? set.requiresFollowUp);
+  const requiresSizingHelp = Boolean(set.requiresSizingHelp ?? false);
+  // Derive requiresFollowUp from separate fields for backward compatibility
+  const requiresFollowUp = Boolean(requiresDesignHelp || requiresSizingHelp || set.requiresFollowUp);
+
   if (__DEV__) {
     console.log('[normalizeNailSetForStorage] Set data:', {
       setId: set.id || set.shapeId,
       designUploadsCount: designUploads.length,
       sizingUploadsCount: sizingUploads.length,
-      requiresFollowUp: Boolean(set.requiresFollowUp),
+      requiresDesignHelp,
+      requiresSizingHelp,
+      requiresFollowUp,
     });
   }
 
@@ -64,7 +72,11 @@ function normalizeNailSetForStorage(set) {
     design_uploads: designUploads,
     sizing_uploads: sizingUploads,
     sizes: set.sizes || { mode: 'standard', values: {} },
-    requires_follow_up: Boolean(set.requiresFollowUp),
+    // Save separate help flags (if database columns exist)
+    requires_design_help: requiresDesignHelp,
+    requires_sizing_help: requiresSizingHelp,
+    // Keep requires_follow_up for backward compatibility
+    requires_follow_up: requiresFollowUp,
   };
 }
 
@@ -154,12 +166,25 @@ function transformOrderSetFromDB(set) {
       .filter(Boolean);
   }
 
+  // Load separate help flags (with backward compatibility)
+  // If separate fields exist, use them; otherwise fall back to requires_follow_up
+  const requiresDesignHelp = set.requires_design_help !== null && set.requires_design_help !== undefined
+    ? Boolean(set.requires_design_help)
+    : Boolean(set.requires_follow_up);
+  const requiresSizingHelp = set.requires_sizing_help !== null && set.requires_sizing_help !== undefined
+    ? Boolean(set.requires_sizing_help)
+    : false; // Don't default sizing help to requires_follow_up - only design help should fall back
+  // Derive requiresFollowUp from separate fields for backward compatibility
+  const requiresFollowUp = Boolean(requiresDesignHelp || requiresSizingHelp || set.requires_follow_up);
+
   if (__DEV__) {
     console.log('[transformOrderSetFromDB] Set loaded:', {
       id: set.id,
       hasDesignUploads: designUploads.length > 0,
       hasSizingUploads: sizingUploads.length > 0,
-      requiresFollowUp: Boolean(set.requires_follow_up),
+      requiresDesignHelp,
+      requiresSizingHelp,
+      requiresFollowUp,
     });
   }
 
@@ -173,7 +198,11 @@ function transformOrderSetFromDB(set) {
     designUploads,
     sizingUploads,
     sizes: set.sizes || { mode: 'standard', values: {} },
-    requiresFollowUp: Boolean(set.requires_follow_up),
+    // Return separate help flags
+    requiresDesignHelp,
+    requiresSizingHelp,
+    // Keep requiresFollowUp for backward compatibility
+    requiresFollowUp,
   };
 }
 
