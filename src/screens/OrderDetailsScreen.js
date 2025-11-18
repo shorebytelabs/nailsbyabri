@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -518,14 +518,51 @@ function createStyles(colors) {
 }
 
 function OrderDetailsScreen({ navigation, route }) {
-  const order = route.params?.order || null;
+  const initialOrder = route.params?.order || null;
   const fromOrders = Boolean(route.params?.fromOrders);
   const { theme } = useTheme();
   const colors = theme?.colors || {};
   const styles = useMemo(() => createStyles(colors), [colors]);
 
+  const [order, setOrder] = useState(initialOrder);
+  const [loadingOrder, setLoadingOrder] = useState(false);
   const [copied, setCopied] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+
+  // Fetch full order details if order doesn't have images (likely from list view)
+  useEffect(() => {
+    const fetchFullOrder = async () => {
+      // Only fetch if we have an order ID, came from orders list, and haven't already started loading
+      if (!initialOrder?.id || !fromOrders || loadingOrder) {
+        return;
+      }
+
+      // Check if order sets have images - if not, fetch full order
+      const hasImages = initialOrder?.nailSets?.some((set) => {
+        const hasDesignImages = Array.isArray(set.designUploads) && set.designUploads.length > 0;
+        const hasSizingImages = Array.isArray(set.sizingUploads) && set.sizingUploads.length > 0;
+        return hasDesignImages || hasSizingImages;
+      });
+
+      // If no images found, fetch full order details
+      if (!hasImages) {
+        try {
+          setLoadingOrder(true);
+          const { fetchOrder } = await import('../services/orderService');
+          const { order: fullOrder } = await fetchOrder(initialOrder.id);
+          setOrder(fullOrder);
+        } catch (error) {
+          console.error('[OrderDetailsScreen] Failed to fetch full order details:', error);
+          // Keep using the initial order if fetch fails
+        } finally {
+          setLoadingOrder(false);
+        }
+      }
+    };
+
+    fetchFullOrder();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOrder?.id, fromOrders]);
 
   const orderId = order?.id || '—';
   const displayOrderId = orderId && orderId !== '—' ? orderId.slice(0, 8).toUpperCase() : '—';
