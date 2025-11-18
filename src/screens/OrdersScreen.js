@@ -10,6 +10,8 @@ import {
   Switch,
   Image,
   Alert,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme';
@@ -280,11 +282,17 @@ function OrdersScreen({ route }) {
     [],
   );
 
-  const [selectedUserFilter, setSelectedUserFilter] = useState('all');
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
-  const [showAdminControls, setShowAdminControls] = useState(false);
+  // Multiple selection filters - arrays to support multiple selections
+  const [selectedUserFilter, setSelectedUserFilter] = useState(['all']);
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState(['all']);
+  // Show admin controls enabled by default for admins
+  const [showAdminControls, setShowAdminControls] = useState(isAdmin);
   const [expandedAdminOrders, setExpandedAdminOrders] = useState({});
   const [adminDrafts, setAdminDrafts] = useState({});
+  
+  // Dropdown modal states
+  const [statusDropdownVisible, setStatusDropdownVisible] = useState(false);
+  const [userDropdownVisible, setUserDropdownVisible] = useState(false);
 
   const userOptions = useMemo(() => {
     if (!isAdmin) {
@@ -309,26 +317,27 @@ function OrdersScreen({ route }) {
     let results = categorizedOrders[activeTab] || categorizedOrders.cart;
 
     if (isAdmin) {
-      // Apply status filter if one is selected
-      if (selectedStatusFilter !== 'all') {
-        // Normalize status comparison - handle both old and new status formats
+      // Apply status filter(s) - support multiple selections
+      const hasStatusFilter = selectedStatusFilter.length > 0 && !selectedStatusFilter.includes('all');
+      if (hasStatusFilter) {
         results = results.filter((order) => {
           const orderStatus = (order.status || '').toLowerCase();
-          const filterKey = selectedStatusFilter.toLowerCase();
           
-          // Handle status keys that use underscores (e.g., "approved_&_in_progress")
-          const normalizedOrderStatus = orderStatus.replace(/\s+/g, '_').replace(/&/g, '');
-          const normalizedFilterKey = filterKey.replace(/\s+/g, '_').replace(/&/g, '');
-          
-          return normalizedOrderStatus === normalizedFilterKey;
+          // Check if order status matches any of the selected filters
+          return selectedStatusFilter.some((filterKey) => {
+            const normalizedOrderStatus = orderStatus.replace(/\s+/g, '_').replace(/&/g, '');
+            const normalizedFilterKey = filterKey.toLowerCase().replace(/\s+/g, '_').replace(/&/g, '');
+            return normalizedOrderStatus === normalizedFilterKey;
+          });
         });
       }
 
-      // Apply user filter if one is selected
-      if (selectedUserFilter !== 'all') {
+      // Apply user filter(s) - support multiple selections
+      const hasUserFilter = selectedUserFilter.length > 0 && !selectedUserFilter.includes('all');
+      if (hasUserFilter) {
         results = results.filter((order) => {
           const email = (order.user?.email || order.userEmail || '').toLowerCase();
-          return email === selectedUserFilter;
+          return selectedUserFilter.some((filterEmail) => filterEmail.toLowerCase() === email);
         });
       }
     }
@@ -1223,62 +1232,293 @@ function OrdersScreen({ route }) {
               thumbColor={showAdminControls ? accentColor : surfaceColor}
             />
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.adminFilterRow}>
-            {STATUS_FILTERS.map((filter) => {
-              const isSelected = selectedStatusFilter === filter.key;
-              return (
-                <TouchableOpacity
-                  key={filter.key}
-                  onPress={() => setSelectedStatusFilter(filter.key)}
+          
+          {/* Status and User filters on the same line */}
+          <View style={styles.adminFiltersRow}>
+            {/* Status Filter Dropdown */}
+            <View style={styles.filterDropdownContainer}>
+              <TouchableOpacity
+                onPress={() => setStatusDropdownVisible(true)}
+                style={[
+                  styles.filterDropdownButton,
+                  {
+                    borderColor: withOpacity(borderColor, 0.6),
+                    backgroundColor: surfaceColor,
+                  },
+                ]}
+              >
+                <Text
                   style={[
-                    styles.adminFilterChip,
-                    {
-                      borderColor: isSelected ? accentColor : withOpacity(borderColor, 0.6),
-                      backgroundColor: isSelected ? withOpacity(accentColor, 0.14) : surfaceColor,
-                    },
+                    styles.filterDropdownButtonText,
+                    { color: primaryFontColor },
                   ]}
+                  numberOfLines={1}
                 >
-                  <Text
-                    style={[
-                      styles.adminFilterChipLabel,
-                      { color: isSelected ? accentColor : secondaryFontColor },
-                    ]}
-                  >
-                    {filter.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.adminFilterRow}>
-            {userOptions.map((option) => {
-              const isSelected = selectedUserFilter === option.email;
-              return (
-                <TouchableOpacity
-                  key={option.email}
-                  onPress={() => setSelectedUserFilter(option.email)}
+                  {selectedStatusFilter.includes('all') || selectedStatusFilter.length === 0
+                    ? 'All Statuses'
+                    : selectedStatusFilter.length === 1
+                    ? STATUS_FILTERS.find((f) => f.key === selectedStatusFilter[0])?.label || 'Status'
+                    : `${selectedStatusFilter.length} Statuses`}
+                </Text>
+                <Icon name="chevronDown" color={secondaryFontColor} size={16} />
+              </TouchableOpacity>
+            </View>
+
+            {/* User Filter Dropdown */}
+            <View style={styles.filterDropdownContainer}>
+              <TouchableOpacity
+                onPress={() => setUserDropdownVisible(true)}
+                style={[
+                  styles.filterDropdownButton,
+                  {
+                    borderColor: withOpacity(borderColor, 0.6),
+                    backgroundColor: surfaceColor,
+                  },
+                ]}
+              >
+                <Text
                   style={[
-                    styles.adminFilterChip,
-                    {
-                      borderColor: isSelected ? accentColor : withOpacity(borderColor, 0.6),
-                      backgroundColor: isSelected ? withOpacity(accentColor, 0.14) : surfaceColor,
-                    },
+                    styles.filterDropdownButtonText,
+                    { color: primaryFontColor },
                   ]}
+                  numberOfLines={1}
                 >
-                  <Text
-                    style={[
-                      styles.adminFilterChipLabel,
-                      { color: isSelected ? accentColor : secondaryFontColor },
-                    ]}
-                  >
-                    {option.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+                  {selectedUserFilter.includes('all') || selectedUserFilter.length === 0
+                    ? 'All Users'
+                    : selectedUserFilter.length === 1
+                    ? userOptions.find((o) => o.email === selectedUserFilter[0])?.name || 'User'
+                    : `${selectedUserFilter.length} Users`}
+                </Text>
+                <Icon name="chevronDown" color={secondaryFontColor} size={16} />
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       ) : null}
+
+      {/* Status Filter Dropdown Modal */}
+      <Modal
+        visible={statusDropdownVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setStatusDropdownVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setStatusDropdownVisible(false)}
+        >
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: surfaceColor,
+                borderColor: withOpacity(borderColor, 0.6),
+              },
+            ]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: primaryFontColor }]}>Filter by Status</Text>
+              <TouchableOpacity onPress={() => setStatusDropdownVisible(false)}>
+                <Icon name="close" color={secondaryFontColor} size={20} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={STATUS_FILTERS}
+              keyExtractor={(item) => item.key}
+              renderItem={({ item }) => {
+                const isSelected = selectedStatusFilter.includes(item.key);
+                return (
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (item.key === 'all') {
+                        setSelectedStatusFilter(['all']);
+                      } else {
+                        setSelectedStatusFilter((prev) => {
+                          const newSelection = prev.includes('all')
+                            ? []
+                            : [...prev];
+                          if (isSelected) {
+                            return newSelection.filter((key) => key !== item.key).length > 0
+                              ? newSelection.filter((key) => key !== item.key)
+                              : ['all'];
+                          } else {
+                            return [...newSelection, item.key];
+                          }
+                        });
+                      }
+                    }}
+                    style={[
+                      styles.modalItem,
+                      {
+                        backgroundColor: isSelected
+                          ? withOpacity(accentColor, 0.12)
+                          : 'transparent',
+                      },
+                    ]}
+                  >
+                    <View style={styles.modalItemContent}>
+                      <View
+                        style={[
+                          styles.checkbox,
+                          {
+                            borderColor: isSelected ? accentColor : withOpacity(borderColor, 0.6),
+                            backgroundColor: isSelected ? accentColor : 'transparent',
+                          },
+                        ]}
+                      >
+                        {isSelected && (
+                          <Icon name="check" color={surfaceColor} size={14} />
+                        )}
+                      </View>
+                      <Text
+                        style={[
+                          styles.modalItemText,
+                          {
+                            color: isSelected ? accentColor : primaryFontColor,
+                          },
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedStatusFilter(['all']);
+                  setStatusDropdownVisible(false);
+                }}
+                style={[styles.modalButton, { borderColor: withOpacity(borderColor, 0.6) }]}
+              >
+                <Text style={[styles.modalButtonText, { color: secondaryFontColor }]}>Clear All</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setStatusDropdownVisible(false)}
+                style={[styles.modalButton, { backgroundColor: accentColor }]}
+              >
+                <Text style={[styles.modalButtonText, { color: surfaceColor }]}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* User Filter Dropdown Modal */}
+      <Modal
+        visible={userDropdownVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setUserDropdownVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setUserDropdownVisible(false)}
+        >
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: surfaceColor,
+                borderColor: withOpacity(borderColor, 0.6),
+              },
+            ]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: primaryFontColor }]}>Filter by User</Text>
+              <TouchableOpacity onPress={() => setUserDropdownVisible(false)}>
+                <Icon name="close" color={secondaryFontColor} size={20} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={userOptions}
+              keyExtractor={(item) => item.email}
+              renderItem={({ item }) => {
+                const isSelected = selectedUserFilter.includes(item.email);
+                return (
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (item.email === 'all') {
+                        setSelectedUserFilter(['all']);
+                      } else {
+                        setSelectedUserFilter((prev) => {
+                          const newSelection = prev.includes('all')
+                            ? []
+                            : [...prev];
+                          if (isSelected) {
+                            return newSelection.filter((email) => email !== item.email).length > 0
+                              ? newSelection.filter((email) => email !== item.email)
+                              : ['all'];
+                          } else {
+                            return [...newSelection, item.email];
+                          }
+                        });
+                      }
+                    }}
+                    style={[
+                      styles.modalItem,
+                      {
+                        backgroundColor: isSelected
+                          ? withOpacity(accentColor, 0.12)
+                          : 'transparent',
+                      },
+                    ]}
+                  >
+                    <View style={styles.modalItemContent}>
+                      <View
+                        style={[
+                          styles.checkbox,
+                          {
+                            borderColor: isSelected ? accentColor : withOpacity(borderColor, 0.6),
+                            backgroundColor: isSelected ? accentColor : 'transparent',
+                          },
+                        ]}
+                      >
+                        {isSelected && (
+                          <Icon name="check" color={surfaceColor} size={14} />
+                        )}
+                      </View>
+                      <Text
+                        style={[
+                          styles.modalItemText,
+                          {
+                            color: isSelected ? accentColor : primaryFontColor,
+                          },
+                        ]}
+                      >
+                        {item.name}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedUserFilter(['all']);
+                  setUserDropdownVisible(false);
+                }}
+                style={[styles.modalButton, { borderColor: withOpacity(borderColor, 0.6) }]}
+              >
+                <Text style={[styles.modalButtonText, { color: secondaryFontColor }]}>Clear All</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setUserDropdownVisible(false)}
+                style={[styles.modalButton, { backgroundColor: accentColor }]}
+              >
+                <Text style={[styles.modalButtonText, { color: surfaceColor }]}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <View style={styles.sectionContent}>
         {state.ordersError ? (
@@ -1577,6 +1817,31 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 2,
   },
+  adminFiltersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  filterDropdownContainer: {
+    flex: 1,
+  },
+  filterDropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minHeight: 44,
+  },
+  filterDropdownButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
+    marginRight: 8,
+  },
   adminFilterChip: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 999,
@@ -1585,6 +1850,75 @@ const styles = StyleSheet.create({
   },
   adminFilterChipLabel: {
     fontSize: 12,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  modalItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalItemText: {
+    fontSize: 14,
+    flex: 1,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  modalButtonText: {
+    fontSize: 14,
     fontWeight: '600',
   },
   adminSection: {
