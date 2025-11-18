@@ -219,6 +219,61 @@ export async function upsertProfile(profileData) {
       console.log('[supabase] Full Supabase URL:', (await import('../lib/supabaseClient')).supabase?.supabaseUrl || 'unknown');
     }
 
+    // Verify we have a session before attempting the upsert
+    // RLS policies require auth.uid() to be available
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (__DEV__) {
+      console.log('[supabase] Session check before profile upsert:', {
+        hasSession: !!session,
+        sessionUserId: session?.user?.id,
+        payloadUserId: payload.id,
+        sessionError: sessionError?.message,
+      });
+    }
+    
+    if (!session) {
+      if (__DEV__) {
+        console.warn('[supabase] ⚠️  No session found - RLS policies will block the insert');
+        console.warn('[supabase] This might happen if signup just completed and session isn\'t set yet');
+      }
+      throw new Error('No active session. Please log in and try again.');
+    }
+    
+    // CRITICAL: Ensure the profile ID matches the authenticated user's ID
+    // RLS policy requires auth.uid() = id, so they must match
+    // Always use the authenticated user's ID from the session to prevent RLS errors
+    const authenticatedUserId = session.user.id;
+    if (payload.id !== authenticatedUserId) {
+      // This can happen if:
+      // 1. The user signed up but the session hasn't been set yet
+      // 2. There's a mismatch between the signup response and the actual session
+      // 3. The AppContext is using a stale user ID
+      // We'll silently fix it by using the authenticated user's ID (no warning needed)
+      payload.id = authenticatedUserId;
+      if (__DEV__) {
+        console.log('[supabase] Using authenticated user ID for profile (corrected from payload):', authenticatedUserId);
+      }
+    }
+    
+    // First, check if profile already exists (might have been created by trigger)
+    // This helps us understand if we're doing INSERT or UPDATE
+    const { data: existingProfile, error: checkError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', payload.id)
+      .single();
+    
+    if (__DEV__) {
+      console.log('[supabase] Profile check result:', {
+        exists: !!existingProfile,
+        checkError: checkError?.code,
+        checkErrorMessage: checkError?.message,
+        userId: payload.id,
+      });
+    }
+    
+    // Use upsert - it will INSERT if doesn't exist, UPDATE if it does
     const { data, error, status, statusText } = await supabase
       .from('profiles')
       .upsert(payload, {

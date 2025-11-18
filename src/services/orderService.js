@@ -91,16 +91,42 @@ function transformOrderFromDB(order, orderSets = []) {
  * @returns {Promise<Object>} Created/updated order
  */
 export async function createOrUpdateOrder(orderData) {
+  const startTime = Date.now();
   try {
     if (__DEV__) {
       console.log('[orders] Creating/updating order:', orderData.id || 'new');
     }
 
-    const { userId, nailSets, fulfillment, customerSizes, orderNotes, promoCode, status } = orderData;
-
-    if (!userId) {
-      throw new Error('userId is required to create an order');
+    // Get the authenticated user's ID from the session
+    // RLS policies require auth.uid() = user_id, so they must match
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (!session) {
+      throw new Error('No active session. Please log in and try again.');
     }
+    
+    const authenticatedUserId = session.user.id;
+    
+    // Use the authenticated user's ID to ensure RLS policies pass
+    // If orderData.userId is provided but doesn't match, we'll use the session ID
+    let userId = orderData.userId;
+    if (!userId) {
+      userId = authenticatedUserId;
+    } else if (userId !== authenticatedUserId) {
+      if (__DEV__) {
+        console.log('[orders] User ID mismatch detected, using authenticated user ID:', {
+          providedUserId: userId,
+          authenticatedUserId,
+        });
+      }
+      userId = authenticatedUserId;
+    }
+    
+    if (__DEV__) {
+      console.log('[orders] Using user ID for order:', userId);
+    }
+
+    const { nailSets, fulfillment, customerSizes, orderNotes, promoCode, status } = orderData;
 
     // Normalize and validate nail sets
     const normalizedSets = Array.isArray(nailSets)
@@ -149,12 +175,17 @@ export async function createOrUpdateOrder(orderData) {
 
     if (isUpdate) {
       // Update existing order
+      const updateStart = Date.now();
       const { data: updatedOrder, error: updateError } = await supabase
         .from('orders')
         .update(orderPayload)
         .eq('id', orderData.id)
         .select()
         .single();
+
+      if (__DEV__) {
+        console.log(`[orders] ⏱️  Order update query: ${Date.now() - updateStart}ms`);
+      }
 
       if (updateError) {
         throw updateError;
@@ -163,7 +194,11 @@ export async function createOrUpdateOrder(orderData) {
       order = updatedOrder;
 
       // Delete existing order sets
+      const deleteStart = Date.now();
       await supabase.from('order_sets').delete().eq('order_id', orderData.id);
+      if (__DEV__) {
+        console.log(`[orders] ⏱️  Order sets delete: ${Date.now() - deleteStart}ms`);
+      }
 
       // Create new order sets
       const setsToInsert = normalizedSets.map((set) => ({
@@ -171,10 +206,15 @@ export async function createOrUpdateOrder(orderData) {
         ...set,
       }));
 
+      const insertStart = Date.now();
       const { data: insertedSets, error: setsError } = await supabase
         .from('order_sets')
         .insert(setsToInsert)
         .select();
+
+      if (__DEV__) {
+        console.log(`[orders] ⏱️  Order sets insert: ${Date.now() - insertStart}ms (${setsToInsert.length} sets)`);
+      }
 
       if (setsError) {
         throw setsError;
@@ -222,7 +262,8 @@ export async function createOrUpdateOrder(orderData) {
     const completeOrder = transformOrderFromDB(order, orderSets);
 
     if (__DEV__) {
-      console.log('[orders] ✅ Order', isUpdate ? 'updated' : 'created', 'successfully:', order.id);
+      const totalTime = Date.now() - startTime;
+      console.log(`[orders] ✅ Order ${isUpdate ? 'updated' : 'created'} successfully: ${order.id} in ${totalTime}ms`);
     }
 
     return { order: completeOrder };
@@ -330,18 +371,46 @@ export async function fetchOrder(orderId) {
  * @returns {Promise<Array>} Array of orders
  */
 export async function fetchOrders(params = {}) {
+  const startTime = Date.now();
   try {
     if (__DEV__) {
       console.log('[orders] Fetching orders with params:', params);
     }
 
-    // Get current session
-    const { data: { session } } = await supabase.auth.getSession();
+    // Get current session (should be instant - reads from AsyncStorage)
+    const sessionStart = Date.now();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const sessionEnd = Date.now();
+    const sessionTime = sessionEnd - sessionStart;
     const currentUserId = session?.user?.id;
+    
+    if (__DEV__) {
+      console.log(`[orders] ⏱️  Session fetch: ${sessionTime}ms`);
+      if (sessionTime > 100) {
+        console.warn(`[orders] ⚠️  Session fetch is slow (${sessionTime}ms). Should be <10ms (reads from AsyncStorage).`);
+        if (sessionError) {
+          console.warn(`[orders] Session error:`, sessionError);
+        }
+      }
+    }
+    
+    if (!session) {
+      if (__DEV__) {
+        console.warn('[orders] ⚠️  No session found');
+      }
+      return { orders: [] };
+    }
 
-    // Use a join to fetch orders with profile information in one query
-    // Try using left join syntax (profiles!left) so orders without profiles still return
-    // Note: Without a foreign key, this might not work, so we'll fall back to separate queries
+    // Use PostgREST's automatic join syntax to fetch orders with profiles in one query
+    // This requires a foreign key relationship between orders.user_id and profiles.id.
+    // If the foreign key exists, this will be much faster than separate queries.
+    // If it doesn't exist, we'll fall back to separate queries.
+    // NOTE: We select all fields (*) which includes large JSONB fields like:
+    // - customer_sizes (can be large if per-set sizing)
+    // - pricing (usually small)
+    // - fulfillment (usually small)
+    // - production_jobs (can be large)
+    // For list views, we might want to exclude these, but for now we fetch everything
     let query = supabase
       .from('orders')
       .select(`
@@ -374,27 +443,35 @@ export async function fetchOrders(params = {}) {
 
     query = query.order('created_at', { ascending: false });
 
+    // Try to fetch orders with joined profiles
+    const queryStart = Date.now();
     let orders;
     let ordersError;
+    let useJoin = true;
     
     try {
       const result = await query;
       orders = result.data;
       ordersError = result.error;
+      
+      if (__DEV__) {
+        console.log(`[orders] ⏱️  Orders query (with join): ${Date.now() - queryStart}ms`);
+      }
     } catch (err) {
       ordersError = err;
       orders = null;
     }
     
-    // If the join failed (likely because no foreign key), fall back to separate queries
-    if (ordersError) {
+    // If join failed (foreign key doesn't exist or join syntax error), fall back to separate queries
+    if (ordersError || !orders) {
       if (__DEV__) {
-        console.log('[orders] Join syntax failed, error:', ordersError.code, ordersError.message);
-        console.log('[orders] Falling back to separate queries');
+        console.log('[orders] Join query failed, falling back to separate queries:', ordersError?.code, ordersError?.message);
+        console.log('[orders] 💡 To enable joins, run: docs/supabase-add-profile-trigger-and-fkey.sql');
       }
       
-      // Fall back to separate queries (the current approach)
-      // Re-run the query without the join
+      useJoin = false;
+      
+      // Fall back to separate queries
       let fallbackQuery = supabase.from('orders').select('*');
       
       if (params.allOrders) {
@@ -413,7 +490,12 @@ export async function fetchOrders(params = {}) {
       
       fallbackQuery = fallbackQuery.order('created_at', { ascending: false });
       
+      const fallbackStart = Date.now();
       const { data: fallbackOrders, error: fallbackError } = await fallbackQuery;
+      
+      if (__DEV__) {
+        console.log(`[orders] ⏱️  Orders fallback query: ${Date.now() - fallbackStart}ms`);
+      }
       
       if (fallbackError) {
         if (__DEV__) {
@@ -426,7 +508,6 @@ export async function fetchOrders(params = {}) {
         throw fallbackError;
       }
       
-      // Continue with the fallback orders (will fetch profiles separately below)
       orders = fallbackOrders;
     }
 
@@ -440,13 +521,23 @@ export async function fetchOrders(params = {}) {
     // Fetch order sets for all orders
     const orderIds = (orders || []).map((o) => o.id);
     let allOrderSets = [];
+    let setsStart = Date.now();
+    let profilesStart = Date.now();
 
     if (orderIds.length > 0) {
+      setsStart = Date.now();
+      // OPTIMIZATION: Exclude design_uploads from list query (can be 6MB+ per row!)
+      // We only need basic info for the list view. Full details (including design_uploads)
+      // are fetched when viewing individual order details via fetchOrder()
       const { data: sets, error: setsError } = await supabase
         .from('order_sets')
-        .select('*')
+        .select('id, order_id, name, shape_id, quantity, description, set_notes, sizes, requires_follow_up, created_at, updated_at')
         .in('order_id', orderIds)
         .order('created_at', { ascending: true });
+
+      if (__DEV__) {
+        console.log(`[orders] ⏱️  Order sets query: ${Date.now() - setsStart}ms (${orderIds.length} orders)`);
+      }
 
       if (setsError) {
         throw setsError;
@@ -464,16 +555,13 @@ export async function fetchOrders(params = {}) {
       setsByOrderId[set.order_id].push(set);
     });
 
-    // Extract user information from joined profile or fetch separately
+    // Extract profiles from joined data or fetch separately
     let profilesMap = {};
     
-    // Check if profiles were joined in the query
-    const hasJoinedProfiles = orders && orders.length > 0 && orders[0].profile !== undefined;
-    
-    if (hasJoinedProfiles) {
-      // Profiles were joined - extract them from the orders
+    if (useJoin && orders && orders.length > 0 && orders[0].profile !== undefined) {
+      // Profiles were joined in the query - extract them
       if (__DEV__) {
-        console.log('[orders] Using joined profile data');
+        console.log('[orders] ✅ Using joined profile data from query');
       }
       
       orders.forEach((order) => {
@@ -491,68 +579,32 @@ export async function fetchOrders(params = {}) {
           console.log('[orders] Fetching profiles separately for user IDs:', userIds);
         }
         
-        // Try fetching profiles one by one to see if RLS is blocking
-        // First, try the batch query
-        const { data: profiles, error: profilesError, count } = await supabase
+        // Fetch all profiles in a single batch query
+        // This should work because:
+        // - Admins can read all profiles (RLS policy allows it)
+        // - Regular users only see their own orders, so they only need their own profile
+        profilesStart = Date.now();
+        const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, full_name, email', { count: 'exact' })
+          .select('id, full_name, email')
           .in('id', userIds);
         
         if (__DEV__) {
-          console.log('[orders] Profile query result:', {
-            profiles: profiles,
-            profilesLength: profiles?.length || 0,
-            error: profilesError,
-            errorCode: profilesError?.code,
-            errorMessage: profilesError?.message,
-            errorDetails: profilesError?.details,
-            errorHint: profilesError?.hint,
-            count: count,
-          });
+          console.log(`[orders] ⏱️  Profiles batch query: ${Date.now() - profilesStart}ms (${userIds.length} users)`);
         }
         
         if (profilesError) {
+          // If batch query fails, log the error but don't fail completely
+          // We'll just show "Unknown customer" for orders without profiles
           if (__DEV__) {
-            console.error('[orders] ❌ Failed to fetch profiles:', profilesError);
+            console.error('[orders] ⚠️  Failed to fetch profiles (some orders may show "Unknown customer"):', profilesError);
             console.error('[orders] Error code:', profilesError.code);
             console.error('[orders] Error message:', profilesError.message);
-            console.error('[orders] Error details:', profilesError.details);
-            console.error('[orders] Error hint:', profilesError.hint);
+            console.error('[orders] This is likely an RLS policy issue. Check that admins can read all profiles.');
           }
-          
-          // If RLS is blocking, try fetching one at a time to see which ones work
-          if (profilesError.code === '42501' || profilesError.message?.includes('row-level security')) {
-            if (__DEV__) {
-              console.log('[orders] RLS might be blocking - trying individual profile fetches');
-            }
-            
-            // Try fetching each profile individually
-            for (const userId of userIds) {
-              const { data: singleProfile, error: singleError } = await supabase
-                .from('profiles')
-                .select('id, full_name, email')
-                .eq('id', userId)
-                .single();
-              
-              if (__DEV__) {
-                console.log(`[orders] Profile fetch for ${userId}:`, {
-                  found: !!singleProfile,
-                  error: singleError?.code,
-                  message: singleError?.message,
-                });
-              }
-              
-              if (!singleError && singleProfile) {
-                profilesMap[userId] = singleProfile;
-              }
-            }
-          }
+          // Don't throw - continue without profiles (orders will show "Unknown customer")
+          profilesMap = {};
         } else {
-          if (__DEV__) {
-            console.log('[orders] ✅ Fetched', profiles?.length || 0, 'profiles');
-            console.log('[orders] Profiles:', profiles);
-          }
-          
           // Create a map of user_id -> profile
           profilesMap = (profiles || []).reduce((acc, profile) => {
             acc[profile.id] = profile;
@@ -560,9 +612,7 @@ export async function fetchOrders(params = {}) {
           }, {});
           
           if (__DEV__) {
-            console.log('[orders] Profiles map:', profilesMap);
-            console.log('[orders] User IDs in orders:', userIds);
-            console.log('[orders] User IDs with profiles:', Object.keys(profilesMap));
+            console.log(`[orders] ✅ Fetched ${profiles?.length || 0} profiles (${Object.keys(profilesMap).length} unique)`);
           }
         }
       }
@@ -570,7 +620,7 @@ export async function fetchOrders(params = {}) {
 
     // Transform orders with their sets and user information
     const transformedOrders = (orders || []).map((order) => {
-      // Remove the joined profile from the order object before transforming
+      // Remove the joined profile from the order object before transforming (if it exists)
       const { profile: joinedProfile, ...orderWithoutProfile } = order;
       const transformed = transformOrderFromDB(orderWithoutProfile, setsByOrderId[order.id] || []);
       
@@ -605,7 +655,60 @@ export async function fetchOrders(params = {}) {
     });
 
     if (__DEV__) {
-      console.log('[orders] ✅ Fetched', transformedOrders.length, 'orders');
+      const totalTime = Date.now() - startTime;
+      console.log(`[orders] ✅ Fetched ${transformedOrders.length} orders in ${totalTime}ms total`);
+      
+      // Performance breakdown - calculate actual times
+      // Note: These queries run sequentially, so times are cumulative
+      const ordersQueryTime = Date.now() - queryStart;
+      const setsQueryTime = orderIds.length > 0 ? (Date.now() - setsStart) : 0;
+      // profilesQueryTime is calculated in the else block if needed
+      let profilesQueryTime = 0;
+      if (!useJoin) {
+        const userIds = [...new Set((orders || []).map((o) => o.user_id).filter(Boolean))];
+        if (userIds.length > 0 && typeof profilesStart !== 'undefined') {
+          profilesQueryTime = Date.now() - profilesStart;
+        }
+      }
+      // Transform time is the remainder after all queries
+      const transformTime = Math.max(0, totalTime - sessionTime - ordersQueryTime - setsQueryTime - profilesQueryTime);
+      
+      console.log(`[orders] ⏱️  Performance breakdown:`);
+      console.log(`[orders]   - Session fetch: ${sessionTime}ms ${sessionTime > 100 ? '⚠️ SLOW' : '✅'}`);
+      console.log(`[orders]   - Orders query (${useJoin ? 'with join' : 'separate'}): ${ordersQueryTime}ms ${ordersQueryTime > 1000 ? '⚠️ SLOW' : ordersQueryTime > 500 ? '⚠️' : '✅'}`);
+      if (orderIds.length > 0) {
+        console.log(`[orders]   - Order sets query (${orderIds.length} orders): ${setsQueryTime}ms ${setsQueryTime > 500 ? '⚠️ SLOW' : '✅'}`);
+      }
+      if (!useJoin && userIds.length > 0) {
+        console.log(`[orders]   - Profiles query (${userIds.length} users): ${profilesQueryTime}ms ${profilesQueryTime > 500 ? '⚠️ SLOW' : '✅'}`);
+      }
+      console.log(`[orders]   - Data transformation: ${transformTime}ms ${transformTime > 100 ? '⚠️' : '✅'}`);
+      console.log(`[orders]   - Total: ${totalTime}ms`);
+      
+      if (totalTime > 2000) {
+        console.warn(`[orders] ⚠️  Slow query detected (>2s). Breakdown:`);
+        if (sessionTime > 100) {
+          console.warn(`[orders]   ⚠️  Session fetch is VERY slow (${sessionTime}ms). Should be <10ms. This might indicate:`);
+          console.warn(`[orders]      - Network call instead of AsyncStorage read`);
+          console.warn(`[orders]      - AsyncStorage performance issue`);
+          console.warn(`[orders]      - Supabase client initialization delay`);
+        }
+        if (ordersQueryTime > 1000) {
+          console.warn(`[orders]   ⚠️  Orders query is slow (${ordersQueryTime}ms). Possible causes:`);
+          console.warn(`[orders]      - Missing database indexes (run: docs/supabase-add-performance-indexes.sql)`);
+          console.warn(`[orders]      - Network latency (iOS simulator can add overhead)`);
+          console.warn(`[orders]      - Large JSONB data in orders (design_uploads, sizes, pricing)`);
+        }
+        if (setsQueryTime > 500) {
+          console.warn(`[orders]   ⚠️  Order sets query is slow (${setsQueryTime}ms). Possible causes:`);
+          console.warn(`[orders]      - Missing composite index on order_sets(order_id, created_at)`);
+          console.warn(`[orders]      - Large JSONB arrays (design_uploads)`);
+          console.warn(`[orders]      - Network latency`);
+        }
+        if (profilesQueryTime > 500) {
+          console.warn(`[orders]   ⚠️  Profiles query is slow (${profilesQueryTime}ms). Consider using join instead.`);
+        }
+      }
     }
 
     return { orders: transformedOrders };

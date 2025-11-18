@@ -52,15 +52,38 @@ export async function signup({ email, password, name, ageGroup }) {
     const userId = authData.user.id;
     const now = new Date().toISOString();
 
+    // Ensure the session is set in the Supabase client before creating profile
+    // The session from signUp might not be immediately available
+    if (authData.session) {
+      const { supabase } = await import('../lib/supabaseClient');
+      // Set the session explicitly to ensure it's available for RLS checks
+      await supabase.auth.setSession(authData.session);
+      
+      if (__DEV__) {
+        console.log('[auth] Session set in Supabase client, user ID:', userId);
+      }
+    }
+
     // Create profile in Supabase
+    // Note: The trigger should create the profile automatically, but we'll also try
+    // to upsert it to ensure it has the correct data (especially full_name from signup)
     try {
       await upsertProfile({
         id: userId,
         email,
         full_name: name,
       });
+      
+      if (__DEV__) {
+        console.log('[auth] ✅ Profile created/updated successfully');
+      }
     } catch (profileError) {
-      console.warn('[auth] ⚠️  Failed to create profile (non-critical):', profileError.message);
+      // If profile creation fails, log it but don't block signup
+      // The trigger might have already created it, or it can be created later
+      if (__DEV__) {
+        console.warn('[auth] ⚠️  Failed to create profile (non-critical):', profileError.message);
+        console.warn('[auth] Profile might have been created by trigger, or will be created on next login');
+      }
       // Continue even if profile creation fails - it can be retried
     }
 
