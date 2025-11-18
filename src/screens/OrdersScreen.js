@@ -134,7 +134,7 @@ function OrdersScreen({ route }) {
     () => [
       { key: 'drafts', label: 'Cart', count: categorizedOrders.drafts.length },
       { key: 'submitted', label: 'Submitted', count: categorizedOrders.submitted.length },
-      { key: 'completed', label: 'Delivered', count: categorizedOrders.completed.length },
+      { key: 'completed', label: 'Completed', count: categorizedOrders.completed.length },
       { key: 'all', label: 'All', count: categorizedOrders.all.length },
     ],
     [categorizedOrders],
