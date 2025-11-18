@@ -123,9 +123,21 @@ const fetchWithRetry = async (url, options = {}) => {
       };
 
       // Add timeout if no signal is provided
+      // Use longer timeout for order operations (which may contain large base64 images)
+      // Check if this is an order-related operation by looking at the URL
+      const isOrderOperation = url.includes('/rest/v1/orders') || url.includes('/rest/v1/order_sets');
+      const timeoutDuration = isOrderOperation ? 120000 : 15000; // 120 seconds for orders, 15 seconds for others
+      
       if (!options.signal) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout per attempt
+        const timeoutId = setTimeout(() => {
+          if (__DEV__ && isOrderOperation) {
+            console.warn('[supabase] ⚠️  Order operation timeout - request taking longer than 120 seconds');
+            console.warn('[supabase] 💡 This usually happens with large base64 image payloads');
+            console.warn('[supabase] 💡 Consider: compressing images, using Supabase Storage, or reducing image count');
+          }
+          controller.abort();
+        }, timeoutDuration);
         newOptions.signal = controller.signal;
         // Store timeoutId to clear if request succeeds quickly
         newOptions._timeoutId = timeoutId;

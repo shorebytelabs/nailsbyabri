@@ -357,7 +357,7 @@ function OrdersScreen({ route }) {
   );
 
   const handleViewDetails = useCallback(
-    (order) => {
+    async (order) => {
       if (!order) {
         return;
       }
@@ -367,11 +367,28 @@ function OrdersScreen({ route }) {
       // Check status case-insensitively
       const orderStatusLower = (order.status || '').toLowerCase();
       if (orderStatusLower === 'draft') {
-        setState((prev) => ({
-          ...prev,
-          activeOrder: order,
-        }));
-        navigateToRoot('NewOrderFlow', { resume: true });
+        // For draft orders, fetch the full order details (including images) before editing
+        // The list query excludes design_uploads and sizing_uploads for performance
+        try {
+          setState((prev) => ({ ...prev, ordersLoading: true }));
+          const { fetchOrder } = await import('../services/orderService');
+          const { order: fullOrder } = await fetchOrder(order.id);
+          setState((prev) => ({
+            ...prev,
+            activeOrder: fullOrder,
+            ordersLoading: false,
+          }));
+          navigateToRoot('NewOrderFlow', { resume: true });
+        } catch (error) {
+          console.error('[OrdersScreen] Failed to fetch full order details:', error);
+          setState((prev) => ({ ...prev, ordersLoading: false }));
+          // Fallback: use the order from list (without images)
+          setState((prev) => ({
+            ...prev,
+            activeOrder: order,
+          }));
+          navigateToRoot('NewOrderFlow', { resume: true });
+        }
         return;
       }
 

@@ -551,18 +551,36 @@ function NewOrderStepperScreen({ route }) {
         shapeId: set.shapeId || null,
         designDescription: set.description || '',
         designUploads: Array.isArray(set.designUploads)
-          ? set.designUploads.map((upload, uploadIndex) => ({
-              ...upload,
-              id: upload?.id || `upload_${index}_${uploadIndex}`,
-              preview: resolveUploadPreview(upload),
-            }))
+          ? set.designUploads.map((upload, uploadIndex) => {
+              const base64Data = upload.data || upload.base64 || upload.content || null;
+              const preview = resolveUploadPreview(upload);
+              return {
+                ...upload,
+                id: upload?.id || `upload_${index}_${uploadIndex}`,
+                // Ensure base64 data is preserved
+                base64: base64Data,
+                data: base64Data,
+                // Ensure uri is set for display
+                uri: upload.uri || preview || (base64Data ? `data:image/jpeg;base64,${base64Data}` : null),
+                preview: preview || (base64Data ? `data:image/jpeg;base64,${base64Data}` : null),
+              };
+            })
           : [],
         sizingUploads: Array.isArray(set.sizingUploads)
-          ? set.sizingUploads.map((upload, uploadIndex) => ({
-              ...upload,
-              id: upload?.id || `sizing_${index}_${uploadIndex}`,
-              preview: resolveUploadPreview(upload),
-            }))
+          ? set.sizingUploads.map((upload, uploadIndex) => {
+              const base64Data = upload.data || upload.base64 || upload.content || null;
+              const preview = resolveUploadPreview(upload);
+              return {
+                ...upload,
+                id: upload?.id || `sizing_${index}_${uploadIndex}`,
+                // Ensure base64 data is preserved
+                base64: base64Data,
+                data: base64Data,
+                // Ensure uri is set for display
+                uri: upload.uri || preview || (base64Data ? `data:image/jpeg;base64,${base64Data}` : null),
+                preview: preview || (base64Data ? `data:image/jpeg;base64,${base64Data}` : null),
+              };
+            })
           : [],
         requiresFollowUp: Boolean(set.requiresFollowUp),
         quantity: Number(set.quantity) || 1,
@@ -1259,8 +1277,33 @@ function NewOrderStepperScreen({ route }) {
       setEditingSetId(setId);
       setCurrentSetDraft({
         ...target,
-        designUploads: (target.designUploads || []).map((upload) => ({ ...upload })),
-        sizingUploads: (target.sizingUploads || []).map((upload) => ({ ...upload })),
+        // Ensure uploads have proper format for display (with uri/preview)
+        designUploads: (target.designUploads || []).map((upload) => {
+          const base64Data = upload.data || upload.base64 || upload.content || null;
+          const preview = resolveUploadPreview(upload);
+          return {
+            ...upload,
+            // Ensure base64 data is preserved
+            base64: base64Data,
+            data: base64Data,
+            // Ensure uri is set for display (React Native Image component needs uri)
+            uri: upload.uri || preview || (base64Data ? `data:image/jpeg;base64,${base64Data}` : null),
+            preview: preview || (base64Data ? `data:image/jpeg;base64,${base64Data}` : null),
+          };
+        }),
+        sizingUploads: (target.sizingUploads || []).map((upload) => {
+          const base64Data = upload.data || upload.base64 || upload.content || null;
+          const preview = resolveUploadPreview(upload);
+          return {
+            ...upload,
+            // Ensure base64 data is preserved
+            base64: base64Data,
+            data: base64Data,
+            // Ensure uri is set for display (React Native Image component needs uri)
+            uri: upload.uri || preview || (base64Data ? `data:image/jpeg;base64,${base64Data}` : null),
+            preview: preview || (base64Data ? `data:image/jpeg;base64,${base64Data}` : null),
+          };
+        }),
         selectedSizingOption: target.selectedSizingOption || null,
         selectedProfileId: profileId || target.selectedProfileId || null,
       });

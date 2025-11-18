@@ -9,25 +9,60 @@ import { calculatePriceBreakdown } from '../utils/pricing';
  * Normalize nail sets for storage
  */
 function normalizeNailSetForStorage(set) {
+  // Convert design uploads to array of objects for JSONB[] storage
+  const designUploads = Array.isArray(set.designUploads)
+    ? set.designUploads
+        .map((upload) => {
+          if (!upload) return null;
+          // Extract base64 data from various possible fields
+          const base64Data = upload.data || upload.base64 || upload.content || null;
+          if (!base64Data) return null;
+          // Store as JSONB object - Supabase will handle JSONB[] conversion
+          return {
+            id: upload.id || null,
+            fileName: upload.fileName || null,
+            data: base64Data,
+          };
+        })
+        .filter(Boolean)
+    : [];
+
+  // Convert sizing uploads to array of objects for JSONB[] storage
+  const sizingUploads = Array.isArray(set.sizingUploads)
+    ? set.sizingUploads
+        .map((upload) => {
+          if (!upload) return null;
+          // Extract base64 data from various possible fields
+          const base64Data = upload.data || upload.base64 || upload.content || null;
+          if (!base64Data) return null;
+          // Store as JSONB object - Supabase will handle JSONB[] conversion
+          return {
+            id: upload.id || null,
+            fileName: upload.fileName || null,
+            data: base64Data,
+          };
+        })
+        .filter(Boolean)
+    : [];
+
+  if (__DEV__) {
+    console.log('[normalizeNailSetForStorage] Set data:', {
+      setId: set.id || set.shapeId,
+      designUploadsCount: designUploads.length,
+      sizingUploadsCount: sizingUploads.length,
+      requiresFollowUp: Boolean(set.requiresFollowUp),
+    });
+  }
+
   return {
     name: typeof set.name === 'string' && set.name.trim() ? set.name.trim() : null,
     shape_id: set.shapeId,
     quantity: Math.max(1, Number(set.quantity) || 1),
     description: typeof set.description === 'string' ? set.description.trim() : '',
     set_notes: typeof set.setNotes === 'string' ? set.setNotes.trim() : '',
-    design_uploads: Array.isArray(set.designUploads)
-      ? set.designUploads
-          .map((upload) => {
-            if (!upload) return null;
-            // Store as JSONB array
-            return {
-              id: upload.id || null,
-              fileName: upload.fileName || null,
-              data: upload.data || upload.base64 || upload.content || null,
-            };
-          })
-          .filter(Boolean)
-      : [],
+    // Store as array of objects - Supabase will handle JSONB[] conversion
+    design_uploads: designUploads,
+    sizing_uploads: sizingUploads,
     sizes: set.sizes || { mode: 'standard', values: {} },
     requires_follow_up: Boolean(set.requiresFollowUp),
   };
@@ -37,6 +72,97 @@ function normalizeNailSetForStorage(set) {
  * Transform order set from database to app format
  */
 function transformOrderSetFromDB(set) {
+  // Convert JSONB[] back to array of objects with proper format for display
+  // PostgreSQL JSONB[] returns as array of JSONB values, which may need parsing
+  let designUploads = [];
+  if (Array.isArray(set.design_uploads)) {
+    designUploads = set.design_uploads
+      .map((upload) => {
+        // If it's already an object, use it directly
+        if (typeof upload === 'object' && upload !== null) {
+          const base64Data = upload.data || upload.base64 || upload.content || null;
+          if (!base64Data) return null;
+          return {
+            id: upload.id || null,
+            fileName: upload.fileName || null,
+            base64: base64Data,
+            data: base64Data,
+            // Add uri for display (React Native Image component needs uri)
+            uri: `data:image/jpeg;base64,${base64Data}`,
+          };
+        }
+        // If it's a string (JSONB), parse it
+        if (typeof upload === 'string') {
+          try {
+            const parsed = JSON.parse(upload);
+            const base64Data = parsed.data || parsed.base64 || parsed.content || null;
+            if (!base64Data) return null;
+            return {
+              id: parsed.id || null,
+              fileName: parsed.fileName || null,
+              base64: base64Data,
+              data: base64Data,
+              uri: `data:image/jpeg;base64,${base64Data}`,
+            };
+          } catch (e) {
+            console.warn('[transformOrderSetFromDB] Failed to parse design upload:', e);
+            return null;
+          }
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }
+
+  let sizingUploads = [];
+  if (Array.isArray(set.sizing_uploads)) {
+    sizingUploads = set.sizing_uploads
+      .map((upload) => {
+        // If it's already an object, use it directly
+        if (typeof upload === 'object' && upload !== null) {
+          const base64Data = upload.data || upload.base64 || upload.content || null;
+          if (!base64Data) return null;
+          return {
+            id: upload.id || null,
+            fileName: upload.fileName || null,
+            base64: base64Data,
+            data: base64Data,
+            // Add uri for display (React Native Image component needs uri)
+            uri: `data:image/jpeg;base64,${base64Data}`,
+          };
+        }
+        // If it's a string (JSONB), parse it
+        if (typeof upload === 'string') {
+          try {
+            const parsed = JSON.parse(upload);
+            const base64Data = parsed.data || parsed.base64 || parsed.content || null;
+            if (!base64Data) return null;
+            return {
+              id: parsed.id || null,
+              fileName: parsed.fileName || null,
+              base64: base64Data,
+              data: base64Data,
+              uri: `data:image/jpeg;base64,${base64Data}`,
+            };
+          } catch (e) {
+            console.warn('[transformOrderSetFromDB] Failed to parse sizing upload:', e);
+            return null;
+          }
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }
+
+  if (__DEV__) {
+    console.log('[transformOrderSetFromDB] Set loaded:', {
+      id: set.id,
+      hasDesignUploads: designUploads.length > 0,
+      hasSizingUploads: sizingUploads.length > 0,
+      requiresFollowUp: Boolean(set.requires_follow_up),
+    });
+  }
+
   return {
     id: set.id,
     name: set.name,
@@ -44,7 +170,8 @@ function transformOrderSetFromDB(set) {
     quantity: set.quantity,
     description: set.description,
     setNotes: set.set_notes,
-    designUploads: Array.isArray(set.design_uploads) ? set.design_uploads : [],
+    designUploads,
+    sizingUploads,
     sizes: set.sizes || { mode: 'standard', values: {} },
     requiresFollowUp: Boolean(set.requires_follow_up),
   };
@@ -95,6 +222,39 @@ export async function createOrUpdateOrder(orderData) {
   try {
     if (__DEV__) {
       console.log('[orders] Creating/updating order:', orderData.id || 'new');
+      
+      // Calculate approximate image payload size for debugging
+      let totalImageSize = 0;
+      let designImageCount = 0;
+      let sizingImageCount = 0;
+      
+      if (Array.isArray(orderData.nailSets)) {
+        orderData.nailSets.forEach((set) => {
+          if (Array.isArray(set.designUploads)) {
+            set.designUploads.forEach((upload) => {
+              const imgSize = (upload.base64 || upload.data || upload.content || '').length;
+              totalImageSize += imgSize;
+              designImageCount++;
+            });
+          }
+          if (Array.isArray(set.sizingUploads)) {
+            set.sizingUploads.forEach((upload) => {
+              const imgSize = (upload.base64 || upload.data || upload.content || '').length;
+              totalImageSize += imgSize;
+              sizingImageCount++;
+            });
+          }
+        });
+      }
+      
+      const totalSizeMB = (totalImageSize / (1024 * 1024)).toFixed(2);
+      console.log(`[orders] Image payload: ${designImageCount} design + ${sizingImageCount} sizing = ${totalSizeMB} MB total`);
+      
+      if (totalImageSize > 5 * 1024 * 1024) { // 5MB
+        console.warn('[orders] ⚠️  Large image payload detected (>5MB)');
+        console.warn('[orders] 💡 This may cause slow saves or timeouts');
+        console.warn('[orders] 💡 Consider compressing images before upload');
+      }
     }
 
     // Get the authenticated user's ID from the session
@@ -268,7 +428,30 @@ export async function createOrUpdateOrder(orderData) {
 
     return { order: completeOrder };
   } catch (error) {
+    const errorMessage = error?.message || 'Unknown error';
+    const isAbortError = errorMessage.includes('AbortError') || errorMessage.includes('Aborted') || error?.name === 'AbortError';
+    
     console.error('[orders] ❌ Failed to create/update order:', error);
+    
+    if (isAbortError) {
+      console.error('[orders] ⚠️  Request was aborted - likely due to timeout');
+      console.error('[orders] 💡 This usually happens when:');
+      console.error('[orders] 💡   1. The payload is too large (large base64 images)');
+      console.error('[orders] 💡   2. Network connection is slow');
+      console.error('[orders] 💡   3. Server is taking too long to process');
+      console.error('[orders] 💡 Solutions:');
+      console.error('[orders] 💡   - Compress images before uploading');
+      console.error('[orders] 💡   - Use Supabase Storage for images instead of base64');
+      console.error('[orders] 💡   - Reduce image size/quality');
+      console.error('[orders] 💡   - Try again with fewer images');
+      
+      // Provide a more helpful error message
+      const helpfulError = new Error('Request timed out. The order may be too large. Try reducing image sizes, compressing images, or uploading fewer images at once.');
+      helpfulError.originalError = error;
+      helpfulError.isTimeout = true;
+      throw helpfulError;
+    }
+    
     throw error;
   }
 }
