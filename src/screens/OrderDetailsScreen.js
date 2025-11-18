@@ -834,7 +834,7 @@ function OrderDetailsScreen({ navigation, route }) {
                         ) : null}
 
                         <View style={styles.itemSection}>
-                          <Text style={styles.sectionLabel}>Uploaded Images</Text>
+                          <Text style={styles.sectionLabel}>Design Images</Text>
                           {uploads.length ? (
                             <View style={styles.uploadsRow}>
                               {uploads.map((upload, uploadIndex) => {
@@ -851,7 +851,7 @@ function OrderDetailsScreen({ navigation, route }) {
                                       pressed && { opacity: 0.7 },
                                     ]}
                                     accessibilityRole="imagebutton"
-                                    accessibilityLabel={`Preview upload ${uploadIndex + 1}`}
+                                    accessibilityLabel={`Preview design image ${uploadIndex + 1}`}
                                   >
                                     <Image source={{ uri: source }} style={styles.uploadImage} />
                                   </Pressable>
@@ -859,8 +859,41 @@ function OrderDetailsScreen({ navigation, route }) {
                               })}
                             </View>
                           ) : (
-                            <Text style={styles.secondaryText}>No images provided.</Text>
+                            <Text style={styles.secondaryText}>No design images provided.</Text>
                           )}
+                        </View>
+
+                        <View style={styles.itemSection}>
+                          <Text style={styles.sectionLabel}>Sizing Images</Text>
+                          {(() => {
+                            const sizingUploads = Array.isArray(item.sizingUploads) ? item.sizingUploads : [];
+                            return sizingUploads.length ? (
+                              <View style={styles.uploadsRow}>
+                                {sizingUploads.map((upload, uploadIndex) => {
+                                  const source = resolveImageSource(upload);
+                                  if (!source) {
+                                    return null;
+                                  }
+                                  return (
+                                    <Pressable
+                                      key={upload?.id || `${item.id || index}-sizing-${uploadIndex}`}
+                                      onPress={() => handlePreviewImage(upload)}
+                                      style={({ pressed }) => [
+                                        styles.uploadThumbnail,
+                                        pressed && { opacity: 0.7 },
+                                      ]}
+                                      accessibilityRole="imagebutton"
+                                      accessibilityLabel={`Preview sizing image ${uploadIndex + 1}`}
+                                    >
+                                      <Image source={{ uri: source }} style={styles.uploadImage} />
+                                    </Pressable>
+                                  );
+                                })}
+                              </View>
+                            ) : (
+                              <Text style={styles.secondaryText}>No sizing images provided.</Text>
+                            );
+                          })()}
                         </View>
                       </View>
                     );
