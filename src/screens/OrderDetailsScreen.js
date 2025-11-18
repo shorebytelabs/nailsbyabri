@@ -1103,8 +1103,19 @@ function extractSizePairs(sizes) {
   return pairs;
 }
 
+/**
+ * Get status pill colors based on order status
+ * Updated to handle new status structure:
+ * - Draft, Submitted, Approved & In Progress, Ready statuses, Completed, Cancelled
+ */
 function getStatusPillColors(status, colors) {
-  const tint = status === 'submitted' ? colors.accent || '#6F171F' : colors.secondaryBackground || '#BF9B7A';
+  const statusLower = (status || '').toLowerCase();
+  // Use accent color for submitted and in-progress statuses, secondary for others
+  const isActiveStatus = statusLower === 'submitted' || 
+                         statusLower === 'approved & in progress' ||
+                         statusLower === 'approved_in_progress' ||
+                         statusLower.includes('ready');
+  const tint = isActiveStatus ? colors.accent || '#6F171F' : colors.secondaryBackground || '#BF9B7A';
   return {
     backgroundColor: withOpacity(tint, 0.12),
     borderColor: withOpacity(tint, 0.3),

@@ -730,7 +730,15 @@ export async function updateOrder(orderId, updates) {
       console.log('[orders] Updating order:', orderId, updates);
     }
 
+    // Allowed status values - includes both old and new status formats
+    // New status structure:
+    // - Draft
+    // - Submitted
+    // - Approved & In Progress
+    // - Ready for Pickup, Ready for Shipping, Ready for Delivery
+    // - Completed, Cancelled
     const allowedStatuses = new Set([
+      // Old formats (for backward compatibility)
       'draft',
       'submitted',
       'pending',
@@ -740,12 +748,61 @@ export async function updateOrder(orderId, updates) {
       'cancelled',
       'pending_payment',
       'paid',
+      // New status formats
+      'Draft',
+      'Submitted',
+      'Approved & In Progress',
+      'Ready for Pickup',
+      'Ready for Shipping',
+      'Ready for Delivery',
+      'Completed',
+      'Cancelled',
     ]);
 
     const updatePayload = {};
 
-    if (updates.status && allowedStatuses.has(updates.status)) {
-      updatePayload.status = updates.status;
+    // Allow status update if it's in the allowed set
+    // Also allow any status that matches the new status constants (case-insensitive check)
+    if (updates.status) {
+      const statusLower = String(updates.status).toLowerCase();
+      const isAllowed = allowedStatuses.has(updates.status) ||
+        statusLower === 'draft' ||
+        statusLower === 'submitted' ||
+        statusLower === 'approved & in progress' ||
+        statusLower === 'approved_in_progress' ||
+        statusLower === 'ready for pickup' ||
+        statusLower === 'ready_for_pickup' ||
+        statusLower === 'ready for shipping' ||
+        statusLower === 'ready_for_shipping' ||
+        statusLower === 'ready for delivery' ||
+        statusLower === 'ready_for_delivery' ||
+        statusLower === 'completed' ||
+        statusLower === 'cancelled' ||
+        statusLower === 'canceled';
+      
+      if (isAllowed) {
+        // Normalize to the proper status format
+        if (statusLower === 'draft') {
+          updatePayload.status = 'Draft';
+        } else if (statusLower === 'submitted') {
+          updatePayload.status = 'Submitted';
+        } else if (statusLower === 'approved & in progress' || statusLower === 'approved_in_progress' || statusLower === 'in_progress') {
+          updatePayload.status = 'Approved & In Progress';
+        } else if (statusLower === 'ready for pickup' || statusLower === 'ready_for_pickup') {
+          updatePayload.status = 'Ready for Pickup';
+        } else if (statusLower === 'ready for shipping' || statusLower === 'ready_for_shipping') {
+          updatePayload.status = 'Ready for Shipping';
+        } else if (statusLower === 'ready for delivery' || statusLower === 'ready_for_delivery') {
+          updatePayload.status = 'Ready for Delivery';
+        } else if (statusLower === 'completed' || statusLower === 'delivered') {
+          updatePayload.status = 'Completed';
+        } else if (statusLower === 'cancelled' || statusLower === 'canceled') {
+          updatePayload.status = 'Cancelled';
+        } else {
+          // Use the provided status as-is if it's already in the correct format
+          updatePayload.status = updates.status;
+        }
+      }
     }
 
     if (typeof updates.adminNotes === 'string') {

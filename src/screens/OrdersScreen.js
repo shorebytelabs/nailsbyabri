@@ -20,6 +20,95 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from '../icons/Icon';
 import { deleteOrder } from '../services/api';
 
+/**
+ * Order Status Constants
+ * 
+ * Status values used throughout the application:
+ * - Draft: Order is being created/edited by user
+ * - Submitted: Order has been submitted by user (awaiting admin action)
+ * - Approved & In Progress: Admin has approved and order is in production
+ * - Ready for Pickup: Order is ready for customer pickup
+ * - Ready for Shipping: Order is ready to be shipped
+ * - Ready for Delivery: Order is ready for delivery
+ * - Completed: Order has been fulfilled
+ * - Cancelled: Order has been cancelled
+ */
+const ORDER_STATUS = {
+  DRAFT: 'Draft',
+  SUBMITTED: 'Submitted',
+  APPROVED_IN_PROGRESS: 'Approved & In Progress',
+  READY_FOR_PICKUP: 'Ready for Pickup',
+  READY_FOR_SHIPPING: 'Ready for Shipping',
+  READY_FOR_DELIVERY: 'Ready for Delivery',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+};
+
+/**
+ * Status to Filter Mapping
+ * Maps each status to its corresponding filter category
+ */
+const STATUS_TO_FILTER = {
+  [ORDER_STATUS.DRAFT]: 'cart',
+  [ORDER_STATUS.SUBMITTED]: 'in_progress',
+  [ORDER_STATUS.APPROVED_IN_PROGRESS]: 'in_progress',
+  [ORDER_STATUS.READY_FOR_PICKUP]: 'ready',
+  [ORDER_STATUS.READY_FOR_SHIPPING]: 'ready',
+  [ORDER_STATUS.READY_FOR_DELIVERY]: 'ready',
+  [ORDER_STATUS.COMPLETED]: 'completed',
+  [ORDER_STATUS.CANCELLED]: 'completed',
+};
+
+/**
+ * Helper function to normalize status for comparison
+ * Handles case-insensitive matching and common variations
+ */
+function normalizeStatusForMapping(status) {
+  if (!status) return '';
+  const normalized = String(status).trim();
+  
+  // Try exact match first
+  if (STATUS_TO_FILTER[normalized]) {
+    return normalized;
+  }
+  
+  // Try case-insensitive match
+  const statusLower = normalized.toLowerCase();
+  for (const [key, value] of Object.entries(STATUS_TO_FILTER)) {
+    if (key.toLowerCase() === statusLower) {
+      return key;
+    }
+  }
+  
+  // Handle common variations and old formats
+  if (statusLower === 'draft') {
+    return ORDER_STATUS.DRAFT;
+  }
+  if (statusLower === 'submitted') {
+    return ORDER_STATUS.SUBMITTED;
+  }
+  if (statusLower === 'approved & in progress' || statusLower === 'approved_in_progress' || statusLower === 'in_progress' || statusLower === 'in progress') {
+    return ORDER_STATUS.APPROVED_IN_PROGRESS;
+  }
+  if (statusLower === 'ready for pickup' || statusLower === 'ready_for_pickup') {
+    return ORDER_STATUS.READY_FOR_PICKUP;
+  }
+  if (statusLower === 'ready for shipping' || statusLower === 'ready_for_shipping') {
+    return ORDER_STATUS.READY_FOR_SHIPPING;
+  }
+  if (statusLower === 'ready for delivery' || statusLower === 'ready_for_delivery') {
+    return ORDER_STATUS.READY_FOR_DELIVERY;
+  }
+  if (statusLower === 'completed' || statusLower === 'delivered') {
+    return ORDER_STATUS.COMPLETED;
+  }
+  if (statusLower === 'cancelled' || statusLower === 'canceled') {
+    return ORDER_STATUS.CANCELLED;
+  }
+  
+  return normalized;
+}
+
 function OrdersScreen({ route }) {
   const initialTabFromRoute = route?.params?.initialTab;
   const navigation = useNavigation();
@@ -100,55 +189,93 @@ function OrdersScreen({ route }) {
     });
   }, [state.activeOrder, state.lastCompletedOrder, state.orders]);
 
+  /**
+   * Categorize orders into filter groups based on status
+   * 
+   * Filter structure:
+   * - Cart: Contains "Draft" status
+   * - In Progress: Contains "Submitted", "Approved & In Progress" statuses
+   * - Ready: Contains "Ready for Pickup", "Ready for Shipping", "Ready for Delivery" statuses
+   * - Completed: Contains "Completed" and "Cancelled" statuses
+   * - All: Contains all statuses
+   */
   const categorizedOrders = useMemo(() => {
-    const drafts = [];
-    const submitted = [];
+    const cart = [];
+    const inProgress = [];
+    const ready = [];
     const completed = [];
 
     baseOrders.forEach((order) => {
-      const status = (order.status || '').toLowerCase();
-      if (status === 'draft') {
-        drafts.push(order);
-      } else if (status === 'completed' || status === 'delivered') {
-        completed.push(order);
-      } else {
-        submitted.push(order);
+      const status = order.status || '';
+      
+      // Normalize status to match our mapping
+      const normalizedStatus = normalizeStatusForMapping(status);
+      
+      // Map status to filter category
+      const filterCategory = STATUS_TO_FILTER[normalizedStatus] || 'in_progress';
+      
+      switch (filterCategory) {
+        case 'cart':
+          cart.push(order);
+          break;
+        case 'in_progress':
+          inProgress.push(order);
+          break;
+        case 'ready':
+          ready.push(order);
+          break;
+        case 'completed':
+          completed.push(order);
+          break;
+        default:
+          // Default to in_progress for unknown statuses
+          inProgress.push(order);
+          break;
       }
     });
 
     return {
-      drafts,
-      submitted,
+      cart,
+      in_progress: inProgress,
+      ready,
       completed,
       all: baseOrders,
     };
   }, [baseOrders]);
 
   const [activeTab, setActiveTab] = useState(
-    ['drafts', 'submitted', 'completed', 'all'].includes(initialTabFromRoute)
+    ['cart', 'in_progress', 'ready', 'completed', 'all'].includes(initialTabFromRoute)
       ? initialTabFromRoute
-      : 'drafts',
+      : 'cart',
   );
 
   const tabs = useMemo(
     () => [
-      { key: 'drafts', label: 'Cart', count: categorizedOrders.drafts.length },
-      { key: 'submitted', label: 'Submitted', count: categorizedOrders.submitted.length },
+      { key: 'cart', label: 'Cart', count: categorizedOrders.cart.length },
+      { key: 'in_progress', label: 'In Progress', count: categorizedOrders.in_progress.length },
+      { key: 'ready', label: 'Ready', count: categorizedOrders.ready.length },
       { key: 'completed', label: 'Completed', count: categorizedOrders.completed.length },
       { key: 'all', label: 'All', count: categorizedOrders.all.length },
     ],
     [categorizedOrders],
   );
 
+  /**
+   * Status filters for admin dropdown
+   * Only admin can update statuses beyond "Draft" and "Submitted"
+   * Users can only set "Draft" (when saving) and "Submitted" (when submitting)
+   */
   const STATUS_FILTERS = useMemo(
     () => [
       { key: 'all', label: 'All statuses' },
-      { key: 'draft', label: 'Draft' },
-      { key: 'pending', label: 'Pending' },
-      { key: 'in_progress', label: 'In progress' },
-      { key: 'submitted', label: 'Submitted' },
-      { key: 'completed', label: 'Completed' },
-      { key: 'cancelled', label: 'Cancelled' },
+      { key: ORDER_STATUS.DRAFT.toLowerCase(), label: ORDER_STATUS.DRAFT },
+      { key: ORDER_STATUS.SUBMITTED.toLowerCase(), label: ORDER_STATUS.SUBMITTED },
+      { key: ORDER_STATUS.APPROVED_IN_PROGRESS.toLowerCase().replace(/\s+/g, '_'), label: ORDER_STATUS.APPROVED_IN_PROGRESS },
+      { key: ORDER_STATUS.READY_FOR_PICKUP.toLowerCase().replace(/\s+/g, '_'), label: ORDER_STATUS.READY_FOR_PICKUP },
+      { key: ORDER_STATUS.READY_FOR_SHIPPING.toLowerCase().replace(/\s+/g, '_'), label: ORDER_STATUS.READY_FOR_SHIPPING },
+      { key: ORDER_STATUS.READY_FOR_DELIVERY.toLowerCase().replace(/\s+/g, '_'), label: ORDER_STATUS.READY_FOR_DELIVERY },
+      { key: ORDER_STATUS.COMPLETED.toLowerCase(), label: ORDER_STATUS.COMPLETED },
+      { key: ORDER_STATUS.CANCELLED.toLowerCase(), label: ORDER_STATUS.CANCELLED },
     ],
     [],
   );
@@ -178,13 +305,26 @@ function OrdersScreen({ route }) {
   }, [baseOrders, isAdmin]);
 
   const filteredOrders = useMemo(() => {
-    let results = categorizedOrders[activeTab] || categorizedOrders.drafts;
+    // Get orders for the active tab (cart, in_progress, ready, completed, or all)
+    let results = categorizedOrders[activeTab] || categorizedOrders.cart;
 
     if (isAdmin) {
+      // Apply status filter if one is selected
       if (selectedStatusFilter !== 'all') {
-        results = results.filter((order) => (order.status || '').toLowerCase() === selectedStatusFilter);
+        // Normalize status comparison - handle both old and new status formats
+        results = results.filter((order) => {
+          const orderStatus = (order.status || '').toLowerCase();
+          const filterKey = selectedStatusFilter.toLowerCase();
+          
+          // Handle status keys that use underscores (e.g., "approved_&_in_progress")
+          const normalizedOrderStatus = orderStatus.replace(/\s+/g, '_').replace(/&/g, '');
+          const normalizedFilterKey = filterKey.replace(/\s+/g, '_').replace(/&/g, '');
+          
+          return normalizedOrderStatus === normalizedFilterKey;
+        });
       }
 
+      // Apply user filter if one is selected
       if (selectedUserFilter !== 'all') {
         results = results.filter((order) => {
           const email = (order.user?.email || order.userEmail || '').toLowerCase();
@@ -214,8 +354,8 @@ function OrdersScreen({ route }) {
       }
 
       logEvent('tap_order_view', { orderId: order.id, status: order.status });
-
-      if (order.status === 'draft') {
+      // Navigate to order builder for draft orders, order details for others
+      if (order.status === ORDER_STATUS.DRAFT || (order.status || '').toLowerCase() === 'draft') {
         setState((prev) => ({
           ...prev,
           activeOrder: order,
@@ -264,7 +404,8 @@ function OrdersScreen({ route }) {
 
   const handleDeleteOrder = useCallback(
     async (order) => {
-      if (order.status !== 'draft') {
+      // Only show delete button for draft orders
+      if (order.status !== ORDER_STATUS.DRAFT && (order.status || '').toLowerCase() !== 'draft') {
         Alert.alert('Cannot delete', 'Only draft orders can be deleted.');
         return;
       }
@@ -590,38 +731,45 @@ function OrdersScreen({ route }) {
     const currentStatus = isAdminSectionExpanded && adminDraft.status 
       ? adminDraft.status 
       : (order.status || '');
-    const status = (currentStatus || '').toLowerCase();
+    const status = currentStatus || '';
+    const statusLower = status.toLowerCase();
     
     const adminImages = Array.isArray(adminDraft.images) ? adminDraft.images : [];
-    let statusLabel = 'Submitted';
+    
+    // Map status to display label and styling
+    // Default to "Submitted" for unknown statuses
+    let statusLabel = ORDER_STATUS.SUBMITTED;
     let statusBackground = withOpacity(accentColor, 0.12);
     let statusTextColor = accentColor;
 
-    switch (status) {
-      case 'draft':
-        statusLabel = 'Draft';
-        statusBackground = withOpacity(secondaryBackgroundColor, 0.2);
-        break;
-      case 'pending':
-        statusLabel = 'Pending';
-        statusBackground = withOpacity(accentColor, 0.1);
-        break;
-      case 'in_progress':
-        statusLabel = 'In progress';
-        statusBackground = withOpacity(accentColor, 0.12);
-        break;
-      case 'completed':
-      case 'delivered':
-        statusLabel = 'Completed';
-        statusBackground = withOpacity(accentColor, 0.18);
-        break;
-      case 'cancelled':
-        statusLabel = 'Cancelled';
-        statusBackground = withOpacity('#B33A3A', 0.12);
-        statusTextColor = '#B33A3A';
-        break;
-      default:
-        break;
+    // Normalize status for comparison (handle both old and new formats)
+    const normalizedStatus = statusLower.replace(/\s+/g, '_').replace(/&/g, '');
+    
+    if (status === ORDER_STATUS.DRAFT || normalizedStatus === 'draft') {
+      statusLabel = ORDER_STATUS.DRAFT;
+      statusBackground = withOpacity(secondaryBackgroundColor, 0.2);
+    } else if (status === ORDER_STATUS.SUBMITTED || normalizedStatus === 'submitted') {
+      statusLabel = ORDER_STATUS.SUBMITTED;
+      statusBackground = withOpacity(accentColor, 0.12);
+    } else if (status === ORDER_STATUS.APPROVED_IN_PROGRESS || normalizedStatus === 'approved_in_progress') {
+      statusLabel = ORDER_STATUS.APPROVED_IN_PROGRESS;
+      statusBackground = withOpacity(accentColor, 0.12);
+    } else if (status === ORDER_STATUS.READY_FOR_PICKUP || normalizedStatus === 'ready_for_pickup') {
+      statusLabel = ORDER_STATUS.READY_FOR_PICKUP;
+      statusBackground = withOpacity(accentColor, 0.15);
+    } else if (status === ORDER_STATUS.READY_FOR_SHIPPING || normalizedStatus === 'ready_for_shipping') {
+      statusLabel = ORDER_STATUS.READY_FOR_SHIPPING;
+      statusBackground = withOpacity(accentColor, 0.15);
+    } else if (status === ORDER_STATUS.READY_FOR_DELIVERY || normalizedStatus === 'ready_for_delivery') {
+      statusLabel = ORDER_STATUS.READY_FOR_DELIVERY;
+      statusBackground = withOpacity(accentColor, 0.15);
+    } else if (status === ORDER_STATUS.COMPLETED || normalizedStatus === 'completed' || normalizedStatus === 'delivered') {
+      statusLabel = ORDER_STATUS.COMPLETED;
+      statusBackground = withOpacity(accentColor, 0.18);
+    } else if (status === ORDER_STATUS.CANCELLED || normalizedStatus === 'cancelled') {
+      statusLabel = ORDER_STATUS.CANCELLED;
+      statusBackground = withOpacity('#B33A3A', 0.12);
+      statusTextColor = '#B33A3A';
     }
 
     return (
@@ -655,7 +803,8 @@ function OrdersScreen({ route }) {
             </Text>
           </View>
           <View style={styles.cardHeaderRight}>
-            {status === 'draft' ? (
+            {/* Show delete button only for draft orders */}
+            {(status === ORDER_STATUS.DRAFT || statusLower === 'draft') ? (
               <TouchableOpacity
                 onPress={() => handleDeleteOrder(order)}
                 style={[
@@ -873,11 +1022,37 @@ function OrdersScreen({ route }) {
                   <Text style={[styles.adminLabel, { color: primaryFontColor }]}>Status</Text>
                   <View style={styles.adminStatusChips}>
                     {STATUS_FILTERS.filter((filter) => filter.key !== 'all').map((filter) => {
-                      const isSelected = adminDraft.status?.toLowerCase() === filter.key;
+                      // Normalize status comparison for matching
+                      const draftStatus = (adminDraft.status || '').toLowerCase().replace(/\s+/g, '_').replace(/&/g, '');
+                      const filterKey = filter.key.toLowerCase().replace(/\s+/g, '_').replace(/&/g, '');
+                      const isSelected = draftStatus === filterKey;
+                      
                       return (
                         <TouchableOpacity
                           key={filter.key}
-                          onPress={() => handleAdminStatusSelect(order, filter.key)}
+                          onPress={() => {
+                            // Convert filter key back to proper status format
+                            // Map filter keys to actual status values
+                            let statusValue = filter.label;
+                            if (filter.key === 'approved_&_in_progress') {
+                              statusValue = ORDER_STATUS.APPROVED_IN_PROGRESS;
+                            } else if (filter.key === 'ready_for_pickup') {
+                              statusValue = ORDER_STATUS.READY_FOR_PICKUP;
+                            } else if (filter.key === 'ready_for_shipping') {
+                              statusValue = ORDER_STATUS.READY_FOR_SHIPPING;
+                            } else if (filter.key === 'ready_for_delivery') {
+                              statusValue = ORDER_STATUS.READY_FOR_DELIVERY;
+                            } else if (filter.key === 'draft') {
+                              statusValue = ORDER_STATUS.DRAFT;
+                            } else if (filter.key === 'submitted') {
+                              statusValue = ORDER_STATUS.SUBMITTED;
+                            } else if (filter.key === 'completed') {
+                              statusValue = ORDER_STATUS.COMPLETED;
+                            } else if (filter.key === 'cancelled') {
+                              statusValue = ORDER_STATUS.CANCELLED;
+                            }
+                            handleAdminStatusSelect(order, statusValue);
+                          }}
                           style={[
                             styles.adminStatusChip,
                             {

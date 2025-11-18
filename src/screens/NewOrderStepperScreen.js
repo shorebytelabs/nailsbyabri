@@ -471,8 +471,11 @@ function NewOrderStepperScreen({ route }) {
   }, [orderDraft.promoCode]);
 
   const resumeFlag = Boolean(route?.params?.resume);
-  const resumeDraft =
-    resumeFlag && state.activeOrder?.status === 'draft' ? state.activeOrder : null;
+  // Check if order is a draft (handle both old 'draft' and new 'Draft' formats)
+  const isDraftStatus = state.activeOrder?.status === 'draft' || 
+                        state.activeOrder?.status === 'Draft' ||
+                        (state.activeOrder?.status || '').toLowerCase() === 'draft';
+  const resumeDraft = resumeFlag && isDraftStatus ? state.activeOrder : null;
   const stepperTitle = resumeDraft ? 'Edit Draft Order' : 'Design & Order Your Nails';
 
   useEffect(() => {
@@ -836,7 +839,8 @@ function NewOrderStepperScreen({ route }) {
 
   const persistDraftOrder = async (options = {}) => {
     const { stepKey = currentStepKey, setId = editingSetId } = options || {};
-    const payload = buildOrderPayload('draft');
+    // When saving a draft, status is automatically set to "Draft"
+    const payload = buildOrderPayload('Draft');
     // eslint-disable-next-line no-console
     console.log('[OrderDraft] Persist payload', payload);
     const response = await createOrUpdateOrder(payload);
@@ -915,7 +919,8 @@ function NewOrderStepperScreen({ route }) {
         setCurrentStep(0);
         return;
       }
-      const payload = buildOrderPayload('submitted');
+      // When submitting an order, status is automatically set to "Submitted"
+      const payload = buildOrderPayload('Submitted');
       const response = await createOrUpdateOrder(payload);
       setDraftOrderId(response.order.id);
       handleOrderComplete(response.order, 'default');

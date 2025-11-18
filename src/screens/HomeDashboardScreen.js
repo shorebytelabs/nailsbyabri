@@ -315,7 +315,10 @@ function HomeDashboardScreen() {
                     styles.statusChip,
                     {
                       backgroundColor:
-                        order.status === 'submitted'
+                        (order.status || '').toLowerCase() === 'submitted' ||
+                        (order.status || '').toLowerCase() === 'approved & in progress' ||
+                        (order.status || '').toLowerCase() === 'approved_in_progress' ||
+                        (order.status || '').toLowerCase().includes('ready')
                           ? withOpacity(accentColor, 0.1)
                           : withOpacity(colors.secondaryBackground, 0.38),
                     },
@@ -327,7 +330,7 @@ function HomeDashboardScreen() {
                       { color: accentColor },
                     ]}
                   >
-                    {order.status || 'draft'}
+                    {order.status || 'Draft'}
                   </Text>
                 </View>
                 <Text

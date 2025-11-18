@@ -464,12 +464,16 @@ export function AppStateProvider({ children }) {
       });
 
       return updated;
-    } catch (error) {
+    } catch (err) {
+      const errorMessage = err?.message || err?.error?.message || 'Unable to update order.';
       setState((prev) => ({
         ...prev,
-        statusMessage: error?.message || 'Unable to update order.',
+        statusMessage: errorMessage,
       }));
-      throw error;
+      if (__DEV__) {
+        console.error('[AppContext] ❌ Failed to update order:', err);
+      }
+      throw err;
     } finally {
       setState((prev) => ({
         ...prev,

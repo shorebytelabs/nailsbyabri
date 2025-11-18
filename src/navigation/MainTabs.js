@@ -24,7 +24,11 @@ export default function MainTabs() {
   const { theme } = useTheme();
   const colors = theme?.colors || {};
 
-  const draftBadgeCount = state.activeOrder?.status === 'draft' ? 1 : 0;
+  // Check if order is a draft (handle both old 'draft' and new 'Draft' formats)
+  const isDraftStatus = state.activeOrder?.status === 'draft' || 
+                        state.activeOrder?.status === 'Draft' ||
+                        (state.activeOrder?.status || '').toLowerCase() === 'draft';
+  const draftBadgeCount = isDraftStatus ? 1 : 0;
 
   const openCreateFlow = useCallback(() => {
     const canProceed = handleStartOrder({ navigation });
