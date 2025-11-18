@@ -913,7 +913,9 @@ export async function completeOrder(orderId, payload = {}) {
       throw fetchError;
     }
 
-    if (order.status === 'paid') {
+    // Check for paid status (case-insensitive)
+    const statusLower = (order.status || '').toLowerCase();
+    if (statusLower === 'paid') {
       // Already paid, return as-is
       const { data: orderSets } = await supabase
         .from('order_sets')

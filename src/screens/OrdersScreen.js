@@ -364,7 +364,9 @@ function OrdersScreen({ route }) {
 
       logEvent('tap_order_view', { orderId: order.id, status: order.status });
       // Navigate to order builder for draft orders, order details for others
-      if (order.status === ORDER_STATUS.DRAFT || (order.status || '').toLowerCase() === 'draft') {
+      // Check status case-insensitively
+      const orderStatusLower = (order.status || '').toLowerCase();
+      if (orderStatusLower === 'draft') {
         setState((prev) => ({
           ...prev,
           activeOrder: order,
@@ -413,8 +415,9 @@ function OrdersScreen({ route }) {
 
   const handleDeleteOrder = useCallback(
     async (order) => {
-      // Only show delete button for draft orders
-      if (order.status !== ORDER_STATUS.DRAFT && (order.status || '').toLowerCase() !== 'draft') {
+      // Only show delete button for draft orders (case-insensitive check)
+      const orderStatusLower = (order.status || '').toLowerCase();
+      if (orderStatusLower !== 'draft') {
         Alert.alert('Cannot delete', 'Only draft orders can be deleted.');
         return;
       }
@@ -753,31 +756,32 @@ function OrdersScreen({ route }) {
     let statusBackground = withOpacity(accentColor, 0.12);
     let statusTextColor = accentColor;
 
-    // Normalize status for comparison (handle both old and new formats)
+    // Normalize status for comparison (case-insensitive, handle both old and new formats)
     const normalizedStatus = statusLower.replace(/\s+/g, '_').replace(/&/g, '');
     
-    if (status === ORDER_STATUS.DRAFT || normalizedStatus === 'draft') {
+    // All status checks are now case-insensitive using normalizedStatus
+    if (normalizedStatus === 'draft') {
       statusLabel = ORDER_STATUS.DRAFT;
       statusBackground = withOpacity(secondaryBackgroundColor, 0.2);
-    } else if (status === ORDER_STATUS.SUBMITTED || normalizedStatus === 'submitted') {
+    } else if (normalizedStatus === 'submitted') {
       statusLabel = ORDER_STATUS.SUBMITTED;
       statusBackground = withOpacity(accentColor, 0.12);
-    } else if (status === ORDER_STATUS.APPROVED_IN_PROGRESS || normalizedStatus === 'approved_in_progress') {
+    } else if (normalizedStatus === 'approved_in_progress' || normalizedStatus === 'approvedinprogress') {
       statusLabel = ORDER_STATUS.APPROVED_IN_PROGRESS;
       statusBackground = withOpacity(accentColor, 0.12);
-    } else if (status === ORDER_STATUS.READY_FOR_PICKUP || normalizedStatus === 'ready_for_pickup') {
+    } else if (normalizedStatus === 'ready_for_pickup' || normalizedStatus === 'readyforpickup') {
       statusLabel = ORDER_STATUS.READY_FOR_PICKUP;
       statusBackground = withOpacity(accentColor, 0.15);
-    } else if (status === ORDER_STATUS.READY_FOR_SHIPPING || normalizedStatus === 'ready_for_shipping') {
+    } else if (normalizedStatus === 'ready_for_shipping' || normalizedStatus === 'readyforshipping') {
       statusLabel = ORDER_STATUS.READY_FOR_SHIPPING;
       statusBackground = withOpacity(accentColor, 0.15);
-    } else if (status === ORDER_STATUS.READY_FOR_DELIVERY || normalizedStatus === 'ready_for_delivery') {
+    } else if (normalizedStatus === 'ready_for_delivery' || normalizedStatus === 'readyfordelivery') {
       statusLabel = ORDER_STATUS.READY_FOR_DELIVERY;
       statusBackground = withOpacity(accentColor, 0.15);
-    } else if (status === ORDER_STATUS.COMPLETED || normalizedStatus === 'completed' || normalizedStatus === 'delivered') {
+    } else if (normalizedStatus === 'completed' || normalizedStatus === 'delivered') {
       statusLabel = ORDER_STATUS.COMPLETED;
       statusBackground = withOpacity(accentColor, 0.18);
-    } else if (status === ORDER_STATUS.CANCELLED || normalizedStatus === 'cancelled') {
+    } else if (normalizedStatus === 'cancelled' || normalizedStatus === 'canceled') {
       statusLabel = ORDER_STATUS.CANCELLED;
       statusBackground = withOpacity('#B33A3A', 0.12);
       statusTextColor = '#B33A3A';
@@ -814,8 +818,8 @@ function OrdersScreen({ route }) {
             </Text>
           </View>
           <View style={styles.cardHeaderRight}>
-            {/* Show delete button only for draft orders */}
-            {(status === ORDER_STATUS.DRAFT || statusLower === 'draft') ? (
+            {/* Show delete button only for draft orders (case-insensitive check) */}
+            {(statusLower === 'draft') ? (
               <TouchableOpacity
                 onPress={() => handleDeleteOrder(order)}
                 style={[
