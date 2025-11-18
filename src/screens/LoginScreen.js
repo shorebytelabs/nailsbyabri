@@ -15,6 +15,7 @@ function LoginScreen({
   onLoginSuccess,
   onConsentPending,
   onSwitchToSignup,
+  onForgotPassword,
   onCancel = () => {},
 }) {
   const [email, setEmail] = useState('');
@@ -55,8 +56,10 @@ function LoginScreen({
   const isSubmitDisabled = !email.trim() || !password.trim();
 
   const handleForgotPassword = useCallback(() => {
-    // Placeholder for future integration
-  }, []);
+    if (onForgotPassword) {
+      onForgotPassword();
+    }
+  }, [onForgotPassword]);
 
   return (
     <ScreenContainer scroll={false} style={styles.screen}>

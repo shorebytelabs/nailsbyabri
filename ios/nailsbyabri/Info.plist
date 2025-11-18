@@ -65,5 +65,16 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>nailsbyabri</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>com.nailsbyabri</string>
+		</dict>
+	</array>
 </dict>
 </plist>

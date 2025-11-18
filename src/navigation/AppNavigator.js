@@ -1,9 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { AppState, Linking } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { supabase } from '../lib/supabaseClient';
 import SignupScreen from '../screens/SignupScreen';
 import LoginScreen from '../screens/LoginScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import ConsentScreen from '../screens/ConsentScreen';
 import OrderConfirmationScreen from '../screens/OrderConfirmationScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
@@ -107,9 +111,44 @@ function LoginScreenContainer({ navigation, route }) {
         navigation.replace('Consent');
       }}
       onSwitchToSignup={() => navigation.replace('Signup')}
+      onForgotPassword={() => navigation.navigate('ForgotPassword')}
       onCancel={() => {
         clearAuthRedirect();
         navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+      }}
+    />
+  );
+}
+
+function ForgotPasswordScreenContainer({ navigation }) {
+  return (
+    <ForgotPasswordScreen
+      onBackToLogin={() => navigation.goBack()}
+      onCancel={() => navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] })}
+    />
+  );
+}
+
+function ResetPasswordScreenContainer({ navigation, route }) {
+  // Get the token from route params if passed
+  const tokenFromRoute = route?.params?.token;
+  
+  return (
+    <ResetPasswordScreen
+      initialToken={tokenFromRoute}
+      onSuccess={() => {
+        // Navigate to login screen after successful password reset
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
+      }}
+      onCancel={() => {
+        // Navigate to Login screen (not MainTabs) since user needs to log in
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
       }}
     />
   );
@@ -269,14 +308,288 @@ function AppNavigator() {
   const { state } = useAppState();
   const isAuthenticated = Boolean(state.currentUser);
   const hasPendingConsent = Boolean(state.pendingConsent);
+  const [navigationReady, setNavigationReady] = useState(false);
+  const navigationRef = React.useRef(null);
+
+  // Configure deep linking for password reset
+  // Handle both deep links (nailsbyabri://) and Supabase verify URLs (https://)
+  const linking = {
+    prefixes: ['nailsbyabri://'],
+    config: {
+      screens: {
+        ResetPassword: 'reset-password',
+        Login: 'login',
+        Signup: 'signup',
+        ForgotPassword: 'forgot-password',
+        MainTabs: {
+          screens: {
+            Home: 'home',
+            Gallery: 'gallery',
+            Orders: 'orders',
+            Profile: 'profile',
+          },
+        },
+      },
+    },
+  };
+
+  // Store the token from verify URL so ResetPasswordScreen can use it
+  const [pendingResetToken, setPendingResetToken] = useState(null);
+
+  // Handle deep links when app is opened via URL
+  useEffect(() => {
+    const handleDeepLink = async (url) => {
+      if (__DEV__) {
+        console.log('[AppNavigator] Deep link received:', url);
+      }
+
+      // Check if it's a password reset link
+      // Supabase sends links in formats:
+      // 1. Direct deep link: nailsbyabri://reset-password#access_token=...&type=recovery
+      // 2. Supabase verify URL: https://project.supabase.co/auth/v1/verify?token=...&type=recovery&redirect_to=...
+      // We need to handle the verify URL even if redirect_to is wrong (like localhost:3000)
+      if (url && (url.includes('reset-password') || url.includes('/auth/v1/verify'))) {
+        // If it's a Supabase verify URL, we need to extract the redirect_to parameter
+        // and handle the token exchange
+        if (url.includes('/auth/v1/verify')) {
+          try {
+            const urlObj = new URL(url);
+            const token = urlObj.searchParams.get('token');
+            const type = urlObj.searchParams.get('type');
+            const redirectTo = urlObj.searchParams.get('redirect_to');
+
+            if (type === 'recovery' && token) {
+              if (__DEV__) {
+                console.log('[AppNavigator] Handling Supabase verify URL with token');
+                console.log('[AppNavigator] Token:', token.substring(0, 20) + '...');
+                console.log('[AppNavigator] Redirect to:', redirectTo);
+              }
+
+              // Store the token so ResetPasswordScreen can use it if verifyOtp fails
+              setPendingResetToken(token);
+
+              // Exchange the token for a session using Supabase's verifyOtp method
+              // The token from the URL is a password reset token that needs to be verified
+              try {
+                if (__DEV__) {
+                  console.log('[AppNavigator] Verifying password reset token...');
+                }
+
+                // Use verifyOtp to exchange the token for a session
+                // Note: verifyOtp expects token_hash, but the URL has 'token' parameter
+                // We may need to use a different approach - let's try verifyOtp first
+                const { data, error } = await supabase.auth.verifyOtp({
+                  token_hash: token,
+                  type: 'recovery',
+                });
+
+                if (error) {
+                  if (__DEV__) {
+                    console.error('[AppNavigator] Error verifying token:', error);
+                    console.error('[AppNavigator] Error details:', error.message);
+                  }
+                  // Even if verifyOtp fails, navigate to ResetPassword screen with token
+                  // It will try to verify the token again
+                  if (__DEV__) {
+                    console.log('[AppNavigator] verifyOtp failed, navigating to ResetPassword with token');
+                  }
+                  const navigateToReset = () => {
+                    if (navigationRef.current) {
+                      navigationRef.current.navigate('ResetPassword', { token });
+                    }
+                  };
+                  if (navigationReady) {
+                    setTimeout(navigateToReset, 300);
+                  } else {
+                    // Wait for navigation to be ready
+                    const checkNav = setInterval(() => {
+                      if (navigationReady && navigationRef.current) {
+                        clearInterval(checkNav);
+                        navigateToReset();
+                      }
+                    }, 100);
+                    setTimeout(() => clearInterval(checkNav), 5000);
+                  }
+                } else if (data.session) {
+                  if (__DEV__) {
+                    console.log('[AppNavigator] ✅ Session set from verify URL');
+                  }
+                  // Session is now set - navigate to ResetPassword screen
+                  const navigateToReset = () => {
+                    if (navigationRef.current) {
+                      navigationRef.current.navigate('ResetPassword');
+                    }
+                  };
+                  if (navigationReady) {
+                    setTimeout(navigateToReset, 300);
+                  } else {
+                    // Wait for navigation to be ready
+                    const checkNav = setInterval(() => {
+                      if (navigationReady && navigationRef.current) {
+                        clearInterval(checkNav);
+                        navigateToReset();
+                      }
+                    }, 100);
+                    setTimeout(() => clearInterval(checkNav), 5000);
+                  }
+                }
+              } catch (err) {
+                if (__DEV__) {
+                  console.error('[AppNavigator] Error in verify flow:', err);
+                }
+              }
+            }
+          } catch (err) {
+            if (__DEV__) {
+              console.error('[AppNavigator] Error parsing verify URL:', err);
+            }
+          }
+        } else {
+          // Direct deep link format: nailsbyabri://reset-password#access_token=...&type=recovery
+          // OR just nailsbyabri://reset-password (when Supabase redirects after processing)
+          if (__DEV__) {
+            console.log('[AppNavigator] Direct deep link to reset-password');
+          }
+          
+          const hash = url.split('#')[1];
+          if (hash) {
+            try {
+              // Parse hash parameters
+              const params = new URLSearchParams(hash);
+              const accessToken = params.get('access_token');
+              const refreshToken = params.get('refresh_token');
+              const type = params.get('type');
+
+              if (type === 'recovery' && accessToken && refreshToken) {
+                if (__DEV__) {
+                  console.log('[AppNavigator] Setting session from password reset link');
+                }
+                // Set the session using the tokens from the URL
+                const { data, error } = await supabase.auth.setSession({
+                  access_token: accessToken,
+                  refresh_token: refreshToken,
+                });
+
+                if (error) {
+                  if (__DEV__) {
+                    console.error('[AppNavigator] Error setting session from deep link:', error);
+                  }
+                } else if (data.session) {
+                  if (__DEV__) {
+                    console.log('[AppNavigator] ✅ Session set from password reset link');
+                  }
+                }
+              }
+            } catch (err) {
+              if (__DEV__) {
+                console.error('[AppNavigator] Error parsing deep link:', err);
+              }
+            }
+          }
+          
+          // Navigate to ResetPassword screen regardless of whether we have tokens in hash
+          // The screen will check for session or try to verify token from URL
+          if (navigationReady && navigationRef.current) {
+            if (__DEV__) {
+              console.log('[AppNavigator] Navigating to ResetPassword screen');
+            }
+            // Use a small delay to ensure navigation is ready
+            setTimeout(() => {
+              navigationRef.current?.navigate('ResetPassword', {
+                token: pendingResetToken, // Pass token if we have it from verify URL
+              });
+            }, 300);
+          } else {
+            // Navigation not ready yet, wait for it
+            if (__DEV__) {
+              console.log('[AppNavigator] Navigation not ready, will navigate when ready');
+            }
+            const checkNav = setInterval(() => {
+              if (navigationReady && navigationRef.current) {
+                clearInterval(checkNav);
+                navigationRef.current?.navigate('ResetPassword', {
+                  token: pendingResetToken,
+                });
+              }
+            }, 100);
+            // Clear interval after 5 seconds to avoid infinite loop
+            setTimeout(() => clearInterval(checkNav), 5000);
+          }
+        }
+      }
+    };
+
+    // Handle initial URL (when app is opened via deep link)
+    // This is critical - it handles the URL when app is opened from a closed state
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        if (__DEV__) {
+          console.log('[AppNavigator] ✅ Initial URL detected:', url);
+        }
+        handleDeepLink(url);
+      } else {
+        if (__DEV__) {
+          console.log('[AppNavigator] No initial URL found');
+        }
+      }
+    }).catch((err) => {
+      if (__DEV__) {
+        console.error('[AppNavigator] Error getting initial URL:', err);
+      }
+    });
+
+    // Handle URL when app is already running
+    const subscription = Linking.addEventListener('url', (event) => {
+      handleDeepLink(event.url);
+    });
+
+    // Also listen for app state changes to catch URLs when app comes to foreground
+    // This helps catch cases where the URL is processed after app initialization
+    const checkUrlOnForeground = async () => {
+      try {
+        const url = await Linking.getInitialURL();
+        if (url && (url.includes('reset-password') || url.includes('/auth/v1/verify'))) {
+          if (__DEV__) {
+            console.log('[AppNavigator] Found URL on foreground check:', url.substring(0, 100));
+          }
+          handleDeepLink(url);
+        }
+      } catch (err) {
+        // Ignore errors
+      }
+    };
+
+    // Check URL when app comes to foreground (handles case where link is clicked while app is backgrounded)
+    const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        // Small delay to ensure URL is available
+        setTimeout(checkUrlOnForeground, 500);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      appStateSubscription?.remove();
+    };
+  }, []);
 
   return (
-    <NavigationContainer>
+    <NavigationContainer
+      ref={navigationRef}
+      linking={linking}
+      onReady={() => {
+        setNavigationReady(true);
+        if (__DEV__) {
+          console.log('[AppNavigator] Navigation ready');
+        }
+      }}
+    >
       <Stack.Navigator initialRouteName="MainTabs" screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <>
             <Stack.Screen name="Signup" component={SignupScreenContainer} />
             <Stack.Screen name="Login" component={LoginScreenContainer} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreenContainer} />
           </>
         ) : null}
 
@@ -285,6 +598,8 @@ function AppNavigator() {
         ) : null}
 
         <Stack.Screen name="MainTabs" component={MainTabs} />
+        {/* ResetPassword should be accessible even when authenticated (for password changes) */}
+        <Stack.Screen name="ResetPassword" component={ResetPasswordScreenContainer} />
         <Stack.Screen
           name="NewOrderFlow"
           component={NewOrderStepperScreen}
