@@ -1625,7 +1625,18 @@ function OrdersScreen({ route }) {
             >
               {activeTab === 'drafts'
                 ? 'No drafts yet'
-                : `No ${activeTab === 'all' ? 'orders' : activeTab} yet`}
+                : (() => {
+                    // Convert tab key to user-friendly display name
+                    const tabDisplayNames = {
+                      'cart': 'drafts',
+                      'in_progress': 'in progress',
+                      'ready': 'ready',
+                      'completed': 'completed',
+                      'all': 'orders',
+                    };
+                    const displayName = tabDisplayNames[activeTab] || activeTab;
+                    return `No ${displayName} yet`;
+                  })()}
             </Text>
             <Text
               style={[

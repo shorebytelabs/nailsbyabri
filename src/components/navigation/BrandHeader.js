@@ -14,18 +14,48 @@ function BrandHeader({
   onPressAdmin,
   rightContent = null,
   testID,
+  navigation,
 }) {
   const { theme } = useTheme();
-  const { state } = useAppState();
+  const { state, handleExitImpersonation } = useAppState();
   const colors = theme?.colors || {};
   const backgroundColor = colors.primaryBackground || '#F4EBE3';
   const isAdmin = state.currentUser?.isAdmin || false;
+  const isImpersonating = state.impersonating || false;
 
   const renderRightContent = () => {
     const buttons = [];
 
-    // Add admin gear icon if user is admin
-    if (isAdmin && typeof onPressAdmin === 'function') {
+    // Add Exit Impersonation button if impersonating
+    if (isImpersonating && typeof handleExitImpersonation === 'function') {
+      buttons.push(
+        <Pressable
+          key="exit-impersonation"
+          accessibilityRole="button"
+          accessibilityLabel="Exit Impersonation"
+          onPress={async () => {
+            await handleExitImpersonation();
+            if (navigation) {
+              navigation.navigate('ManageUsers');
+            }
+          }}
+          style={({ pressed }) => [
+            styles.headerButton,
+            {
+              backgroundColor: colors.error || '#B33A3A',
+              shadowColor: colors.shadow || '#000000',
+              opacity: pressed ? 0.85 : 1,
+            },
+          ]}
+          testID="brand-header-exit-impersonation"
+        >
+          <Icon name="close" color={colors.accentContrast || '#FFFFFF'} size={18} />
+        </Pressable>
+      );
+    }
+
+    // Add admin gear icon if user is admin (and not impersonating)
+    if (isAdmin && !isImpersonating && typeof onPressAdmin === 'function') {
       buttons.push(
         <Pressable
           key="admin"

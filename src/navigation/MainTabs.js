@@ -48,6 +48,7 @@ export default function MainTabs() {
         showCreateButton 
         onPressCreate={openCreateFlow}
         onPressAdmin={state.currentUser?.isAdmin ? openAdminPanel : undefined}
+        navigation={navigation}
       />
       <Tab.Navigator
         initialRouteName="Home"

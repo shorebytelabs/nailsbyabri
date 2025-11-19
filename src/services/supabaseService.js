@@ -274,10 +274,33 @@ export async function upsertProfile(profileData) {
     }
     
     // Use upsert - it will INSERT if doesn't exist, UPDATE if it does
+    // Handle conflicts on both 'id' and 'email' since email also has a unique constraint
+    // First, try to find existing profile by email (in case email matches but id doesn't)
+    let existingProfileByEmail = null;
+    if (payload.email) {
+      const { data: emailProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', payload.email)
+        .maybeSingle();
+      existingProfileByEmail = emailProfile;
+    }
+    
+    // If profile exists by email but id is different, use the existing id
+    if (existingProfileByEmail && existingProfileByEmail.id !== payload.id) {
+      if (__DEV__) {
+        console.warn('[supabase] ⚠️  Profile exists with different ID for email:', payload.email);
+        console.warn('[supabase] Using existing profile ID:', existingProfileByEmail.id);
+      }
+      payload.id = existingProfileByEmail.id;
+    }
+    
     const { data, error, status, statusText } = await supabase
       .from('profiles')
       .upsert(payload, {
-        onConflict: 'id',
+        onConflict: 'id', // Primary key conflict
+        // Note: If email conflict still occurs, it means there's a profile with same email but different id
+        // In that case, we'll handle it as an update on the existing profile
       })
       .select()
       .single();
@@ -348,6 +371,50 @@ export async function upsertProfile(profileData) {
         console.error('[supabase] Consecutive QUIC failures:', consecutiveQuicFailures, '/', MAX_QUIC_FAILURES);
         console.error('[supabase] Is iOS Simulator:', isIOSSimulator);
         console.error('[supabase] MAX_QUIC_FAILURES value:', MAX_QUIC_FAILURES);
+      }
+      
+      // Check if it's a duplicate key error on email (profile exists but with different ID)
+      if (error.code === '23505' && error.message?.includes('profiles_email_key')) {
+        if (__DEV__) {
+          console.log('[supabase] 🔍 Duplicate email detected, fetching existing profile by email...');
+        }
+        // Profile exists with this email, fetch it and update it instead
+        const { data: existingProfile, error: fetchError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', payload.email)
+          .single();
+        
+        if (!fetchError && existingProfile) {
+          if (__DEV__) {
+            console.log('[supabase] ✅ Found existing profile, updating with new data');
+          }
+          // Update the existing profile (use its ID)
+          const updatePayload = {
+            ...payload,
+            id: existingProfile.id, // Use existing profile ID
+          };
+          
+          const { data: updatedData, error: updateError } = await supabase
+            .from('profiles')
+            .update(updatePayload)
+            .eq('id', existingProfile.id)
+            .select()
+            .single();
+          
+          if (!updateError && updatedData) {
+            if (__DEV__) {
+              console.log('[supabase] ✅ Profile updated successfully:', updatedData.id);
+            }
+            consecutiveQuicFailures = 0; // Reset on success
+            return updatedData;
+          } else {
+            if (__DEV__) {
+              console.error('[supabase] ❌ Failed to update existing profile:', updateError);
+            }
+          }
+        }
+        // If we couldn't fetch or update, fall through to throw error
       }
       
       // Check if it's an RLS/permission error

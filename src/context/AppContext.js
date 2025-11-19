@@ -29,9 +29,12 @@ function applyAdminFlag(user) {
   }
 
   const email = (user.email || '').toLowerCase();
+  // Check both email list and database role field
+  const isAdminByEmail = ADMIN_EMAILS.has(email);
+  const isAdminByRole = user.role === 'admin';
   return {
     ...user,
-    isAdmin: ADMIN_EMAILS.has(email),
+    isAdmin: isAdminByEmail || isAdminByRole,
   };
 }
 
@@ -52,6 +55,8 @@ const initialState = {
   loadingConsentLogs: false,
   authRedirect: null,
   authMessage: null,
+  impersonating: false,
+  originalAdminUser: null,
 };
 
 export function AppStateProvider({ children }) {
@@ -78,6 +83,7 @@ export function AppStateProvider({ children }) {
       }
       setState((prev) => ({ ...prev, loadingPreferences: true }));
       try {
+        // Load preferences for current user (admin or impersonated user)
         const loaded = await loadPreferences(state.currentUser.id);
         if (isMounted) {
           setState((prev) => ({
@@ -104,7 +110,15 @@ export function AppStateProvider({ children }) {
     return () => {
       isMounted = false;
     };
-  }, [state.currentUser]);
+  }, [state.currentUser?.id]); // Reload when user ID changes (including impersonation)
+
+  // Load orders when user changes (including impersonation)
+  useEffect(() => {
+    // Load orders for current user (admin or impersonated user)
+    if (state.currentUser) {
+      loadOrdersForUser(state.currentUser);
+    }
+  }, [loadOrdersForUser, state.currentUser?.id]); // Reload when user ID changes (including impersonation)
 
   const clearStatusMessage = useCallback(() => {
     setState((prev) => ({ ...prev, statusMessage: null }));
@@ -176,17 +190,32 @@ export function AppStateProvider({ children }) {
     }));
 
     try {
+      // Get current impersonating state (need to read from state, not closure)
+      const isImpersonating = state.impersonating;
+      
       if (__DEV__) {
         console.log('[AppContext] Loading orders for user:', user.id, user.email, user.isAdmin ? '(admin)' : '(regular)');
+        if (isImpersonating) {
+          console.log('[AppContext] ⚠️  Impersonating - will fetch orders for impersonated user ID:', user.id);
+        }
       }
       
-      // For admin users, fetch ALL orders (no user filter)
-      // For regular users, fetch only their own orders
-      const response = await fetchOrders(user.isAdmin ? { allOrders: true } : {});
+      // For admin users (when NOT impersonating), fetch ALL orders (no user filter)
+      // For regular users (including impersonated users), fetch only their own orders
+      // When impersonating, explicitly pass userId to ensure we fetch the impersonated user's orders
+      // (not the admin's orders from the session)
+      const fetchParams = user.isAdmin && !isImpersonating
+        ? { allOrders: true }
+        : { userId: user.id }; // Explicitly pass userId for non-admin users and impersonated users
+      
+      const response = await fetchOrders(fetchParams);
       const orders = Array.isArray(response?.orders) ? response.orders : [];
       
       if (__DEV__) {
         console.log('[AppContext] ✅ Loaded', orders.length, 'orders for', user.isAdmin ? 'admin' : 'user');
+        if (isImpersonating) {
+          console.log('[AppContext] ✅ Impersonated user orders loaded:', orders.length);
+        }
       }
       
       setState((prev) => ({
@@ -211,7 +240,7 @@ export function AppStateProvider({ children }) {
         ordersLoading: false,
       }));
     }
-  }, []);
+  }, [state.impersonating]);
 
   const handleSignupSuccess = useCallback(
     async (response) => {
@@ -256,7 +285,24 @@ export function AppStateProvider({ children }) {
 
   const handleLoginSuccess = useCallback(
     async (payload) => {
-      const adminUser = applyAdminFlag(payload.user);
+      // Fetch the latest profile from database to ensure we have the correct role
+      let profileWithRole = payload.user;
+      try {
+        const { getProfile } = await import('../services/supabaseService');
+        const profile = await getProfile(payload.user.id);
+        if (profile) {
+          // Merge role from database profile
+          profileWithRole = {
+            ...payload.user,
+            role: profile.role || payload.user.role || 'user',
+          };
+        }
+      } catch (error) {
+        console.warn('[AppContext] ⚠️  Failed to fetch profile for role (non-critical):', error?.message);
+        // Continue with payload.user if profile fetch fails
+      }
+      
+      const adminUser = applyAdminFlag(profileWithRole);
       setState((prev) => ({
         ...prev,
         currentUser: adminUser,
@@ -265,12 +311,13 @@ export function AppStateProvider({ children }) {
         ordersLoaded: false,
       }));
       
-      // Sync profile to Supabase
+      // Sync profile to Supabase (preserve role if it exists)
       try {
         const result = await upsertProfile({
           id: adminUser.id,
           email: adminUser.email,
           full_name: adminUser.name,
+          // Don't overwrite role - let database trigger handle it
         });
         if (__DEV__) {
           if (result?._simulator_skip) {
@@ -482,6 +529,39 @@ export function AppStateProvider({ children }) {
     }
   }, []);
 
+  const handleExitImpersonation = useCallback(async () => {
+    if (!state.impersonating || !state.originalAdminUser) {
+      return;
+    }
+
+    try {
+      // Log impersonation end
+      const { logImpersonation } = await import('../services/userService');
+      await logImpersonation(
+        state.originalAdminUser.id,
+        state.currentUser?.id,
+        'end'
+      );
+
+      // Restore original admin user
+      setState((prev) => ({
+        ...prev,
+        impersonating: false,
+        currentUser: applyAdminFlag(prev.originalAdminUser),
+        originalAdminUser: null,
+      }));
+    } catch (error) {
+      console.error('[AppContext] Error exiting impersonation:', error);
+      // Still restore user even if logging fails
+      setState((prev) => ({
+        ...prev,
+        impersonating: false,
+        currentUser: applyAdminFlag(prev.originalAdminUser),
+        originalAdminUser: null,
+      }));
+    }
+  }, [state.impersonating, state.originalAdminUser, state.currentUser?.id]);
+
   const contextValue = useMemo(
     () => ({
       state,
@@ -501,6 +581,7 @@ export function AppStateProvider({ children }) {
       enterConsentFlow,
       ensureAuthenticated,
       clearAuthRedirect,
+      handleExitImpersonation,
       setState,
     }),
     [
@@ -521,6 +602,7 @@ export function AppStateProvider({ children }) {
       enterConsentFlow,
       ensureAuthenticated,
       clearAuthRedirect,
+      handleExitImpersonation,
     ],
   );
 

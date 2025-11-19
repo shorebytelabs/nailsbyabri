@@ -13,6 +13,8 @@ import OrderConfirmationScreen from '../screens/OrderConfirmationScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import OrderBuilderScreen from '../screens/OrderBuilderScreen';
 import AdminPanelScreen from '../screens/AdminPanelScreen';
+import ManageUsersScreen from '../screens/ManageUsersScreen';
+import UserDetailScreen from '../screens/UserDetailScreen';
 import MainTabs from './MainTabs';
 import NewOrderStepperScreen from '../screens/NewOrderStepperScreen';
 import { useAppState } from '../context/AppContext';
@@ -620,6 +622,25 @@ function AppNavigator() {
           component={AdminPanelScreen}
           options={{
             presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
+          name="ManageUsers"
+          component={ManageUsersScreen}
+          options={{
+            presentation: 'card',
+            headerShown: false, // We have our own header in ManageUsersScreen
+            animation: 'slide_from_right', // Ensure it slides in as a new screen
+            gestureEnabled: true, // Enable swipe back gesture
+          }}
+        />
+        <Stack.Screen
+          name="UserDetail"
+          component={UserDetailScreen}
+          options={{
+            presentation: 'card',
+            headerShown: false, // We have our own header in UserDetailScreen
+            animation: 'slide_from_right',
           }}
         />
       </Stack.Navigator>

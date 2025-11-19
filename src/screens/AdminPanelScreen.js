@@ -29,12 +29,18 @@ import {
   deletePromoCode,
 } from '../services/promoCodeService';
 import PrimaryButton from '../components/PrimaryButton';
+import ManageUsersScreen from './ManageUsersScreen';
+import UserDetailScreen from './UserDetailScreen';
 
 function AdminPanelScreen({ navigation }) {
   const { theme } = useTheme();
   const { state } = useAppState();
   const colors = theme?.colors || {};
   const isAdmin = state.currentUser?.isAdmin || false;
+
+  // Track which view is active: 'main', 'manageUsers', or 'userDetail'
+  const [activeView, setActiveView] = useState('main');
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   const [promoCodes, setPromoCodes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,6 +67,15 @@ function AdminPanelScreen({ navigation }) {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
+    // If impersonating, redirect to home screen instead of showing alert
+    if (state.impersonating) {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs' }],
+      });
+      return;
+    }
+    
     if (!isAdmin) {
       Alert.alert('Access Denied', 'You do not have permission to access this page.');
       navigation.goBack();
@@ -69,7 +84,7 @@ function AdminPanelScreen({ navigation }) {
     if (promoCodesExpanded) {
       loadPromoCodes();
     }
-  }, [isAdmin, navigation, promoCodesExpanded]);
+  }, [isAdmin, navigation, promoCodesExpanded, state.impersonating]);
 
   useEffect(() => {
     if (!confirmation) {
@@ -231,14 +246,17 @@ function AdminPanelScreen({ navigation }) {
         }
       },
     },
-    // Future sections can be added here:
-    // {
-    //   key: 'users',
-    //   title: 'Manage Users',
-    //   description: 'View and manage user accounts',
-    //   icon: 'users',
-    //   onPress: () => navigation.navigate('AdminUsers'),
-    // },
+    {
+      key: 'users',
+      title: 'Manage Users',
+      description: 'View and manage user accounts',
+      icon: 'users',
+      onPress: () => {
+        console.log('[AdminPanel] Opening Manage Users view');
+        // Show Manage Users view within the Admin Panel
+        setActiveView('manageUsers');
+      },
+    },
     // {
     //   key: 'workloads',
     //   title: 'Manage Workloads',
@@ -253,6 +271,49 @@ function AdminPanelScreen({ navigation }) {
   const surface = colors.surface || '#FFFFFF';
   const borderColor = colors.border || '#D9C8A9';
   const accent = colors.accent || '#6F171F';
+
+  // If User Detail view is active, render it inline
+  if (activeView === 'userDetail' && selectedUserId) {
+    return (
+      <UserDetailScreen
+        route={{ params: { userId: selectedUserId } }}
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            // Go back to Manage Users view
+            setActiveView('manageUsers');
+            // Keep selectedUserId so if user re-enters quickly it's still there
+          },
+        }}
+      />
+    );
+  }
+
+  // If Manage Users view is active, render it inline
+  if (activeView === 'manageUsers') {
+    return (
+      <ManageUsersScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            // Go back to main Admin Panel
+            setActiveView('main');
+            setSelectedUserId(null); // Clear selected user when leaving Manage Users
+          },
+          navigate: (screen, params) => {
+            // Override navigate to handle UserDetail inline
+            if (screen === 'UserDetail' && params?.userId) {
+              setSelectedUserId(params.userId);
+              setActiveView('userDetail');
+            } else {
+              // For other screens, use normal navigation
+              navigation.navigate(screen, params);
+            }
+          },
+        }}
+      />
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.primaryBackground || '#F4EBE3' }]}>

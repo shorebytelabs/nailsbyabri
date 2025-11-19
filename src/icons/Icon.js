@@ -620,6 +620,33 @@ const iconRenderers = {
       <Circle cx="7" cy="7" r="1.5" fill="currentColor" />
     </Svg>
   ),
+  users: (props = {}) => (
+    <Svg
+      width={ICON_SIZE}
+      height={ICON_SIZE}
+      viewBox="0 0 24 24"
+      color={props.color || 'currentColor'}
+      {...props}
+    >
+      <Path
+        d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Circle cx="9" cy="7" r="4" fill="none" stroke="currentColor" strokeWidth={1.8} />
+      <Path
+        d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  ),
 };
 
 export function Icon({ name, color, size = ICON_SIZE, ...rest }) {

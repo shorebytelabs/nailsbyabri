@@ -3,7 +3,7 @@
  * Migrated from local backend to Supabase for production
  */
 import { supabase } from '../lib/supabaseClient';
-import { upsertProfile } from './supabaseService';
+import { upsertProfile, getProfile } from './supabaseService';
 
 /**
  * Sign up a new user
@@ -90,6 +90,27 @@ export async function signup({ email, password, name, ageGroup }) {
     // Note: Consent logs are no longer created automatically
     // The consent flow has been removed - all users 13+ can sign up directly
 
+    // Fetch profile to get role (might have been set by trigger)
+    let profile = null;
+    try {
+      profile = await getProfile(userId);
+      
+      // Update last_login timestamp on signup (first login)
+      try {
+        await supabase
+          .from('profiles')
+          .update({ last_login: now })
+          .eq('id', userId);
+      } catch (updateError) {
+        // Non-critical - log but don't fail signup
+        if (__DEV__) {
+          console.warn('[auth] ⚠️  Failed to update last_login (non-critical):', updateError.message);
+        }
+      }
+    } catch (profileError) {
+      console.warn('[auth] ⚠️  Failed to fetch profile after signup (non-critical):', profileError.message);
+    }
+
     // Transform user data to match expected format
     const user = {
       id: userId,
@@ -97,6 +118,7 @@ export async function signup({ email, password, name, ageGroup }) {
       name,
       age_group: ageGroup,
       age: ageGroup === '55+' ? 55 : parseInt(ageGroup.split('-')[0]),
+      role: profile?.role || 'user', // Include role from profile (set by trigger for admin emails)
       createdAt: now,
       consentedAt: now,
       consentApprover: name,
@@ -175,6 +197,51 @@ export async function login({ email, password }) {
 
       if (!profileError && profileData) {
         profile = profileData;
+        
+        // Update last_login timestamp
+        try {
+          await supabase
+            .from('profiles')
+            .update({ last_login: new Date().toISOString() })
+            .eq('id', userId);
+        } catch (updateError) {
+          // Non-critical - log but don't fail login
+          if (__DEV__) {
+            console.warn('[auth] ⚠️  Failed to update last_login (non-critical):', updateError.message);
+          }
+        }
+      } else if (profileError?.code === 'PGRST116') {
+        // Profile doesn't exist - recreate it (might have been deleted)
+        // This can happen if someone manually deletes a profile but the auth user still exists
+        console.log('[auth] Profile not found, recreating...');
+        try {
+          await upsertProfile({
+            id: userId,
+            email,
+            full_name: userMetadata.full_name || email,
+          });
+          // Fetch the newly created profile
+          const { data: newProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+          profile = newProfile;
+          
+          // Update last_login for newly created profile
+          try {
+            await supabase
+              .from('profiles')
+              .update({ last_login: new Date().toISOString() })
+              .eq('id', userId);
+          } catch (updateError) {
+            if (__DEV__) {
+              console.warn('[auth] ⚠️  Failed to update last_login (non-critical):', updateError.message);
+            }
+          }
+        } catch (recreateError) {
+          console.warn('[auth] ⚠️  Failed to recreate profile (non-critical):', recreateError.message);
+        }
       }
     } catch (profileError) {
       console.warn('[auth] ⚠️  Failed to fetch profile (non-critical):', profileError.message);
@@ -221,6 +288,7 @@ export async function login({ email, password }) {
       name: userMetadata.full_name || profile?.full_name || email,
       age_group: userMetadata.age_group || null,
       age: userMetadata.age_group ? (userMetadata.age_group === '55+' ? 55 : parseInt(userMetadata.age_group.split('-')[0])) : null,
+      role: profile?.role || 'user', // Include role from profile
       createdAt: authData.user.created_at,
       consentedAt: consentLog?.approved_at || authData.user.created_at,
       consentApprover: consentLog?.approver_name || userMetadata.full_name || email,
