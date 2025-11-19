@@ -1124,7 +1124,7 @@ function extractSizePairs(sizes) {
       }
       pairs.push({
         finger: formatFingerLabel(entry.finger || `Finger ${index + 1}`),
-        value: entry.value || '',
+        value: typeof entry.value === 'string' || typeof entry.value === 'number' ? String(entry.value) : '',
       });
     });
     return pairs;
@@ -1134,7 +1134,7 @@ function extractSizePairs(sizes) {
     sizes.values.forEach((value, index) => {
       pairs.push({
         finger: formatFingerLabel(FINGER_KEYS[index] || `Finger ${index + 1}`),
-        value: value || '',
+        value: typeof value === 'string' || typeof value === 'number' ? String(value) : '',
       });
     });
     return pairs;
@@ -1144,14 +1144,20 @@ function extractSizePairs(sizes) {
     FINGER_KEYS.forEach((key) => {
       const value = sizes.values[key];
       if (value !== undefined && value !== null && value !== '') {
-        pairs.push({ finger: formatFingerLabel(key), value });
+        pairs.push({ 
+          finger: formatFingerLabel(key), 
+          value: typeof value === 'string' || typeof value === 'number' ? String(value) : '' 
+        });
       }
     });
     Object.entries(sizes.values)
       .filter(([key]) => !FINGER_KEYS.includes(key))
       .forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
-          pairs.push({ finger: formatFingerLabel(key), value });
+          pairs.push({ 
+            finger: formatFingerLabel(key), 
+            value: typeof value === 'string' || typeof value === 'number' ? String(value) : '' 
+          });
         }
       });
     return pairs;
@@ -1164,10 +1170,26 @@ function extractSizePairs(sizes) {
       }
       pairs.push({
         finger: formatFingerLabel(detail.finger || `Finger ${index + 1}`),
-        value: detail.value || '',
+        value: typeof detail.value === 'string' || typeof detail.value === 'number' ? String(detail.value) : '',
       });
     });
     return pairs;
+  }
+
+  // Handle case where sizes is directly an object with finger keys (not nested under values)
+  // This can happen if sizes is stored as {thumb: '7', index: '8', ...} instead of {mode: 'perSet', values: {...}}
+  if (typeof sizes === 'object' && !Array.isArray(sizes) && sizes !== null) {
+    // Check if it has finger keys directly (not nested)
+    const hasFingerKeys = FINGER_KEYS.some((key) => key in sizes);
+    if (hasFingerKeys && !sizes.mode && !sizes.values && !sizes.entries && !sizes.details) {
+      FINGER_KEYS.forEach((key) => {
+        const value = sizes[key];
+        if (value !== undefined && value !== null && value !== '') {
+          pairs.push({ finger: formatFingerLabel(key), value: String(value) });
+        }
+      });
+      return pairs;
+    }
   }
 
   return pairs;
@@ -1205,6 +1227,6 @@ function formatDeliveryWindow(value) {
   } catch (error) {
     return value;
   }
-}
-
+  }
+  
 export default OrderDetailsScreen;

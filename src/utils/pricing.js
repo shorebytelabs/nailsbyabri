@@ -102,6 +102,7 @@ export function calculatePriceBreakdown({
   nailSets = [],
   fulfillment = {},
   promoCode = null,
+  adminDiscount = 0, // Admin-applied discount amount (in dollars)
 }) {
   const normalizedSets = normalizeNailSets(nailSets);
 
@@ -167,6 +168,7 @@ export function calculatePriceBreakdown({
   let subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
   let discount = 0;
 
+  // Apply promo code discount first (if any)
   if (promoCode && typeof promoCode === 'string') {
     if (promoCode.trim().toLowerCase() === 'holiday10') {
       discount = Math.round(subtotal * 0.1);
@@ -177,6 +179,20 @@ export function calculatePriceBreakdown({
       });
       subtotal -= discount;
     }
+  }
+
+  // Apply admin discount (after promo code discount)
+  const adminDiscountAmount = Number(adminDiscount) || 0;
+  if (adminDiscountAmount > 0) {
+    // Ensure discount doesn't exceed subtotal
+    const actualDiscount = Math.min(adminDiscountAmount, subtotal);
+    lineItems.push({
+      id: 'admin_discount',
+      label: 'Admin Discount',
+      amount: -actualDiscount,
+    });
+    discount += actualDiscount;
+    subtotal -= actualDiscount;
   }
 
   return {

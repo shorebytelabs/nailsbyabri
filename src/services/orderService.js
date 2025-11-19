@@ -1027,13 +1027,68 @@ export async function updateOrder(orderId, updates) {
       );
     }
 
-    if (typeof updates.discount === 'number' && !Number.isNaN(updates.discount)) {
-      updatePayload.discount = updates.discount;
+    // Handle discount update - recalculate pricing if discount changes
+    let shouldRecalculatePricing = false;
+    if (updates.discount !== undefined) {
+      // Allow setting discount to 0 to remove it
+      if (typeof updates.discount === 'number' && !Number.isNaN(updates.discount)) {
+        updatePayload.discount = updates.discount;
+        shouldRecalculatePricing = true;
+      } else if (updates.discount === null || updates.discount === '') {
+        // Allow removing discount by setting to null or empty string
+        updatePayload.discount = 0;
+        shouldRecalculatePricing = true;
+      }
     }
 
     if (updates.trackingNumber !== undefined) {
       updatePayload.tracking_number =
         updates.trackingNumber === null ? '' : String(updates.trackingNumber).trim();
+    }
+
+    // If discount is being updated, we need to fetch the order first to recalculate pricing
+    let orderSetsForPricing = null;
+    if (shouldRecalculatePricing) {
+      // Fetch current order to get nail sets and fulfillment for pricing recalculation
+      const { data: currentOrder, error: fetchError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      // Fetch order sets
+      const { data: sets, error: setsError } = await supabase
+        .from('order_sets')
+        .select('*')
+        .eq('order_id', orderId)
+        .order('created_at', { ascending: true });
+
+      if (setsError) {
+        throw setsError;
+      }
+
+      orderSetsForPricing = sets;
+
+      // Transform sets for pricing calculation
+      const nailSets = (sets || []).map((set) => transformOrderSetFromDB(set));
+      const fulfillment = currentOrder.fulfillment || {};
+      const promoCode = currentOrder.promo_code;
+
+      // Recalculate pricing with the new discount (use 0 if discount was removed)
+      const discountAmount = typeof updates.discount === 'number' ? updates.discount : 0;
+      const newPricing = calculatePriceBreakdown({
+        nailSets,
+        fulfillment,
+        promoCode,
+        adminDiscount: discountAmount,
+      });
+
+      // Update pricing in the payload
+      updatePayload.pricing = newPricing;
     }
 
     // Update order
@@ -1048,15 +1103,23 @@ export async function updateOrder(orderId, updates) {
       throw updateError;
     }
 
-    // Fetch order sets
-    const { data: orderSets, error: setsError } = await supabase
-      .from('order_sets')
-      .select('*')
-      .eq('order_id', orderId)
-      .order('created_at', { ascending: true });
+    // Fetch order sets (if we didn't already fetch them for pricing recalculation)
+    let orderSets;
+    if (shouldRecalculatePricing && orderSetsForPricing) {
+      // Use the sets we already fetched for pricing recalculation
+      orderSets = orderSetsForPricing;
+    } else {
+      // Fetch order sets
+      const { data: sets, error: setsError } = await supabase
+        .from('order_sets')
+        .select('*')
+        .eq('order_id', orderId)
+        .order('created_at', { ascending: true });
 
-    if (setsError) {
-      throw setsError;
+      if (setsError) {
+        throw setsError;
+      }
+      orderSets = sets;
     }
 
     const transformed = transformOrderFromDB(updatedOrder, orderSets || []);
