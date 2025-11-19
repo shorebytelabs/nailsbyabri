@@ -55,18 +55,15 @@ function ProfileScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const user = state.currentUser;
-  const consentLogs = state.consentLogs || [];
 
   const [accountDraft, setAccountDraft] = useState(() => ({
     name: user?.name || '',
     email: user?.email || '',
   }));
   const [nailSizesExpanded, setNailSizesExpanded] = useState(false);
-  const [consentExpanded, setConsentExpanded] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [accountModalVisible, setAccountModalVisible] = useState(false);
   const [savingSizes, setSavingSizes] = useState(false);
-  const [refreshingConsent, setRefreshingConsent] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
   const [nailSizesDraft, setNailSizesDraft] = useState(() =>
     normalizeNailSizes(state.preferences?.nailSizes),
@@ -94,26 +91,11 @@ function ProfileScreen() {
     return () => clearTimeout(timeout);
   }, [confirmation]);
 
-  const latestConsent = useMemo(() => {
-    if (!consentLogs.length) {
-      return null;
-    }
-    return [...consentLogs].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    )[0];
-  }, [consentLogs]);
-
   if (!user) {
     return null;
   }
 
-  const statusLabel = user.pendingConsent ? 'Pending approval' : 'Approved';
-  const statusTone = user.pendingConsent
-    ? colors.warning || '#C27A3B'
-    : colors.success || '#4B7A57';
-  const memberSince = formatDate(
-    user.memberSince || user.createdAt || user.consentedAt,
-  );
+  const memberSince = formatDate(user.memberSince || user.createdAt);
 
   const handleDefaultProfileLabelChange = (value) => {
     setNailSizesDraft((prev) => ({
@@ -228,10 +210,6 @@ function ProfileScreen() {
     }
   };
 
-  // Consent flow removed - this function is no longer needed
-  const handleRefreshConsent = async () => {
-    // No-op: consent flow has been removed
-  };
 
   const handleChangePassword = () => {
     logEvent('profile_change_password');
@@ -296,22 +274,9 @@ function ProfileScreen() {
       onPress: () => setNailSizesExpanded((prev) => !prev),
     },
     {
-      key: 'consent',
-      title: 'Consent History',
-      description: latestConsent
-        ? `Latest: ${latestConsent.status?.toUpperCase()} on ${formatDate(
-            latestConsent.createdAt,
-          )}`
-        : 'View parental consent activity',
-      icon: 'shield',
-      expandable: true,
-      expanded: consentExpanded,
-      onPress: () => setConsentExpanded((prev) => !prev),
-    },
-    {
       key: 'account',
       title: 'Account Details',
-      description: 'Email, birthdate, age, consent status',
+      description: 'Email and age group',
       icon: 'info',
       expandable: true,
       expanded: detailsExpanded,
@@ -360,21 +325,9 @@ function ProfileScreen() {
             <View style={styles.cardHeaderContent}>
               <Text style={styles.accountName}>{user.name}</Text>
               <Text style={styles.accountEmail}>{user.email}</Text>
-              <View style={styles.accountMetaRow}>
-                <View
-                  style={[
-                    styles.statusPill,
-                    { backgroundColor: withOpacity(statusTone, 0.12) },
-                  ]}
-                >
-                  <Text style={[styles.statusPillText, { color: statusTone }]}>
-                    {statusLabel}
-                  </Text>
-                </View>
-                <Text style={styles.accountMetaText}>
-                  Member since {memberSince}
-                </Text>
-              </View>
+              <Text style={styles.accountMetaText}>
+                Member since {memberSince}
+              </Text>
             </View>
           </View>
           <PrimaryButton
@@ -494,91 +447,12 @@ function ProfileScreen() {
                     </View>
                   ) : null}
 
-                  {item.key === 'consent' ? (
-                    <View style={styles.consentSection}>
-                      {latestConsent ? (
-                        <View
-                          style={[
-                            styles.consentHighlight,
-                            { backgroundColor: withOpacity(colors.accent || '#6F171F', 0.12) },
-                          ]}
-                        >
-                          <Text
-                            style={[styles.consentHighlightText, { color: colors.accent || '#6F171F' }]}
-                          >
-                            Latest: {latestConsent.status?.toUpperCase()} via{' '}
-                            {latestConsent.channel?.toUpperCase()} on{' '}
-                            {formatDate(latestConsent.createdAt)}
-                          </Text>
-                        </View>
-                      ) : (
-                        <Text style={styles.placeholderText}>
-                          No consent history yet.
-                        </Text>
-                      )}
-
-                      <View style={styles.consentActionsRow}>
-                        <TouchableOpacity
-                          style={styles.inlineActionButton}
-                          onPress={handleRefreshConsent}
-                          disabled={refreshingConsent}
-                          accessibilityRole="button"
-                          accessibilityLabel="Refresh consent history"
-                        >
-                          <Text
-                            style={[
-                              styles.inlineActionText,
-                              refreshingConsent && styles.inlineActionDisabled,
-                            ]}
-                          >
-                            {refreshingConsent ? 'Refreshing…' : 'Refresh'}
-                          </Text>
-                        </TouchableOpacity>
-                        <Text style={styles.consentListLabel}>Recent activity</Text>
-                      </View>
-
-                      <View style={styles.logList}>
-                        {consentLogs.slice(0, 5).map((log) => (
-                          <View
-                            key={log.id}
-                            style={[
-                              styles.logItem,
-                              {
-                                borderBottomColor: withOpacity(
-                                  colors.shadow || '#000000',
-                                  0.08,
-                                ),
-                              },
-                            ]}
-                          >
-                            <Text style={styles.logLine}>
-                              {formatDate(log.createdAt)} • {log.status?.toUpperCase()} (
-                              {log.channel})
-                            </Text>
-                          </View>
-                        ))}
-                        {!consentLogs.length ? (
-                          <Text style={styles.placeholderText}>
-                            Consent activity will appear here once approved.
-                          </Text>
-                        ) : null}
-                      </View>
-                    </View>
-                  ) : null}
-
                   {item.key === 'account' ? (
                     <View style={styles.detailList}>
                       <DetailRow label="Email" value={user.email} />
-                      <DetailRow label="Date of birth" value={user.dob} />
-                      <DetailRow label="Age" value={String(user.age)} />
                       <DetailRow
-                        label="Consent status"
-                        value={user.pendingConsent ? 'Pending approval' : 'Approved'}
-                      />
-                      <DetailRow label="Approved at" value={formatDate(user.consentedAt)} />
-                      <DetailRow
-                        label="Approved by"
-                        value={user.consentApprover || '—'}
+                        label="Age group"
+                        value={user.age_group || '—'}
                         isLast
                       />
                     </View>
@@ -860,17 +734,6 @@ function createStyles(colors) {
       fontSize: 12,
       color: secondaryFont,
     },
-    statusPill: {
-      borderRadius: 999,
-      paddingHorizontal: 12,
-      paddingVertical: 4,
-    },
-    statusPillText: {
-      fontSize: 12,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 0.4,
-    },
     editButton: {
       alignSelf: 'flex-start',
       marginTop: 4,
@@ -1040,56 +903,6 @@ function createStyles(colors) {
     addSizeButtonText: {
       fontSize: 13,
       fontWeight: '700',
-    },
-    consentSection: {
-      gap: 12,
-    },
-    consentHighlight: {
-      borderRadius: 14,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-    },
-    consentHighlightText: {
-      fontSize: 12,
-      fontWeight: '600',
-      lineHeight: 18,
-    },
-    placeholderText: {
-      fontSize: 13,
-      color: secondaryFont,
-    },
-    consentActionsRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    inlineActionButton: {
-      paddingVertical: 6,
-      paddingHorizontal: 8,
-    },
-    inlineActionText: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.accent || '#6F171F',
-    },
-    inlineActionDisabled: {
-      opacity: 0.5,
-    },
-    consentListLabel: {
-      fontSize: 12,
-      color: secondaryFont,
-    },
-    logList: {
-      gap: 8,
-    },
-    logItem: {
-      paddingBottom: 8,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-    },
-    logLine: {
-      fontSize: 12,
-      color: secondaryFont,
-      lineHeight: 18,
     },
     detailList: {
       borderRadius: 16,
