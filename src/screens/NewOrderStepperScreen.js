@@ -20,6 +20,7 @@ import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
 import { fetchShapes, createOrUpdateOrder } from '../services/api';
 import { calculatePriceBreakdown, pricingConstants, formatCurrency } from '../utils/pricing';
+import { validatePromoCode } from '../services/promoCodeService';
 import PrimaryButton from '../components/PrimaryButton';
 import Icon from '../icons/Icon';
 import { logEvent } from '../utils/analytics';
@@ -331,7 +332,7 @@ function ImagePreviewModal({ preview, onClose, colors }) {
 function NewOrderStepperScreen({ route }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const { state, handleDraftSaved, handleOrderComplete, handleUpdatePreferences } = useAppState();
+  const { state, setState, handleDraftSaved, handleOrderComplete, handleUpdatePreferences } = useAppState();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
@@ -526,6 +527,51 @@ function NewOrderStepperScreen({ route }) {
   useEffect(() => {
     setPromoInputValue(orderDraft.promoCode || '');
   }, [orderDraft.promoCode]);
+
+  // Re-validate promo code when order changes (sets, delivery details)
+  // This ensures discount stays accurate if order is modified after applying promo
+  useEffect(() => {
+    const revalidatePromoCode = async () => {
+      if (!orderDraft.promoCode || !orderDraft.promoCodeData?.valid) {
+        return;
+      }
+
+      try {
+        const validationResult = await validatePromoCode(orderDraft.promoCode, {
+          nailSets: orderDraft.sets,
+          fulfillment: orderDraft.deliveryDetails,
+        }, state.currentUser?.id);
+
+        if (validationResult.valid) {
+          // Update the promo code data with new discount amount
+          setOrderDraft((prev) => ({
+            ...prev,
+            promoCodeData: validationResult,
+          }));
+        } else {
+          // Promo code is no longer valid - clear it
+          setOrderDraft((prev) => ({
+            ...prev,
+            promoCode: '',
+            promoCodeData: null,
+          }));
+          setState((prev) => ({
+            ...prev,
+            statusMessage: validationResult.error || 'Promo code is no longer valid',
+          }));
+        }
+      } catch (error) {
+        console.error('[NewOrderStepper] Error re-validating promo code:', error);
+        // Don't clear on error - keep existing discount
+      }
+    };
+
+    // Only re-validate if we have sets and delivery details
+    if (orderDraft.sets.length > 0 && orderDraft.deliveryDetails?.method) {
+      revalidatePromoCode();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderDraft.sets.length, orderDraft.deliveryDetails?.method, orderDraft.deliveryDetails?.speed, orderDraft.promoCode, state.currentUser?.id]);
 
   const resumeFlag = Boolean(route?.params?.resume);
   // Check if order is a draft (handle both old 'draft' and new 'Draft' formats)
@@ -724,8 +770,14 @@ function NewOrderStepperScreen({ route }) {
   }, [navigation, resumeDraft, resumeFlag, route?.params]);
 
   const priceDetails = useMemo(
-    () =>
-      calculatePriceBreakdown({
+    () => {
+      // If we have validated promo code data, use the discount from it
+      // Otherwise, pass the promo code string for backward compatibility
+      const promoCodeForPricing = orderDraft.promoCodeData?.valid
+        ? orderDraft.promoCodeData // Pass the validated promo data
+        : orderDraft.promoCode; // Fallback to string
+
+      const breakdown = calculatePriceBreakdown({
         nailSets: orderDraft.sets.map((set) => ({
           ...set,
           designUploads: (set.designUploads || []).map((upload, index) => ({
@@ -738,8 +790,22 @@ function NewOrderStepperScreen({ route }) {
           method: orderDraft.deliveryDetails.method,
           speed: orderDraft.deliveryDetails.speed,
         },
-        promoCode: orderDraft.promoCode,
-      }),
+        promoCode: promoCodeForPricing,
+      });
+
+      if (__DEV__ && orderDraft.promoCode) {
+        console.log('[NewOrderStepper] Price breakdown:', {
+          hasPromoCode: !!orderDraft.promoCode,
+          hasPromoCodeData: !!orderDraft.promoCodeData,
+          promoCodeForPricing: typeof promoCodeForPricing,
+          discount: breakdown.discounts,
+          total: breakdown.total,
+          lineItemsCount: breakdown.lineItems.length,
+        });
+      }
+
+      return breakdown;
+    },
     [orderDraft],
   );
 
@@ -1197,19 +1263,56 @@ function NewOrderStepperScreen({ route }) {
     setPromoInputValue(value);
   }, []);
 
-  const handleApplyPromoCode = useCallback(() => {
-    const trimmed = promoInputValue.trim();
-    setOrderDraft((prev) => ({
-      ...prev,
-      promoCode: trimmed,
-    }));
-    setPromoInputVisible(false);
-  }, [promoInputValue]);
+  const handleApplyPromoCode = useCallback(async () => {
+    const trimmed = promoInputValue.trim().toUpperCase();
+    if (!trimmed) {
+      return;
+    }
+
+    try {
+      // Validate the promo code with current order data
+      const validationResult = await validatePromoCode(trimmed, {
+        nailSets: orderDraft.sets,
+        fulfillment: orderDraft.deliveryDetails,
+      }, state.currentUser?.id);
+
+      if (!validationResult.valid) {
+        // Show error message
+        setState((prev) => ({
+          ...prev,
+          statusMessage: validationResult.error || 'Promo code not found or expired',
+        }));
+        return;
+      }
+
+      // Promo code is valid - store it with discount info
+      setOrderDraft((prev) => ({
+        ...prev,
+        promoCode: trimmed,
+        promoCodeData: validationResult, // Store full validation result
+      }));
+      setPromoInputVisible(false);
+      setPromoInputValue('');
+
+      // Show success message
+      setState((prev) => ({
+        ...prev,
+        statusMessage: `Promo applied — ${validationResult.discountDescription} (${trimmed})`,
+      }));
+    } catch (error) {
+      console.error('[NewOrderStepper] Error validating promo code:', error);
+      setState((prev) => ({
+        ...prev,
+        statusMessage: 'Unable to validate promo code. Please try again.',
+      }));
+    }
+  }, [promoInputValue, orderDraft.sets, orderDraft.deliveryDetails, state.currentUser?.id, setState]);
 
   const handleClearPromoCode = useCallback(() => {
     setOrderDraft((prev) => ({
       ...prev,
       promoCode: '',
+      promoCodeData: null, // Clear promo code data
     }));
     setPromoInputVisible(false);
     setPromoInputValue('');

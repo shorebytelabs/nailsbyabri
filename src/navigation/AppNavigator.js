@@ -12,6 +12,7 @@ import ConsentScreen from '../screens/ConsentScreen';
 import OrderConfirmationScreen from '../screens/OrderConfirmationScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import OrderBuilderScreen from '../screens/OrderBuilderScreen';
+import AdminPanelScreen from '../screens/AdminPanelScreen';
 import MainTabs from './MainTabs';
 import NewOrderStepperScreen from '../screens/NewOrderStepperScreen';
 import { useAppState } from '../context/AppContext';
@@ -614,6 +615,13 @@ function AppNavigator() {
         />
         <Stack.Screen name="OrderConfirmation" component={OrderConfirmationContainer} />
         <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
+        <Stack.Screen
+          name="AdminPanel"
+          component={AdminPanelScreen}
+          options={{
+            presentation: 'modal',
+          }}
+        />
       </Stack.Navigator>
       <BannerToast />
       <StatusOverlay />

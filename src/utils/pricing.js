@@ -169,15 +169,39 @@ export function calculatePriceBreakdown({
   let discount = 0;
 
   // Apply promo code discount first (if any)
-  if (promoCode && typeof promoCode === 'string') {
-    if (promoCode.trim().toLowerCase() === 'holiday10') {
-      discount = Math.round(subtotal * 0.1);
+  // promoCode can be either:
+  // 1. A validated promo code object with discount info (from validatePromoCode)
+  // 2. A string (for backward compatibility)
+  if (promoCode) {
+    let promoDiscount = 0;
+    let promoLabel = 'Promo Discount';
+
+    if (typeof promoCode === 'object' && promoCode.valid && promoCode.discount !== undefined) {
+      // Validated promo code object
+      promoDiscount = Number(promoCode.discount) || 0;
+      const promoCodeStr = promoCode.promo?.code || '';
+      promoLabel = promoCode.discountDescription 
+        ? `Promo (${promoCodeStr}): ${promoCode.discountDescription}`
+        : `Promo (${promoCodeStr})`;
+    } else if (typeof promoCode === 'string') {
+      // Legacy string format (backward compatibility)
+      if (promoCode.trim().toLowerCase() === 'holiday10') {
+        promoDiscount = Math.round(subtotal * 0.1);
+        promoLabel = 'Holiday Discount';
+      }
+    }
+
+    if (promoDiscount > 0) {
+      // For free shipping, the discount applies to shipping cost
+      // For other types, it applies to the subtotal
+      const actualDiscount = Math.min(promoDiscount, subtotal);
       lineItems.push({
         id: 'promo',
-        label: 'Holiday Discount',
-        amount: -discount,
+        label: promoLabel,
+        amount: -actualDiscount,
       });
-      subtotal -= discount;
+      discount += actualDiscount;
+      subtotal -= actualDiscount;
     }
   }
 

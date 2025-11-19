@@ -38,9 +38,17 @@ export default function MainTabs() {
     }
   }, [handleStartOrder, navigation]);
 
+  const openAdminPanel = useCallback(() => {
+    navigation.navigate('AdminPanel');
+  }, [navigation]);
+
   return (
     <View style={styles.root}>
-      <BrandHeader showCreateButton onPressCreate={openCreateFlow} />
+      <BrandHeader 
+        showCreateButton 
+        onPressCreate={openCreateFlow}
+        onPressAdmin={state.currentUser?.isAdmin ? openAdminPanel : undefined}
+      />
       <Tab.Navigator
         initialRouteName="Home"
         tabBar={(props) => <BottomTabBar {...props} />}

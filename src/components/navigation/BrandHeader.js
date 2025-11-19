@@ -4,23 +4,56 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
 import Icon from '../../icons/Icon';
 import { withOpacity } from '../../utils/color';
+import { useAppState } from '../../context/AppContext';
 
 const LOGO_SOURCE = require('../../../assets/images/NailsByAbriLogo.png');
 
 function BrandHeader({
   showCreateButton = false,
   onPressCreate,
+  onPressAdmin,
   rightContent = null,
   testID,
 }) {
   const { theme } = useTheme();
+  const { state } = useAppState();
   const colors = theme?.colors || {};
   const backgroundColor = colors.primaryBackground || '#F4EBE3';
+  const isAdmin = state.currentUser?.isAdmin || false;
 
   const renderRightContent = () => {
-    if (showCreateButton && typeof onPressCreate === 'function') {
-      return (
+    const buttons = [];
+
+    // Add admin gear icon if user is admin
+    if (isAdmin && typeof onPressAdmin === 'function') {
+      buttons.push(
         <Pressable
+          key="admin"
+          accessibilityRole="button"
+          accessibilityLabel="Admin Panel"
+          onPress={onPressAdmin}
+          style={({ pressed }) => [
+            styles.headerButton,
+            {
+              backgroundColor: colors.surface || '#FFFFFF',
+              borderWidth: 1,
+              borderColor: withOpacity(colors.border || '#D9C8A9', 0.5),
+              shadowColor: colors.shadow || '#000000',
+              opacity: pressed ? 0.85 : 1,
+            },
+          ]}
+          testID="brand-header-admin"
+        >
+          <Icon name="gear" color={colors.primaryFont || '#220707'} size={20} />
+        </Pressable>
+      );
+    }
+
+    // Add create button if needed
+    if (showCreateButton && typeof onPressCreate === 'function') {
+      buttons.push(
+        <Pressable
+          key="create"
           accessibilityRole="button"
           accessibilityLabel="Create new custom nail set"
           onPress={onPressCreate}
@@ -37,6 +70,10 @@ function BrandHeader({
           <Icon name="plus" color={colors.accentContrast || '#FFFFFF'} />
         </Pressable>
       );
+    }
+
+    if (buttons.length > 0) {
+      return <View style={styles.headerActions}>{buttons}</View>;
     }
 
     if (rightContent) {

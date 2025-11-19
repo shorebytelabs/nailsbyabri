@@ -576,6 +576,50 @@ const iconRenderers = {
       />
     </Svg>
   ),
+  gear: (props = {}) => (
+    <Svg
+      width={ICON_SIZE}
+      height={ICON_SIZE}
+      viewBox="0 0 24 24"
+      color={props.color || 'currentColor'}
+      {...props}
+    >
+      <Path
+        d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  ),
+  tag: (props = {}) => (
+    <Svg
+      width={ICON_SIZE}
+      height={ICON_SIZE}
+      viewBox="0 0 24 24"
+      color={props.color || 'currentColor'}
+      {...props}
+    >
+      <Path
+        d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+      <Circle cx="7" cy="7" r="1.5" fill="currentColor" />
+    </Svg>
+  ),
 };
 
 export function Icon({ name, color, size = ICON_SIZE, ...rest }) {
