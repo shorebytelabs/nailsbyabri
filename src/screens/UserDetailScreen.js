@@ -59,11 +59,18 @@ function UserDetailScreen({ navigation, route }) {
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileDraft, setProfileDraft] = useState({ name: '', email: '', active: true });
 
-  // Nail sizes state
+  // Nail sizes state - using same structure as ProfileScreen
   const [nailSizeProfiles, setNailSizeProfiles] = useState([]);
   const [editingSizes, setEditingSizes] = useState(false);
-  const [sizesDraft, setSizesDraft] = useState([]);
-  const [defaultProfileId, setDefaultProfileId] = useState(null);
+  const [sizesDraft, setSizesDraft] = useState({
+    defaultProfile: {
+      id: 'default',
+      label: 'My default sizes',
+      sizes: createEmptySizeValues(),
+    },
+    profiles: [],
+  });
+  const [defaultProfileId, setDefaultProfileId] = useState('default');
 
   // Activity state
   const [activityLog, setActivityLog] = useState([]);
@@ -110,12 +117,41 @@ function UserDetailScreen({ navigation, route }) {
         active: userData.active !== false,
       });
 
-      // Load nail size profiles
+      // Load nail size profiles - using same data source as ProfileScreen
       const profiles = await getUserNailSizeProfiles(userId);
       setNailSizeProfiles(profiles);
-      setSizesDraft(profiles.map((p) => ({ ...p })));
+      
+      // Transform to match ProfileScreen structure: separate default and additional profiles
       const defaultProfile = profiles.find((p) => p.isDefault);
-      setDefaultProfileId(defaultProfile?.id || null);
+      const additionalProfiles = profiles.filter((p) => !p.isDefault);
+      
+      // Build nailSizesDraft structure matching ProfileScreen format
+      const nailSizesDraft = {
+        defaultProfile: defaultProfile
+          ? {
+              id: defaultProfile.id,
+              label: defaultProfile.label || defaultProfile.name || 'My default sizes',
+              sizes: defaultProfile.sizes || createEmptySizeValues(),
+            }
+          : {
+              id: 'default',
+              label: 'My default sizes',
+              sizes: createEmptySizeValues(),
+            },
+        profiles: additionalProfiles.map((profile) => ({
+          id: profile.id,
+          label: profile.label || profile.name || 'Untitled Profile',
+          sizes: profile.sizes || createEmptySizeValues(),
+        })),
+      };
+      
+      setSizesDraft(nailSizesDraft);
+      setDefaultProfileId(defaultProfile?.id || 'default');
+      
+      // If no profiles exist, automatically enter edit mode
+      if (profiles.length === 0) {
+        setEditingSizes(true);
+      }
 
       // Load activity log
       const activity = await getUserActivityLog(userId, 10);
@@ -199,10 +235,145 @@ function UserDetailScreen({ navigation, route }) {
     ]);
   };
 
+  // Handler functions matching ProfileScreen pattern
+  const handleDefaultProfileLabelChange = (value) => {
+    setSizesDraft((prev) => ({
+      ...prev,
+      defaultProfile: {
+        ...prev.defaultProfile,
+        label: value,
+      },
+    }));
+  };
+
+  const handleDefaultSizeChange = (finger, value) => {
+    setSizesDraft((prev) => ({
+      ...prev,
+      defaultProfile: {
+        ...prev.defaultProfile,
+        sizes: {
+          ...prev.defaultProfile.sizes,
+          [finger]: value,
+        },
+      },
+    }));
+  };
+
+  const handleProfileNameChange = (profileId, value) => {
+    setSizesDraft((prev) => ({
+      ...prev,
+      profiles: prev.profiles.map((profile) =>
+        profile.id === profileId
+          ? {
+              ...profile,
+              label: value,
+            }
+          : profile,
+      ),
+    }));
+  };
+
+  const handleProfileSizeChange = (profileId, finger, value) => {
+    setSizesDraft((prev) => ({
+      ...prev,
+      profiles: prev.profiles.map((profile) =>
+        profile.id === profileId
+          ? {
+              ...profile,
+              sizes: {
+                ...profile.sizes,
+                [finger]: value,
+              },
+            }
+          : profile,
+      ),
+    }));
+  };
+
+  const handleAddSizeProfile = () => {
+    const newProfile = {
+      id: `profile_${Date.now()}`,
+      label: `Additional profile ${sizesDraft.profiles.length + 1}`,
+      sizes: createEmptySizeValues(),
+    };
+    setSizesDraft((prev) => ({
+      ...prev,
+      profiles: [...prev.profiles, newProfile],
+    }));
+  };
+
+  const handleRemoveSizeProfile = async (profileId) => {
+    // Don't delete if it's a temporary ID - just remove from UI
+    if (profileId.startsWith('profile_') || profileId.startsWith('temp_')) {
+      setSizesDraft((prev) => ({
+        ...prev,
+        profiles: prev.profiles.filter((profile) => profile.id !== profileId),
+      }));
+      return;
+    }
+
+    // Delete from Supabase if it's a real profile
+    try {
+      const { deleteNailSizeProfile } = await import('../services/supabaseService');
+      await deleteNailSizeProfile(userId, profileId);
+      setSizesDraft((prev) => ({
+        ...prev,
+        profiles: prev.profiles.filter((profile) => profile.id !== profileId),
+      }));
+    } catch (error) {
+      console.error('[UserDetail] Failed to delete nail size profile:', error);
+      // Still remove from UI even if Supabase delete fails
+      setSizesDraft((prev) => ({
+        ...prev,
+        profiles: prev.profiles.filter((profile) => profile.id !== profileId),
+      }));
+    }
+  };
+
   const handleSaveNailSizes = async () => {
     try {
       setSaving(true);
-      await updateUserNailSizeProfiles(userId, sizesDraft, defaultProfileId);
+      
+      // Convert ProfileScreen format to flat array for updateUserNailSizeProfiles
+      const profiles = [];
+      
+      // Add default profile if it has data
+      if (sizesDraft.defaultProfile) {
+        const hasSizes = Object.values(sizesDraft.defaultProfile.sizes || {}).some(
+          (value) => value && String(value).trim() !== ''
+        );
+        if (hasSizes || sizesDraft.profiles.length === 0) {
+          // Always include default if it's the only profile or has sizes
+          profiles.push({
+            id: sizesDraft.defaultProfile.id === 'default' ? defaultProfileId : sizesDraft.defaultProfile.id,
+            label: sizesDraft.defaultProfile.label,
+            name: sizesDraft.defaultProfile.label, // Also include name for compatibility
+            isDefault: true,
+            sizes: sizesDraft.defaultProfile.sizes || createEmptySizeValues(),
+          });
+        }
+      }
+      
+      // Add additional profiles
+      sizesDraft.profiles.forEach((profile) => {
+        const hasSizes = Object.values(profile.sizes || {}).some(
+          (value) => value && String(value).trim() !== ''
+        );
+        if (hasSizes) {
+          profiles.push({
+            id: profile.id,
+            label: profile.label,
+            name: profile.label, // Also include name for compatibility
+            isDefault: false,
+            sizes: profile.sizes || createEmptySizeValues(),
+          });
+        }
+      });
+      
+      const defaultId = profiles.find((p) => p.isDefault)?.id || profiles[0]?.id || defaultProfileId;
+      await updateUserNailSizeProfiles(userId, profiles, defaultId);
+      
+      // Reload user data to refresh the profile list
       await loadUser();
       setEditingSizes(false);
       setConfirmation('Nail sizes updated');
@@ -527,21 +698,44 @@ function UserDetailScreen({ navigation, route }) {
         <View style={[styles.section, { backgroundColor: surface, borderColor: withOpacity(borderColor, 0.3) }]}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: primaryFont }]}>Nail Size Profiles</Text>
-            {!editingSizes ? (
-              <TouchableOpacity onPress={() => setEditingSizes(true)}>
-                <Text style={[styles.editButton, { color: accent }]}>Edit</Text>
-              </TouchableOpacity>
-            ) : (
+            {/* If user has no profiles, always show Save button. Otherwise, show Edit button when not editing */}
+            {nailSizeProfiles.length === 0 || editingSizes ? (
               <View style={styles.editActions}>
-                <TouchableOpacity
-                  onPress={async () => {
-                    const profiles = await getUserNailSizeProfiles(userId);
-                    setSizesDraft(profiles.map((p) => ({ ...p })));
-                    setEditingSizes(false);
-                  }}
-                >
-                  <Text style={[styles.cancelButton, { color: secondaryFont }]}>Cancel</Text>
-                </TouchableOpacity>
+                {/* Show Cancel button only if user has existing profiles */}
+                {nailSizeProfiles.length > 0 && (
+                  <TouchableOpacity
+                    onPress={async () => {
+                      // Reload profiles from database to reset any changes
+                      const profiles = await getUserNailSizeProfiles(userId);
+                      const defaultProfile = profiles.find((p) => p.isDefault);
+                      const additionalProfiles = profiles.filter((p) => !p.isDefault);
+                      
+                      setSizesDraft({
+                        defaultProfile: defaultProfile
+                          ? {
+                              id: defaultProfile.id,
+                              label: defaultProfile.label || defaultProfile.name || 'My default sizes',
+                              sizes: defaultProfile.sizes || createEmptySizeValues(),
+                            }
+                          : {
+                              id: 'default',
+                              label: 'My default sizes',
+                              sizes: createEmptySizeValues(),
+                            },
+                        profiles: additionalProfiles.map((profile) => ({
+                          id: profile.id,
+                          label: profile.label || profile.name || 'Untitled Profile',
+                          sizes: profile.sizes || createEmptySizeValues(),
+                        })),
+                      });
+                      
+                      setDefaultProfileId(defaultProfile?.id || 'default');
+                      setEditingSizes(false);
+                    }}
+                  >
+                    <Text style={[styles.cancelButton, { color: secondaryFont }]}>Cancel</Text>
+                  </TouchableOpacity>
+                )}
                 <PrimaryButton
                   label={saving ? 'Saving...' : 'Save'}
                   onPress={handleSaveNailSizes}
@@ -549,142 +743,112 @@ function UserDetailScreen({ navigation, route }) {
                   style={styles.saveButton}
                 />
               </View>
+            ) : (
+              <TouchableOpacity onPress={() => setEditingSizes(true)}>
+                <Text style={[styles.editButton, { color: accent }]}>Edit</Text>
+              </TouchableOpacity>
             )}
           </View>
 
-          {editingSizes ? (
-            <View style={styles.sizesEditor}>
-              {sizesDraft.map((profile) => (
-                <View
-                  key={profile.id}
-                  style={[styles.profileCard, { borderColor: withOpacity(borderColor, 0.3) }]}
-                >
-                  <View style={styles.profileHeader}>
-                    <TextInput
-                      style={[styles.profileNameInput, { color: primaryFont }]}
-                      value={profile.name}
-                      onChangeText={(text) => {
-                        setSizesDraft((prev) =>
-                          prev.map((p) => (p.id === profile.id ? { ...p, name: text } : p))
-                        );
-                      }}
-                      placeholder="Profile name"
-                      placeholderTextColor={withOpacity(secondaryFont, 0.5)}
-                    />
-                    <TouchableOpacity
-                      onPress={() => {
-                        setDefaultProfileId(profile.id);
-                        setSizesDraft((prev) =>
-                          prev.map((p) => ({
-                            ...p,
-                            isDefault: p.id === profile.id,
-                          }))
-                        );
-                      }}
-                      style={[
-                        styles.defaultButton,
-                        {
-                          backgroundColor: profile.isDefault
-                            ? withOpacity(accent, 0.1)
-                            : 'transparent',
-                          borderColor: profile.isDefault ? accent : withOpacity(borderColor, 0.5),
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.defaultButtonText,
-                          { color: profile.isDefault ? accent : secondaryFont },
-                        ]}
-                      >
-                        {profile.isDefault ? 'Default' : 'Set as Default'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.sizesGrid}>
-                    {FINGER_DISPLAY.map((finger) => (
-                      <View key={finger.key} style={styles.sizeInputContainer}>
-                        <Text style={[styles.sizeLabel, { color: secondaryFont }]}>{finger.label}</Text>
-                        <TextInput
-                          style={[
-                            styles.sizeInput,
-                            {
-                              borderColor: withOpacity(borderColor, 0.5),
-                              color: primaryFont,
-                            },
-                          ]}
-                          value={String(profile.sizes?.[finger.key] || '')}
-                          onChangeText={(text) => {
-                            setSizesDraft((prev) =>
-                              prev.map((p) => {
-                                if (p.id === profile.id) {
-                                  return {
-                                    ...p,
-                                    sizes: {
-                                      ...(p.sizes || {}),
-                                      [finger.key]: text,
-                                    },
-                                  };
-                                }
-                                return p;
-                              })
-                            );
-                          }}
-                          placeholder="0"
-                          placeholderTextColor={withOpacity(secondaryFont, 0.5)}
-                          keyboardType="numeric"
-                        />
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ))}
+          {/* Always show editor UI when editing or no profiles exist; otherwise show read-only view */}
+          {nailSizeProfiles.length === 0 || editingSizes ? (
+            <View style={styles.nailSizesSection}>
+              <View style={styles.sizeSectionHeader}>
+                <Text style={[styles.sectionTitle, { color: primaryFont }]}>Default nail sizes</Text>
+              </View>
+              {renderSizeProfileCard({
+                profile: sizesDraft.defaultProfile,
+                colors,
+                styles,
+                isDefault: true,
+                onChangeLabel: handleDefaultProfileLabelChange,
+                onChangeSize: handleDefaultSizeChange,
+              })}
+
+              <View style={styles.sizeSectionHeaderRow}>
+                <Text style={[styles.sectionTitle, { color: primaryFont }]}>Additional profiles</Text>
+                <Text style={[styles.sizeSectionHint, { color: secondaryFont }]}>
+                  Save additional nail sizes.
+                </Text>
+              </View>
+              {sizesDraft.profiles.length
+                ? sizesDraft.profiles.map((profile) =>
+                    renderSizeProfileCard({
+                      profile,
+                      colors,
+                      styles,
+                      isDefault: false,
+                      onChangeLabel: (value) => handleProfileNameChange(profile.id, value),
+                      onChangeSize: (finger, value) =>
+                        handleProfileSizeChange(profile.id, finger, value),
+                      onRemove: () => handleRemoveSizeProfile(profile.id),
+                    }),
+                  )
+                : null}
+
               <TouchableOpacity
-                onPress={() => {
-                  const newProfile = {
-                    id: `profile_${Date.now()}`,
-                    name: `Profile ${sizesDraft.length + 1}`,
-                    isDefault: false,
-                    sizes: createEmptySizeValues(),
-                  };
-                  setSizesDraft((prev) => [...prev, newProfile]);
-                }}
-                style={[styles.addProfileButton, { borderColor: withOpacity(accent, 0.3) }]}
+                style={[
+                  styles.addSizeButton,
+                  { borderColor: withOpacity(accent, 0.3) },
+                ]}
+                onPress={handleAddSizeProfile}
+                accessibilityRole="button"
               >
                 <Icon name="plus" color={accent} size={16} />
-                <Text style={[styles.addProfileButtonText, { color: accent }]}>Add Profile</Text>
+                <Text
+                  style={[
+                    styles.addSizeButtonText,
+                    { color: accent },
+                  ]}
+                >
+                  Add size profile
+                </Text>
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.profilesList}>
-              {nailSizeProfiles.length === 0 ? (
-                <Text style={[styles.emptyText, { color: secondaryFont }]}>No nail size profiles</Text>
+            <View style={styles.nailSizesSection}>
+              <View style={styles.sizeSectionHeader}>
+                <Text style={[styles.sectionTitle, { color: primaryFont }]}>Default nail sizes</Text>
+              </View>
+              {nailSizeProfiles.find((p) => p.isDefault) ? (
+                renderSizeProfileCard({
+                  profile: {
+                    id: nailSizeProfiles.find((p) => p.isDefault).id,
+                    label: nailSizeProfiles.find((p) => p.isDefault).label || nailSizeProfiles.find((p) => p.isDefault).name || 'My default sizes',
+                    sizes: nailSizeProfiles.find((p) => p.isDefault).sizes || createEmptySizeValues(),
+                  },
+                  colors,
+                  styles,
+                  isDefault: true,
+                  onChangeLabel: () => {}, // Read-only
+                  onChangeSize: () => {}, // Read-only
+                })
               ) : (
-                nailSizeProfiles.map((profile) => (
-                  <View
-                    key={profile.id}
-                    style={[styles.profileCard, { borderColor: withOpacity(borderColor, 0.3) }]}
-                  >
-                    <View style={styles.profileHeader}>
-                      <Text style={[styles.profileName, { color: primaryFont }]}>{profile.name}</Text>
-                      {profile.isDefault && (
-                        <View style={[styles.defaultBadge, { backgroundColor: withOpacity(accent, 0.1) }]}>
-                          <Text style={[styles.defaultBadgeText, { color: accent }]}>Default</Text>
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.sizesDisplay}>
-                      {FINGER_DISPLAY.map((finger) => (
-                        <View key={finger.key} style={styles.sizeDisplayItem}>
-                          <Text style={[styles.sizeDisplayLabel, { color: secondaryFont }]}>{finger.label}:</Text>
-                          <Text style={[styles.sizeDisplayValue, { color: primaryFont }]}>
-                            {profile.sizes?.[finger.key] || '—'}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
+                <Text style={[styles.emptyText, { color: secondaryFont }]}>No default profile</Text>
+              )}
+
+              {nailSizeProfiles.filter((p) => !p.isDefault).length > 0 && (
+                <>
+                  <View style={styles.sizeSectionHeaderRow}>
+                    <Text style={[styles.sectionTitle, { color: primaryFont }]}>Additional profiles</Text>
                   </View>
-                ))
+                  {nailSizeProfiles
+                    .filter((p) => !p.isDefault)
+                    .map((profile) =>
+                      renderSizeProfileCard({
+                        profile: {
+                          id: profile.id,
+                          label: profile.label || profile.name || 'Untitled Profile',
+                          sizes: profile.sizes || createEmptySizeValues(),
+                        },
+                        colors,
+                        styles,
+                        isDefault: false,
+                        onChangeLabel: () => {}, // Read-only
+                        onChangeSize: () => {}, // Read-only
+                      }),
+                    )}
+                </>
               )}
             </View>
           )}
@@ -769,6 +933,99 @@ function UserDetailScreen({ navigation, route }) {
         </View>
       ) : null}
     </SafeAreaView>
+  );
+}
+
+// Render function matching ProfileScreen's renderSizeProfileCard
+function renderSizeProfileCard({
+  profile,
+  colors,
+  styles,
+  isDefault,
+  onChangeLabel,
+  onChangeSize,
+  onRemove,
+}) {
+  const isReadOnly = typeof onChangeLabel !== 'function' || typeof onChangeSize !== 'function';
+  
+  return (
+    <View
+      key={profile.id}
+      style={[
+        styles.sizeProfileCard,
+        {
+          borderColor: withOpacity(colors.divider || '#E6DCD0', 0.8),
+          backgroundColor: colors.surface || '#FFFFFF',
+        },
+      ]}
+    >
+      <View style={styles.sizeProfileHeader}>
+        <View style={styles.sizeProfileHeaderText}>
+          <Text style={styles.sizeProfileTitle}>
+            {isDefault ? 'Default profile' : 'Additional profile'}
+          </Text>
+        </View>
+        {!isDefault && !isReadOnly && onRemove && (
+          <TouchableOpacity
+            onPress={onRemove}
+            accessibilityRole="button"
+            style={styles.sizeRemoveButton}
+          >
+            <Icon name="trash" color={withOpacity(colors.primaryFont || '#220707', 0.6)} size={16} />
+            <Text
+              style={[
+                styles.sizeRemoveText,
+                { color: withOpacity(colors.primaryFont || '#220707', 0.6) },
+              ]}
+            >
+              Remove
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <TextInput
+        style={[
+          styles.sizeProfileNameInput,
+          {
+            borderColor: colors.divider || '#E6DCD0',
+            color: colors.primaryFont || '#220707',
+            backgroundColor: colors.surfaceMuted || withOpacity(colors.accent || '#6F171F', 0.05),
+          },
+        ]}
+        value={profile.label}
+        onChangeText={onChangeLabel}
+        editable={!isReadOnly}
+        placeholder={isDefault ? 'My default sizes' : 'Profile name'}
+        placeholderTextColor={withOpacity(colors.secondaryFont || '#5C5F5D', 0.6)}
+      />
+
+      <View style={styles.sizeGrid}>
+        {FINGER_DISPLAY.map(({ key, label }) => (
+          <View key={`${profile.id}_${key}`} style={styles.sizeCell}>
+            <Text style={[styles.sizeLabel, { color: colors.secondaryFont || '#5C5F5D' }]}>
+              {label}
+            </Text>
+            <TextInput
+              style={[
+                styles.sizeInput,
+                {
+                  borderColor: colors.divider || '#E6DCD0',
+                  color: colors.primaryFont || '#220707',
+                  backgroundColor: colors.surface || '#FFFFFF',
+                },
+              ]}
+              value={profile.sizes?.[key] || ''}
+              onChangeText={isReadOnly ? undefined : (value) => onChangeSize(key, value)}
+              editable={!isReadOnly}
+              placeholder="e.g. 3"
+              placeholderTextColor={withOpacity(colors.secondaryFont || '#5C5F5D', 0.5)}
+              keyboardType="number-pad"
+            />
+          </View>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -908,6 +1165,84 @@ function createStyles(colors) {
       fontSize: 12,
       marginTop: 4,
     },
+    nailSizesSection: {
+      gap: 18,
+    },
+    sizeSectionHeader: {
+      gap: 6,
+    },
+    sizeSectionHeaderRow: {
+      gap: 2,
+    },
+    sizeSectionHint: {
+      fontSize: 12,
+    },
+    sizeProfileCard: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 18,
+      padding: 16,
+      gap: 16,
+    },
+    sizeProfileHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      gap: 12,
+    },
+    sizeProfileHeaderText: {
+      flex: 1,
+      gap: 4,
+    },
+    sizeProfileTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: primaryFont,
+    },
+    sizeProfileNameInput: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    sizeGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    sizeCell: {
+      width: '30%',
+      minWidth: 96,
+      gap: 4,
+    },
+    sizeRemoveButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 999,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'transparent',
+    },
+    sizeRemoveText: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    addSizeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 14,
+      paddingVertical: 10,
+    },
+    addSizeButtonText: {
+      fontSize: 13,
+      fontWeight: '700',
+    },
     sizesEditor: {
       gap: 16,
     },
@@ -937,6 +1272,15 @@ function createStyles(colors) {
     profileName: {
       fontSize: 16,
       fontWeight: '600',
+    },
+    profileActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    deleteButton: {
+      padding: 6,
+      marginLeft: 4,
     },
     defaultButton: {
       paddingHorizontal: 12,

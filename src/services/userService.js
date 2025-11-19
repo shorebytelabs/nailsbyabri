@@ -286,48 +286,18 @@ export async function updateUserRole(userId, newRole, adminId) {
  */
 export async function getUserNailSizeProfiles(userId) {
   try {
-    // Get user preferences which contain nail sizes
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .select('nail_sizes')
-      .eq('user_id', userId)
-      .single();
+    // Use the same function that ProfileScreen uses to fetch from nail_size_profiles table
+    const { getNailSizeProfiles } = await import('./supabaseService');
+    const profiles = await getNailSizeProfiles(userId);
 
-    if (error && error.code !== 'PGRST116') {
-      // PGRST116 = no rows returned
-      throw error;
-    }
-
-    if (!data || !data.nail_sizes) {
-      return [];
-    }
-
-    const nailSizes = data.nail_sizes;
-    const profiles = [];
-
-    // Extract default profile
-    if (nailSizes.default && nailSizes.default.sizes) {
-      profiles.push({
-        id: 'default',
-        name: 'Default',
-        isDefault: true,
-        sizes: nailSizes.default.sizes,
-      });
-    }
-
-    // Extract additional profiles
-    if (Array.isArray(nailSizes.profiles)) {
-      nailSizes.profiles.forEach((profile, index) => {
-        profiles.push({
-          id: `profile_${index}`,
-          name: profile.name || `Profile ${index + 1}`,
-          isDefault: false,
-          sizes: profile.sizes || {},
-        });
-      });
-    }
-
-    return profiles;
+    // Transform to the format expected by UserDetailScreen
+    return profiles.map((profile) => ({
+      id: profile.id,
+      name: profile.label || 'Untitled Profile',
+      label: profile.label || 'Untitled Profile', // Also include label for consistency
+      isDefault: profile.is_default || false,
+      sizes: profile.sizes || {},
+    }));
   } catch (error) {
     console.error('[userService] Error fetching nail size profiles:', error);
     throw error;
@@ -343,57 +313,32 @@ export async function getUserNailSizeProfiles(userId) {
  */
 export async function updateUserNailSizeProfiles(userId, profiles, defaultProfileId) {
   try {
-    // Get current preferences
-    const { data: currentPrefs, error: fetchError } = await supabase
-      .from('user_preferences')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    if (fetchError && fetchError.code !== 'PGRST116') {
-      throw fetchError;
+    // Use the same functions that ProfileScreen uses to save to nail_size_profiles table
+    const { getNailSizeProfiles, upsertNailSizeProfile, deleteNailSizeProfile } = await import('./supabaseService');
+    
+    // Get existing profiles to identify which ones need to be deleted
+    const existingProfiles = await getNailSizeProfiles(userId);
+    const existingProfileIds = new Set(existingProfiles.map((p) => p.id));
+    const newProfileIds = new Set(profiles.map((p) => p.id).filter((id) => !id.startsWith('profile_') && !id.startsWith('temp_')));
+    
+    // Delete profiles that were removed
+    for (const existingProfile of existingProfiles) {
+      if (!newProfileIds.has(existingProfile.id)) {
+        await deleteNailSizeProfile(userId, existingProfile.id);
+      }
     }
-
-    // Build nail_sizes structure
-    const nailSizes = {
-      default: null,
-      profiles: [],
-    };
-
-    profiles.forEach((profile) => {
-      if (profile.id === defaultProfileId || profile.isDefault) {
-        nailSizes.default = {
-          sizes: profile.sizes || {},
-        };
-      } else {
-        nailSizes.profiles.push({
-          name: profile.name || 'Untitled Profile',
-          sizes: profile.sizes || {},
-        });
-      }
-    });
-
-    // Update or insert preferences
-    if (currentPrefs) {
-      const { error: updateError } = await supabase
-        .from('user_preferences')
-        .update({ nail_sizes: nailSizes })
-        .eq('user_id', userId);
-
-      if (updateError) {
-        throw updateError;
-      }
-    } else {
-      const { error: insertError } = await supabase
-        .from('user_preferences')
-        .insert({
-          user_id: userId,
-          nail_sizes: nailSizes,
-        });
-
-      if (insertError) {
-        throw insertError;
-      }
+    
+    // Upsert all profiles
+    for (const profile of profiles) {
+      // Skip temporary IDs - they'll be created as new profiles
+      const isTemporaryId = profile.id.startsWith('profile_') || profile.id.startsWith('temp_');
+      
+      await upsertNailSizeProfile(userId, {
+        id: isTemporaryId ? undefined : profile.id, // Undefined ID creates a new profile
+        label: profile.name || profile.label || 'Untitled Profile',
+        is_default: profile.id === defaultProfileId || profile.isDefault || false,
+        sizes: profile.sizes || {},
+      });
     }
 
     return;
