@@ -104,6 +104,7 @@ function createEmptySetDraft() {
     sizes: { ...DEFAULT_SIZES },
       selectedSizingOption: null,
       selectedProfileId: null,
+      saveAsDefault: false, // Track if user wants to save sizes as default
     };
   }
 
@@ -330,7 +331,7 @@ function ImagePreviewModal({ preview, onClose, colors }) {
 function NewOrderStepperScreen({ route }) {
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const { state, handleDraftSaved, handleOrderComplete } = useAppState();
+  const { state, handleDraftSaved, handleOrderComplete, handleUpdatePreferences } = useAppState();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
@@ -383,6 +384,7 @@ function NewOrderStepperScreen({ route }) {
   const [previewSet, setPreviewSet] = useState(null);
   const [isPromoInputVisible, setPromoInputVisible] = useState(false);
   const [promoInputValue, setPromoInputValue] = useState('');
+  const [saveAsDefault, setSaveAsDefault] = useState(false);
 
   const savedSizeProfiles = useMemo(() => {
     const nailSizes = state?.preferences?.nailSizes;
@@ -428,6 +430,56 @@ function NewOrderStepperScreen({ route }) {
 
     return options;
   }, [state?.preferences?.nailSizes]);
+
+  // Check if user has default sizes (use ref to track initial state so checkbox doesn't disappear after saving)
+  const initialHasDefaultSizesRef = useRef(null);
+  const hasDefaultSizes = useMemo(() => {
+    const nailSizes = state?.preferences?.nailSizes;
+    if (!nailSizes?.defaultProfile) {
+      if (initialHasDefaultSizesRef.current === null) {
+        initialHasDefaultSizesRef.current = false;
+      }
+      return false;
+    }
+    const defaultSizes = nailSizes.defaultProfile?.sizes || {};
+    const hasDefaults = FINGER_KEYS.some((finger) => {
+      const value = defaultSizes[finger];
+      return value !== undefined && value !== null && String(value).trim().length > 0;
+    });
+    if (initialHasDefaultSizesRef.current === null) {
+      initialHasDefaultSizesRef.current = hasDefaults;
+    }
+    return hasDefaults;
+  }, [state?.preferences?.nailSizes]);
+  
+  // Use initial state for checkbox visibility (so it doesn't disappear after saving)
+  const shouldShowSaveAsDefaultCheckbox = initialHasDefaultSizesRef.current === false;
+
+  // Handler to save sizes as default
+  const handleSaveDefaultSizes = useCallback(async (sizes, shouldSave) => {
+    if (!shouldSave || !state.currentUser) {
+      return;
+    }
+
+    try {
+      const nextPreferences = {
+        ...state.preferences,
+        nailSizes: {
+          ...state.preferences.nailSizes,
+          defaultProfile: {
+            id: 'default',
+            label: 'My default sizes',
+            sizes: sizes || {},
+          },
+        },
+      };
+      await handleUpdatePreferences(nextPreferences);
+      logEvent('nail_sizes_saved_as_default');
+    } catch (error) {
+      console.error('[NewOrderStepper] Failed to save default sizes:', error);
+      Alert.alert('Error', 'Unable to save default sizes. Please try again.');
+    }
+  }, [state.currentUser, state.preferences, handleUpdatePreferences]);
 
   useEffect(() => {
     logEvent('start_order_step', { step: STEP_DEFINITIONS[currentStep].key });
@@ -650,6 +702,7 @@ function NewOrderStepperScreen({ route }) {
           sizingUploads: (matchedSet.sizingUploads || []).map((upload) => ({ ...upload })),
           selectedSizingOption: matchedSet.selectedSizingOption || null,
           selectedProfileId: matchedSet.selectedProfileId || null,
+          saveAsDefault: Boolean(matchedSet.saveAsDefault), // Restore checkbox state
         };
       } else {
         initialDraft = createEmptySetDraft();
@@ -658,6 +711,8 @@ function NewOrderStepperScreen({ route }) {
 
     setCurrentSetDraft(initialDraft);
     setEditingSetId(initialEditingId);
+    // Restore saveAsDefault state when resuming draft
+    setSaveAsDefault(Boolean(initialDraft.saveAsDefault));
     setCurrentStep(targetStepIndex);
     hydratedDraftRef.current = resumeDraft.id || true;
     if (navigation.setParams) {
@@ -887,6 +942,25 @@ function NewOrderStepperScreen({ route }) {
   const handleSaveDraft = async () => {
     try {
       setSavingDraft(true);
+      
+      // If user selected manual entry with save-as-default checkbox checked, save as default
+      const shouldSaveAsDefault = saveAsDefault || currentSetDraft.saveAsDefault;
+      if (shouldSaveAsDefault && currentSetDraft.selectedSizingOption === 'manual') {
+        const sizes = currentSetDraft.sizes?.values || currentSetDraft.sizes || {};
+        const hasAllSizes = FINGER_KEYS.every((finger) => {
+          const value = sizes[finger];
+          return value !== undefined && value !== null && String(value).trim().length > 0;
+        });
+        
+        if (hasAllSizes) {
+          // Save as default when saving draft
+          await handleSaveDefaultSizes(sizes, true).catch((error) => {
+            console.error('[NewOrderStepper] Failed to save default sizes:', error);
+            // Don't block the save if default saving fails
+          });
+        }
+      }
+      
       const order = await persistDraftOrder({
         stepKey: currentStepKey,
         setId: editingSetId,
@@ -1174,16 +1248,37 @@ function NewOrderStepperScreen({ route }) {
       return false;
     }
 
-    if (
-      currentSetDraft.sizeMode === 'perSet' &&
-      currentSetDraft.selectedSizingOption === 'camera'
-    ) {
-      const hasSizingPhotos =
-        Array.isArray(currentSetDraft.sizingUploads) && currentSetDraft.sizingUploads.length > 0;
-      // Check for sizing help specifically (not design help)
-      if (!hasSizingPhotos && !currentSetDraft.requiresSizingHelp) {
-        setError('Add at least one sizing photo or toggle "Need sizing help?" to continue.');
-        return false;
+    // Validate sizing step: require saved profile OR all finger sizes OR sizing help
+    if (currentSetDraft.sizeMode === 'perSet') {
+      const hasSavedProfile = currentSetDraft.selectedSizingOption === 'saved' && currentSetDraft.selectedProfileId;
+      
+      // Check if using manual entry (not camera anymore)
+      const isManualEntry = currentSetDraft.selectedSizingOption === 'manual' || 
+                           (currentSetDraft.selectedSizingOption === 'camera' && !currentSetDraft.sizingUploads?.length);
+      
+      if (isManualEntry && !currentSetDraft.requiresSizingHelp) {
+        // Check if all finger sizes are entered
+        const sizes = currentSetDraft.sizes?.values || currentSetDraft.sizes || {};
+        const hasAllSizes = FINGER_KEYS.every((finger) => {
+          const value = sizes[finger];
+          return value !== undefined && value !== null && String(value).trim().length > 0;
+        });
+        
+        if (!hasAllSizes && !hasSavedProfile) {
+          setError('Please select a saved nail size, enter sizes for all fingers, or toggle "Need sizing help?" before saving.');
+          return false;
+        }
+      }
+      
+      // Legacy camera validation (for backward compatibility with old data)
+      if (currentSetDraft.selectedSizingOption === 'camera') {
+        const hasSizingPhotos =
+          Array.isArray(currentSetDraft.sizingUploads) && currentSetDraft.sizingUploads.length > 0;
+        // Check for sizing help specifically (not design help)
+        if (!hasSizingPhotos && !currentSetDraft.requiresSizingHelp) {
+          setError('Add at least one sizing photo or toggle "Need sizing help?" to continue.');
+          return false;
+        }
       }
     }
 
@@ -1196,6 +1291,27 @@ function NewOrderStepperScreen({ route }) {
       setStepErrors((prev) => ({ ...prev, size: true }));
       return;
     }
+    
+    // If user selected manual entry with save-as-default checkbox checked, save as default
+    const shouldSaveAsDefault = saveAsDefault || currentSetDraft.saveAsDefault;
+    if (shouldSaveAsDefault && currentSetDraft.selectedSizingOption === 'manual') {
+      const sizes = currentSetDraft.sizes?.values || currentSetDraft.sizes || {};
+      const hasAllSizes = FINGER_KEYS.every((finger) => {
+        const value = sizes[finger];
+        return value !== undefined && value !== null && String(value).trim().length > 0;
+      });
+      
+      if (hasAllSizes) {
+        // Save as default when user clicks Save
+        handleSaveDefaultSizes(sizes, true).catch((error) => {
+          console.error('[NewOrderStepper] Failed to save default sizes:', error);
+          // Don't block the save if default saving fails
+        });
+        // Reset checkbox after saving (so it doesn't persist to next set)
+        setSaveAsDefault(false);
+      }
+    }
+    
     setStepErrors((prev) => ({ ...prev, size: false }));
     const pricing = computeSetPricing(currentSetDraft);
     const setId = editingSetId || currentSetDraft.id || `set_${Date.now()}`;
@@ -1216,6 +1332,7 @@ function NewOrderStepperScreen({ route }) {
       sizingUploads: preparedSizingUploads,
       selectedSizingOption: currentSetDraft.selectedSizingOption || null,
       selectedProfileId: currentSetDraft.selectedProfileId || null,
+      saveAsDefault: currentSetDraft.saveAsDefault || false, // Persist checkbox state
       shapeName: pricing.shapeName,
       price: pricing.total,
       unitPrice: pricing.unitPrice,
@@ -1330,7 +1447,10 @@ function NewOrderStepperScreen({ route }) {
         requiresFollowUp: Boolean(target.requiresDesignHelp || target.requiresSizingHelp || target.requiresFollowUp),
         selectedSizingOption: target.selectedSizingOption || null,
         selectedProfileId: profileId || target.selectedProfileId || null,
+        saveAsDefault: Boolean(target.saveAsDefault), // Restore checkbox state
       });
+      // Restore saveAsDefault state when editing
+      setSaveAsDefault(Boolean(target.saveAsDefault));
       setCurrentStep(0);
     },
     [orderDraft.sets, orderDraft.customerSizes, resumeDraft],
@@ -1533,7 +1653,7 @@ function NewOrderStepperScreen({ route }) {
               <SizingStep
                 colors={colors}
                 sizeMode={currentSetDraft.sizeMode}
-                sizes={currentSetDraft.sizes}
+                sizes={currentSetDraft.sizes?.values || currentSetDraft.sizes || {}}
                 savedSizeProfiles={savedSizeProfiles}
                 sizingUploads={currentSetDraft.sizingUploads}
                 onAddSizingUpload={handleAddSizingUpload}
@@ -1541,6 +1661,14 @@ function NewOrderStepperScreen({ route }) {
                 requiresSizingHelp={currentSetDraft.requiresSizingHelp}
                 selectedSizingOption={currentSetDraft.selectedSizingOption}
                 selectedProfileId={currentSetDraft.selectedProfileId}
+                hasDefaultSizes={shouldShowSaveAsDefaultCheckbox ? false : hasDefaultSizes}
+                onSaveDefaultSizes={handleSaveDefaultSizes}
+                saveAsDefault={currentSetDraft.saveAsDefault || saveAsDefault}
+                onSaveAsDefaultChange={(value) => {
+                  setSaveAsDefault(value);
+                  // Also persist in currentSetDraft
+                  setCurrentSetDraft((prev) => ({ ...prev, saveAsDefault: value }));
+                }}
                 // Add debug logging
                 key={`sizing-${currentSetDraft.id || 'new'}-${currentSetDraft.selectedProfileId || 'none'}`}
                 // Log when SizingStep receives props
@@ -1561,10 +1689,20 @@ function NewOrderStepperScreen({ route }) {
                 }))
                 }
                 onChangeSizes={(sizes) =>
-                setCurrentSetDraft((prev) => ({
-                  ...prev,
-                  sizes: { ...prev.sizes, ...sizes },
-                }))
+                setCurrentSetDraft((prev) => {
+                  const currentSizes = prev.sizes?.values || prev.sizes || {};
+                  return {
+                    ...prev,
+                    sizes: { ...prev.sizes, ...currentSizes, ...sizes },
+                    // Ensure sizes structure has values property for perSet mode
+                    ...(prev.sizeMode === 'perSet' && {
+                      sizes: {
+                        mode: 'perSet',
+                        values: { ...currentSizes, ...sizes },
+                      },
+                    }),
+                  };
+                })
                 }
                 onMarkSizingHelp={(value) =>
                     setCurrentSetDraft((prev) => ({
@@ -2557,6 +2695,10 @@ function SizingStep({
   onChangeSizingOption,
   selectedProfileId,
   onSelectProfile,
+  hasDefaultSizes = false,
+  onSaveDefaultSizes,
+  saveAsDefault = false,
+  onSaveAsDefaultChange,
   _debugProps,
 }) {
   // Log props when component receives them
@@ -2618,34 +2760,49 @@ function SizingStep({
 
   const hasSavedProfiles = savedProfileOptions.length > 0;
 
+  // Check if user has default sizes (use prop, don't recalculate based on local state)
+  const userHasDefaultSizes = hasDefaultSizes || savedProfileOptions.some((p) => p.isDefault);
+
   const computedSelectedOption = useMemo(() => {
     if (selectedSizingOption) {
+      // If 'camera' was selected, map to 'manual' instead (camera option is hidden)
+      if (selectedSizingOption === 'camera') {
+        return 'manual';
+      }
       if (selectedSizingOption === 'saved' && !hasSavedProfiles) {
-        return 'camera';
+        return 'manual';
       }
       return selectedSizingOption;
     }
 
-    return hasSavedProfiles ? 'saved' : 'camera';
+    return hasSavedProfiles ? 'saved' : 'manual';
   }, [selectedSizingOption, hasSavedProfiles]);
 
   useEffect(() => {
     if (!selectedSizingOption) {
-      const defaultOption = hasSavedProfiles ? 'saved' : 'camera';
+      const defaultOption = hasSavedProfiles ? 'saved' : 'manual';
       onChangeSizingOption?.(defaultOption);
       return;
     }
 
     if (selectedSizingOption === 'saved' && !hasSavedProfiles) {
-      onChangeSizingOption?.('camera');
+      onChangeSizingOption?.('manual');
+    }
+    
+    // Map old 'camera' to 'manual'
+    if (selectedSizingOption === 'camera') {
+      onChangeSizingOption?.('manual');
     }
   }, [selectedSizingOption, hasSavedProfiles, onChangeSizingOption]);
 
   useEffect(() => {
-    if (['saved', 'camera'].includes(computedSelectedOption) && sizeMode !== 'perSet') {
+    // Ensure perSet mode for manual entry and saved profiles
+    if (['saved', 'manual'].includes(computedSelectedOption) && sizeMode !== 'perSet') {
       onSelectSizeMode('perSet');
     }
   }, [computedSelectedOption, sizeMode, onSelectSizeMode]);
+
+  // saveAsDefault is now managed by parent component - no need for useEffect here
 
   // Initialize activeProfileId from selectedProfileId prop if available, otherwise use first profile
   const [activeProfileId, setActiveProfileId] = useState(() => {
@@ -2782,10 +2939,25 @@ function SizingStep({
     onChangeSizingOption?.('saved');
   }, [hasSavedProfiles, activeProfile, savedProfileOptions, onChangeSizingOption, onSelectProfile, selectedProfileId]);
 
-  const handleCameraSelect = useCallback(() => {
-    onChangeSizingOption?.('camera');
+  // Camera option is hidden but function kept for backward compatibility
+  // const handleCameraSelect = useCallback(() => {
+  //   onChangeSizingOption?.('camera');
+  //   onSelectSizeMode('perSet');
+  // }, [onSelectSizeMode, onChangeSizingOption]);
+
+  const handleManualSelect = useCallback(() => {
+    onChangeSizingOption?.('manual');
     onSelectSizeMode('perSet');
   }, [onSelectSizeMode, onChangeSizingOption]);
+
+  const handleSizeChange = useCallback((finger, value) => {
+    // Only allow numeric input
+    const numericValue = value.replace(/[^0-9.]/g, '');
+    onChangeSizes({
+      ...sizes,
+      [finger]: numericValue,
+    });
+  }, [sizes, onChangeSizes]);
 
   const activeProfileEntries = useMemo(() => {
     if (!activeProfile) {
@@ -2807,6 +2979,7 @@ function SizingStep({
   const hasSizingUploads = sizingUploadList.length > 0;
   const [previewUpload, setPreviewUpload] = useState(null);
 
+  // Always show manual entry option, and saved size option if available
   const optionDefinitions = useMemo(
     () => [
       ...(hasSavedProfiles
@@ -2819,12 +2992,18 @@ function SizingStep({
           ]
         : []),
       {
-        key: 'camera',
-        label: 'Take a photo to measure',
-        onPress: handleCameraSelect,
+        key: 'manual',
+        label: 'Enter your nail sizes',
+        onPress: handleManualSelect,
       },
+      // Camera option hidden per requirements - code preserved for future use
+      // {
+      //   key: 'camera',
+      //   label: 'Take a photo to measure',
+      //   onPress: handleCameraSelect,
+      // },
     ],
-    [hasSavedProfiles, handleSelectSaved, handleCameraSelect],
+    [hasSavedProfiles, handleSelectSaved, handleManualSelect],
   );
 
   return (
@@ -2856,7 +3035,8 @@ function SizingStep({
         ))}
       </View>
 
-      {computedSelectedOption === 'camera' ? (
+      {/* Camera option UI hidden per requirements - code preserved for future re-enablement */}
+      {/* {computedSelectedOption === 'camera' ? (
         <View
           style={[
             styles.designUploadCard,
@@ -3021,6 +3201,86 @@ function SizingStep({
             </View>
           )}
         </View>
+      ) : null} */}
+
+      {/* Per-finger manual entry */}
+      {computedSelectedOption === 'manual' ? (
+        <View
+          style={[
+            styles.sizingInlineCard,
+            {
+              borderColor: withOpacity(border, 0.5),
+              backgroundColor: surface,
+              shadowColor: shadow,
+            },
+          ]}
+        >
+          <Text style={[styles.sizingInlineTitle, { color: primaryFont }]}>Enter your nail sizes</Text>
+          <Text style={[styles.sizingInlineCopy, { color: secondaryFont }]}>Enter a size for each finger (numeric values only)</Text>
+          
+          <View style={styles.manualSizeInputRow}>
+            {FINGER_KEYS.map((finger) => (
+              <View key={finger} style={styles.manualSizeInputColumn}>
+                <Text
+                  style={[styles.manualSizeInputLabel, { color: secondaryFont }]}
+                  accessibilityLabel={`${FINGER_LABELS[finger]} finger size`}
+                >
+                  {FINGER_LABELS[finger]}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.manualSizeInput,
+                    {
+                      borderColor: withOpacity(border, 0.6),
+                      backgroundColor: surfaceMuted,
+                      color: primaryFont,
+                    },
+                  ]}
+                  value={String(sizes?.[finger] || '')}
+                  onChangeText={(value) => handleSizeChange(finger, value)}
+                  placeholder="7"
+                  placeholderTextColor={withOpacity(secondaryFont, 0.5)}
+                  keyboardType="numeric"
+                  accessibilityLabel={`${FINGER_LABELS[finger]} finger size input`}
+                  accessibilityHint={`Enter the nail size for your ${FINGER_LABELS[finger].toLowerCase()} finger`}
+                />
+              </View>
+            ))}
+          </View>
+
+          {/* Save as default checkbox - only show if user doesn't have defaults */}
+          {!userHasDefaultSizes && onSaveDefaultSizes ? (
+            <View style={styles.saveAsDefaultRow}>
+              <TouchableOpacity
+                style={styles.checkboxRow}
+                onPress={() => {
+                  // Notify parent of checkbox state change (but don't save yet - parent will save on Save button)
+                  onSaveAsDefaultChange?.(!saveAsDefault);
+                }}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: saveAsDefault }}
+                accessibilityLabel="Save these nail sizes as my default"
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    {
+                      borderColor: saveAsDefault ? accent : withOpacity(border, 0.6),
+                      backgroundColor: saveAsDefault ? accent : surface,
+                    },
+                  ]}
+                >
+                  {saveAsDefault ? (
+                    <Icon name="check" color={surface} size={14} />
+                  ) : null}
+                </View>
+                <Text style={[styles.checkboxLabel, { color: primaryFont }]}>
+                  Save these nail sizes as my default
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+        </View>
       ) : null}
 
       {computedSelectedOption === 'saved' && hasSavedProfiles ? (
@@ -3035,11 +3295,16 @@ function SizingStep({
           ]}
         >
           <View style={styles.savedProfileHeader}>
-            <Text style={[styles.sizingInlineTitle, { color: primaryFont }]}>Default nail size</Text>
-            {activeProfile?.label && activeProfile.label !== 'Default nail size' ? (
+            <Text style={[styles.sizingInlineTitle, { color: primaryFont }]}>Saved Nail Sizes</Text>
+            {activeProfile?.label && activeProfile.label !== 'Default nail size' && activeProfile.label !== 'Saved Nail Sizes' ? (
               <Text style={[styles.savedProfileSubtitle, { color: secondaryFont }]}>{activeProfile.label}</Text>
             ) : null}
           </View>
+          
+          {/* Helper text about updating saved sizes */}
+          <Text style={[styles.sizingHelperText, { color: secondaryFont }]}>
+            To update your saved sizes, go to Profiles → Nail Sizes
+          </Text>
 
           {savedProfileOptions.length > 1 ? (
             <View style={styles.savedProfileSwitcher}>
@@ -3114,14 +3379,24 @@ function SizingStep({
         </View>
         <Switch
           value={Boolean(requiresSizingHelp)}
-          onValueChange={(value) => onMarkSizingHelp?.(value)}
+          onValueChange={(value) => {
+            onMarkSizingHelp?.(value);
+            // If enabling sizing help, also set selected option to manual if not saved
+            if (value && computedSelectedOption !== 'saved') {
+              onChangeSizingOption?.('manual');
+            }
+          }}
           trackColor={{
             true: withOpacity(accent, 0.4),
             false: withOpacity(border, 0.5),
           }}
           thumbColor={requiresSizingHelp ? accent : surface}
+          accessibilityLabel="Need sizing help toggle"
+          accessibilityHint="Toggle on if you need help determining your nail sizes"
         />
       </View>
+
+      {/* Note: saveAsDefault state is exposed via ref callback pattern - parent handles saving */}
       {previewUpload ? (
         <Modal
           transparent
@@ -4371,6 +4646,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
   },
+  sizingHelperText: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontStyle: 'italic',
+    marginTop: 8,
+  },
   sizingInstructionList: {
     gap: 6,
   },
@@ -4452,6 +4733,57 @@ const styles = StyleSheet.create({
   savedProfileColumnValue: {
     fontSize: 16,
     fontWeight: '700',
+  },
+  manualSizeInputRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 16,
+  },
+  manualSizeInputColumn: {
+    flex: 1,
+    minWidth: '30%',
+    gap: 8,
+    alignItems: 'center',
+  },
+  manualSizeInputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  manualSizeInput: {
+    width: '100%',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    minHeight: 44,
+  },
+  saveAsDefaultRow: {
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
   },
   fulfillmentContainer: {
     gap: 18,
