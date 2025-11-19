@@ -586,10 +586,13 @@ function NewOrderStepperScreen({ route }) {
       // Restore profile ID - prioritize customerSizes.profileId (order-level) over set-level
       const restoredProfileId = resumeDraft?.customerSizes?.profileId || set.selectedProfileId || null;
 
-      // Preserve selectedSizingOption, but if we have a profileId in customerSizes, ensure it's 'saved'
-      const restoredSizingOption = usesSavedSizing && restoredProfileId
-        ? 'saved'
-        : (set.selectedSizingOption || resolveSizingOptionFromSet(set));
+      // Preserve selectedSizingOption from database first, then fall back to inference
+      // Only override to 'saved' if we have a profileId AND the original option was 'saved' or undefined
+      const restoredSizingOption = set.selectedSizingOption
+        ? set.selectedSizingOption // Prioritize saved option from database
+        : (usesSavedSizing && restoredProfileId
+          ? 'saved'
+          : resolveSizingOptionFromSet(set));
 
       if (__DEV__) {
         console.log('[NewOrderStepper] Restoring set:', {
@@ -857,10 +860,13 @@ function NewOrderStepperScreen({ route }) {
       requiresFollowUp: set.requiresDesignHelp || set.requiresSizingHelp || set.requiresFollowUp,
       sizes:
         set.sizeMode === 'perSet'
-          ? { mode: 'perSet', values: set.sizes }
+          ? { 
+              mode: 'perSet', 
+              values: set.sizes?.values || set.sizes || {} 
+            }
           : { mode: 'standard', values: {} },
       price: set.price || null,
-      selectedSizingOption: resolveSizingOptionFromSet(set),
+      selectedSizingOption: set.selectedSizingOption || resolveSizingOptionFromSet(set),
     }));
 
     const fulfillment = orderDraft.deliveryDetails;
@@ -1661,7 +1667,7 @@ function NewOrderStepperScreen({ route }) {
                 requiresSizingHelp={currentSetDraft.requiresSizingHelp}
                 selectedSizingOption={currentSetDraft.selectedSizingOption}
                 selectedProfileId={currentSetDraft.selectedProfileId}
-                hasDefaultSizes={shouldShowSaveAsDefaultCheckbox ? false : hasDefaultSizes}
+                hasDefaultSizes={hasDefaultSizes}
                 onSaveDefaultSizes={handleSaveDefaultSizes}
                 saveAsDefault={currentSetDraft.saveAsDefault || saveAsDefault}
                 onSaveAsDefaultChange={(value) => {
@@ -2760,8 +2766,9 @@ function SizingStep({
 
   const hasSavedProfiles = savedProfileOptions.length > 0;
 
-  // Check if user has default sizes (use prop, don't recalculate based on local state)
-  const userHasDefaultSizes = hasDefaultSizes || savedProfileOptions.some((p) => p.isDefault);
+  // Check if user has default sizes - only check the prop, not savedProfileOptions
+  // The prop already checks if defaultProfile exists with valid sizes
+  const userHasDefaultSizes = hasDefaultSizes;
 
   const computedSelectedOption = useMemo(() => {
     if (selectedSizingOption) {
@@ -2948,7 +2955,15 @@ function SizingStep({
   const handleManualSelect = useCallback(() => {
     onChangeSizingOption?.('manual');
     onSelectSizeMode('perSet');
-  }, [onSelectSizeMode, onChangeSizingOption]);
+    // Only clear sizes if we're switching FROM a saved profile (or starting fresh)
+    // If we're editing a draft that already has manual sizes, preserve them
+    // Check if current option is 'saved' or null/undefined (new order)
+    if (selectedSizingOption !== 'manual') {
+      // Clear sizes when switching to manual entry so inputs start blank
+      onChangeSizes({ ...DEFAULT_SIZES });
+    }
+    // If selectedSizingOption is already 'manual', sizes should already be preserved from the draft
+  }, [onSelectSizeMode, onChangeSizingOption, onChangeSizes, selectedSizingOption]);
 
   const handleSizeChange = useCallback((finger, value) => {
     // Only allow numeric input

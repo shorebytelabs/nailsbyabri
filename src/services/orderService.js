@@ -62,6 +62,15 @@ function normalizeNailSetForStorage(set) {
     });
   }
 
+  // Store selectedSizingOption and selectedProfileId in sizes JSONB for persistence
+  const sizesToStore = set.sizes || { mode: 'standard', values: {} };
+  const sizesWithMetadata = {
+    ...sizesToStore,
+    // Store metadata about sizing selection
+    selectedSizingOption: set.selectedSizingOption || null,
+    selectedProfileId: set.selectedProfileId || null,
+  };
+
   return {
     name: typeof set.name === 'string' && set.name.trim() ? set.name.trim() : null,
     shape_id: set.shapeId,
@@ -71,7 +80,7 @@ function normalizeNailSetForStorage(set) {
     // Store as array of objects - Supabase will handle JSONB[] conversion
     design_uploads: designUploads,
     sizing_uploads: sizingUploads,
-    sizes: set.sizes || { mode: 'standard', values: {} },
+    sizes: sizesWithMetadata,
     // Save separate help flags (if database columns exist)
     requires_design_help: requiresDesignHelp,
     requires_sizing_help: requiresSizingHelp,
@@ -188,6 +197,14 @@ function transformOrderSetFromDB(set) {
     });
   }
 
+  // Extract sizes and metadata (selectedSizingOption, selectedProfileId) from sizes JSONB
+  const sizesData = set.sizes || { mode: 'standard', values: {} };
+  const {
+    selectedSizingOption,
+    selectedProfileId,
+    ...sizesWithoutMetadata
+  } = sizesData;
+
   return {
     id: set.id,
     name: set.name,
@@ -197,7 +214,10 @@ function transformOrderSetFromDB(set) {
     setNotes: set.set_notes,
     designUploads,
     sizingUploads,
-    sizes: set.sizes || { mode: 'standard', values: {} },
+    sizes: sizesWithoutMetadata.mode ? sizesWithoutMetadata : { mode: 'standard', values: sizesWithoutMetadata },
+    // Restore sizing selection metadata
+    selectedSizingOption: selectedSizingOption || null,
+    selectedProfileId: selectedProfileId || null,
     // Return separate help flags
     requiresDesignHelp,
     requiresSizingHelp,
