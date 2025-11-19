@@ -65,16 +65,14 @@ function BrandHeader({
           style={({ pressed }) => [
             styles.headerButton,
             {
-              backgroundColor: colors.surface || '#FFFFFF',
-              borderWidth: 1,
-              borderColor: withOpacity(colors.border || '#D9C8A9', 0.5),
+              backgroundColor: withOpacity(colors.accent || '#6F171F', 0.08),
               shadowColor: colors.shadow || '#000000',
               opacity: pressed ? 0.85 : 1,
             },
           ]}
           testID="brand-header-admin"
         >
-          <Icon name="gear" color={colors.primaryFont || '#220707'} size={20} />
+          <Icon name="gear" color={colors.accent || '#6F171F'} size={20} />
         </Pressable>
       );
     }
