@@ -21,6 +21,7 @@ import {
   pricingConstants,
 } from '../utils/pricing';
 import { withOpacity } from '../utils/color';
+import VenmoPaymentInfo from '../components/VenmoPaymentInfo';
 
 const shapeCatalog = getShapeCatalog();
 const deliveryMethodConfig = pricingConstants.DELIVERY_METHODS;
@@ -168,12 +169,20 @@ function OrderConfirmationScreen({ order, onDone, onViewOrder }) {
           styles={styles}
           colors={colors}
           title="Order Confirmed"
-          message="Thank you! We’ve started crafting your custom set."
+          message="Thank you! We've started crafting your custom set."
           timeline={
             estimatedDate
               ? `Ready by ${estimatedDate}`
               : `Ready in ${speedConfig?.description || '10 to 14 days'}`
           }
+        />
+
+        {/* Venmo Payment Info - Prominent section right after confirmation */}
+        <VenmoPaymentInfo
+          totalAmount={order?.pricing?.total || order?.total}
+          orderNumber={orderId || displayOrderId}
+          showQRCode={true}
+          compact={false}
         />
 
         <View style={styles.sectionRow}>

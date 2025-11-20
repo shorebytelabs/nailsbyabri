@@ -18,6 +18,7 @@ import Icon from '../icons/Icon';
 import { useTheme } from '../theme';
 import { formatCurrency } from '../utils/pricing';
 import { withOpacity } from '../utils/color';
+import VenmoPaymentInfo from '../components/VenmoPaymentInfo';
 
 const LOGO_SOURCE = require('../../assets/images/NailsByAbriLogo.png');
 const SUPPORT_EMAIL = 'mailto:NailsByAbriannaC@gmail.com';
@@ -787,6 +788,17 @@ function OrderDetailsScreen({ navigation, route }) {
                 </View>
               </View>
             </View>
+
+            {/* Payment Info Section - Show if payment not confirmed */}
+            {!order?.paid_at && (
+              <VenmoPaymentInfo
+                totalAmount={order?.pricing?.total || order?.total}
+                orderNumber={orderId || displayOrderId}
+                showQRCode={true}
+                compact={false}
+                showPaymentNeeded={true}
+              />
+            )}
 
             <View style={styles.card}>
               <View style={styles.cardHeaderRow}>
