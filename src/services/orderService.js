@@ -4,43 +4,76 @@
  */
 import { supabase } from '../lib/supabaseClient';
 import { calculatePriceBreakdown } from '../utils/pricing';
+import { extractStoragePathFromUrl } from './imageStorageService';
 
 /**
  * Normalize nail sets for storage
  */
 function normalizeNailSetForStorage(set) {
   // Convert design uploads to array of objects for JSONB[] storage
+  // Now stores Supabase Storage URLs instead of base64
   const designUploads = Array.isArray(set.designUploads)
     ? set.designUploads
         .map((upload) => {
           if (!upload) return null;
-          // Extract base64 data from various possible fields
+          
+          // Priority: Storage URL > base64 (for backward compatibility during migration)
+          const storageUrl = upload.url || upload.storageUrl || null;
           const base64Data = upload.data || upload.base64 || upload.content || null;
-          if (!base64Data) return null;
-          // Store as JSONB object - Supabase will handle JSONB[] conversion
-          return {
-            id: upload.id || null,
-            fileName: upload.fileName || null,
-            data: base64Data,
-          };
+          
+          // If we have a Storage URL, use it (preferred)
+          if (storageUrl && !storageUrl.startsWith('data:')) {
+            return {
+              id: upload.id || null,
+              fileName: upload.fileName || null,
+              url: storageUrl, // Store Storage URL
+            };
+          }
+          
+          // Fallback to base64 for backward compatibility (during migration period)
+          if (base64Data) {
+            return {
+              id: upload.id || null,
+              fileName: upload.fileName || null,
+              data: base64Data, // Legacy base64 support
+            };
+          }
+          
+          return null;
         })
         .filter(Boolean)
     : [];
 
   // Convert sizing uploads to array of objects for JSONB[] storage
+  // Now stores Supabase Storage URLs instead of base64
   const sizingUploads = Array.isArray(set.sizingUploads)
     ? set.sizingUploads
         .map((upload) => {
           if (!upload) return null;
-          // Extract base64 data from various possible fields
+          
+          // Priority: Storage URL > base64 (for backward compatibility during migration)
+          const storageUrl = upload.url || upload.storageUrl || null;
           const base64Data = upload.data || upload.base64 || upload.content || null;
-          if (!base64Data) return null;
-          // Store as JSONB object - Supabase will handle JSONB[] conversion
-          return {
-            id: upload.id || null,
-            fileName: upload.fileName || null,
-            data: base64Data,
-          };
+          
+          // If we have a Storage URL, use it (preferred)
+          if (storageUrl && !storageUrl.startsWith('data:')) {
+            return {
+              id: upload.id || null,
+              fileName: upload.fileName || null,
+              url: storageUrl, // Store Storage URL
+            };
+          }
+          
+          // Fallback to base64 for backward compatibility (during migration period)
+          if (base64Data) {
+            return {
+              id: upload.id || null,
+              fileName: upload.fileName || null,
+              data: base64Data, // Legacy base64 support
+            };
+          }
+          
+          return null;
         })
         .filter(Boolean)
     : [];
@@ -101,30 +134,62 @@ function transformOrderSetFromDB(set) {
       .map((upload) => {
         // If it's already an object, use it directly
         if (typeof upload === 'object' && upload !== null) {
+          // Priority: Storage URL > base64 (for backward compatibility)
+          const storageUrl = upload.url || upload.storageUrl || null;
           const base64Data = upload.data || upload.base64 || upload.content || null;
-          if (!base64Data) return null;
-          return {
-            id: upload.id || null,
-            fileName: upload.fileName || null,
-            base64: base64Data,
-            data: base64Data,
-            // Add uri for display (React Native Image component needs uri)
-            uri: `data:image/jpeg;base64,${base64Data}`,
-          };
+          
+          // If we have a Storage URL, use it
+          if (storageUrl && !storageUrl.startsWith('data:')) {
+            return {
+              id: upload.id || null,
+              fileName: upload.fileName || null,
+              url: storageUrl,
+              uri: storageUrl, // React Native Image component needs uri
+            };
+          }
+          
+          // Fallback to base64 for backward compatibility
+          if (base64Data) {
+            return {
+              id: upload.id || null,
+              fileName: upload.fileName || null,
+              base64: base64Data,
+              data: base64Data,
+              uri: `data:image/jpeg;base64,${base64Data}`,
+            };
+          }
+          
+          return null;
         }
         // If it's a string (JSONB), parse it
         if (typeof upload === 'string') {
           try {
             const parsed = JSON.parse(upload);
+            const storageUrl = parsed.url || parsed.storageUrl || null;
             const base64Data = parsed.data || parsed.base64 || parsed.content || null;
-            if (!base64Data) return null;
-            return {
-              id: parsed.id || null,
-              fileName: parsed.fileName || null,
-              base64: base64Data,
-              data: base64Data,
-              uri: `data:image/jpeg;base64,${base64Data}`,
-            };
+            
+            // If we have a Storage URL, use it
+            if (storageUrl && !storageUrl.startsWith('data:')) {
+              return {
+                id: parsed.id || null,
+                fileName: parsed.fileName || null,
+                url: storageUrl,
+                uri: storageUrl,
+              };
+            }
+            
+            // Fallback to base64 for backward compatibility
+            if (base64Data) {
+              return {
+                id: parsed.id || null,
+                fileName: parsed.fileName || null,
+                base64: base64Data,
+                data: base64Data,
+                uri: `data:image/jpeg;base64,${base64Data}`,
+              };
+            }
+            
+            return null;
           } catch (e) {
             console.warn('[transformOrderSetFromDB] Failed to parse design upload:', e);
             return null;
@@ -141,30 +206,62 @@ function transformOrderSetFromDB(set) {
       .map((upload) => {
         // If it's already an object, use it directly
         if (typeof upload === 'object' && upload !== null) {
+          // Priority: Storage URL > base64 (for backward compatibility)
+          const storageUrl = upload.url || upload.storageUrl || null;
           const base64Data = upload.data || upload.base64 || upload.content || null;
-          if (!base64Data) return null;
-          return {
-            id: upload.id || null,
-            fileName: upload.fileName || null,
-            base64: base64Data,
-            data: base64Data,
-            // Add uri for display (React Native Image component needs uri)
-            uri: `data:image/jpeg;base64,${base64Data}`,
-          };
+          
+          // If we have a Storage URL, use it
+          if (storageUrl && !storageUrl.startsWith('data:')) {
+            return {
+              id: upload.id || null,
+              fileName: upload.fileName || null,
+              url: storageUrl,
+              uri: storageUrl, // React Native Image component needs uri
+            };
+          }
+          
+          // Fallback to base64 for backward compatibility
+          if (base64Data) {
+            return {
+              id: upload.id || null,
+              fileName: upload.fileName || null,
+              base64: base64Data,
+              data: base64Data,
+              uri: `data:image/jpeg;base64,${base64Data}`,
+            };
+          }
+          
+          return null;
         }
         // If it's a string (JSONB), parse it
         if (typeof upload === 'string') {
           try {
             const parsed = JSON.parse(upload);
+            const storageUrl = parsed.url || parsed.storageUrl || null;
             const base64Data = parsed.data || parsed.base64 || parsed.content || null;
-            if (!base64Data) return null;
-            return {
-              id: parsed.id || null,
-              fileName: parsed.fileName || null,
-              base64: base64Data,
-              data: base64Data,
-              uri: `data:image/jpeg;base64,${base64Data}`,
-            };
+            
+            // If we have a Storage URL, use it
+            if (storageUrl && !storageUrl.startsWith('data:')) {
+              return {
+                id: parsed.id || null,
+                fileName: parsed.fileName || null,
+                url: storageUrl,
+                uri: storageUrl,
+              };
+            }
+            
+            // Fallback to base64 for backward compatibility
+            if (base64Data) {
+              return {
+                id: parsed.id || null,
+                fileName: parsed.fileName || null,
+                base64: base64Data,
+                data: base64Data,
+                uri: `data:image/jpeg;base64,${base64Data}`,
+              };
+            }
+            
+            return null;
           } catch (e) {
             console.warn('[transformOrderSetFromDB] Failed to parse sizing upload:', e);
             return null;

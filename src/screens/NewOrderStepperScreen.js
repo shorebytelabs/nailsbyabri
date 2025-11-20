@@ -26,6 +26,7 @@ import Icon from '../icons/Icon';
 import { logEvent } from '../utils/analytics';
 import { withOpacity } from '../utils/color';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { uploadImageToStorage } from '../services/imageStorageService';
 
 const SET_STEPS = ['shape', 'design', 'size'];
 const ORDER_FLOW_STEPS = ['summary', 'fulfillment', 'review'];
@@ -943,13 +944,17 @@ function NewOrderStepperScreen({ route }) {
       designUploads: (set.designUploads || []).map((upload, uploadIndex) => ({
         id: upload.id || `upload_${index}_${uploadIndex}`,
         fileName: upload.fileName || null,
-        base64: upload.base64 || null,
+        // Store Storage URL if available, fallback to base64 for backward compatibility
+        url: upload.url || upload.storageUrl || null,
+        base64: upload.url ? null : (upload.base64 || null), // Only include base64 if no URL
       })),
       sizingUploads: (set.sizingUploads || []).map((upload, uploadIndex) => ({
         id: upload.id || `sizing_${index}_${uploadIndex}`,
         fileName: upload.fileName || null,
-        base64: upload.base64 || null,
-        uri: upload.uri || null,
+        // Store Storage URL if available, fallback to base64 for backward compatibility
+        url: upload.url || upload.storageUrl || null,
+        base64: upload.url ? null : (upload.base64 || null), // Only include base64 if no URL
+        uri: upload.url || upload.uri || null,
       })),
       // Save separate help flags
       requiresDesignHelp: set.requiresDesignHelp ?? set.requiresFollowUp,
@@ -1205,10 +1210,10 @@ function NewOrderStepperScreen({ route }) {
     try {
       const response = await launchImageLibrary({
         mediaType: 'photo',
-        includeBase64: true,
+        includeBase64: false, // Don't need base64, use URI for upload
         quality: 0.85,
         maxWidth: 1500,
-        selectionLimit: 0,
+        selectionLimit: 0, // Allow multiple
       });
 
       if (response.didCancel) {
@@ -1225,34 +1230,95 @@ function NewOrderStepperScreen({ route }) {
         return;
       }
 
-      const uploadsToAdd = assets
-        .map((asset, index) => {
-          const hasPreview = asset.base64 || asset.uri || asset.url;
-          if (!hasPreview) {
-            return null;
-          }
+      // Get orderId and setId for storage path
+      const orderId = resumeDraft?.id || state.activeOrder?.id || 'draft';
+      const setId = currentSetDraft.id || `set_${Date.now()}`;
+
+      // Upload each image to Supabase Storage immediately
+      const uploadPromises = assets.map(async (asset, index) => {
+        if (!asset.uri) {
+          return null;
+        }
+
+        // Create temporary upload object with preview
+        const tempUploadId = `upload_${Date.now()}_${index}`;
+        const previewUri = asset.uri;
+        const tempUpload = {
+          id: tempUploadId,
+          uri: previewUri,
+          fileName: asset.fileName || `design-reference-${index + 1}.jpg`,
+          preview: previewUri,
+          uploading: true, // Track upload status
+          error: null,
+        };
+
+        // Add to draft immediately for preview
+        setCurrentSetDraft((prev) => ({
+          ...prev,
+          designUploads: [...(prev.designUploads || []), tempUpload],
+        }));
+
+        try {
+          // Upload to Storage
+          const uploadResult = await uploadImageToStorage(
+            {
+              uri: asset.uri,
+              type: asset.type || 'image/jpeg',
+              fileName: asset.fileName || `design-reference-${index + 1}.jpg`,
+            },
+            orderId,
+            setId,
+            'design',
+          );
+
+          // Update with Storage URL
+          setCurrentSetDraft((prev) => ({
+            ...prev,
+            designUploads: (prev.designUploads || []).map((upload) =>
+              upload.id === tempUploadId
+                ? {
+                    ...upload,
+                    id: tempUploadId,
+                    url: uploadResult.url,
+                    uri: uploadResult.url, // Use Storage URL for display
+                    preview: uploadResult.url,
+                    uploading: false,
+                    fileName: uploadResult.fileName,
+                  }
+                : upload,
+            ),
+          }));
 
           return {
-            id: `upload_${Date.now()}_${index}`,
-            uri: asset.uri || asset.url || null,
-            fileName: asset.fileName || `design-reference-${index + 1}.jpg`,
-            base64: asset.base64 || null,
-            preview: asset.base64
-              ? `data:${asset.type || 'image/jpeg'};base64,${asset.base64}`
-              : asset.uri || asset.url || null,
+            id: tempUploadId,
+            url: uploadResult.url,
+            uri: uploadResult.url,
+            fileName: uploadResult.fileName,
+            preview: uploadResult.url,
           };
-        })
-        .filter(Boolean);
+        } catch (error) {
+          console.error('[NewOrderStepper] Error uploading design image:', error);
+          
+          // Mark upload as failed
+          setCurrentSetDraft((prev) => ({
+            ...prev,
+            designUploads: (prev.designUploads || []).map((upload) =>
+              upload.id === tempUploadId
+                ? {
+                    ...upload,
+                    uploading: false,
+                    error: error.message || 'Upload failed',
+                  }
+                : upload,
+            ),
+          }));
 
-      if (!uploadsToAdd.length) {
-        Alert.alert('Upload error', 'Unable to read the selected images. Please try again.');
-        return;
-      }
+          Alert.alert('Upload Error', `Failed to upload image: ${error.message || 'Please try again.'}`);
+          return null;
+        }
+      });
 
-      setCurrentSetDraft((prev) => ({
-        ...prev,
-        designUploads: [...(prev.designUploads || []), ...uploadsToAdd],
-      }));
+      await Promise.all(uploadPromises);
     } catch (err) {
       Alert.alert('Upload error', err.message || 'Something went wrong. Please try again.');
     }
@@ -1269,10 +1335,10 @@ function NewOrderStepperScreen({ route }) {
     try {
       const response = await launchImageLibrary({
         mediaType: 'photo',
-        includeBase64: true,
+        includeBase64: false, // Don't need base64, use URI for upload
         quality: 0.85,
         maxWidth: 1500,
-        selectionLimit: 0,
+        selectionLimit: 0, // Allow multiple
       });
 
       if (response.didCancel) {
@@ -1289,34 +1355,95 @@ function NewOrderStepperScreen({ route }) {
         return;
       }
 
-      const uploadsToAdd = assets
-        .map((asset, index) => {
-          const hasPreview = asset.base64 || asset.uri || asset.url;
-          if (!hasPreview) {
-            return null;
-          }
+      // Get orderId and setId for storage path
+      const orderId = resumeDraft?.id || state.activeOrder?.id || 'draft';
+      const setId = currentSetDraft.id || `set_${Date.now()}`;
+
+      // Upload each image to Supabase Storage immediately
+      const uploadPromises = assets.map(async (asset, index) => {
+        if (!asset.uri) {
+          return null;
+        }
+
+        // Create temporary upload object with preview
+        const tempUploadId = `sizing_${Date.now()}_${index}`;
+        const previewUri = asset.uri;
+        const tempUpload = {
+          id: tempUploadId,
+          uri: previewUri,
+          fileName: asset.fileName || `sizing-reference-${index + 1}.jpg`,
+          preview: previewUri,
+          uploading: true, // Track upload status
+          error: null,
+        };
+
+        // Add to draft immediately for preview
+        setCurrentSetDraft((prev) => ({
+          ...prev,
+          sizingUploads: [...(prev.sizingUploads || []), tempUpload],
+        }));
+
+        try {
+          // Upload to Storage
+          const uploadResult = await uploadImageToStorage(
+            {
+              uri: asset.uri,
+              type: asset.type || 'image/jpeg',
+              fileName: asset.fileName || `sizing-reference-${index + 1}.jpg`,
+            },
+            orderId,
+            setId,
+            'sizing',
+          );
+
+          // Update with Storage URL
+          setCurrentSetDraft((prev) => ({
+            ...prev,
+            sizingUploads: (prev.sizingUploads || []).map((upload) =>
+              upload.id === tempUploadId
+                ? {
+                    ...upload,
+                    id: tempUploadId,
+                    url: uploadResult.url,
+                    uri: uploadResult.url, // Use Storage URL for display
+                    preview: uploadResult.url,
+                    uploading: false,
+                    fileName: uploadResult.fileName,
+                  }
+                : upload,
+            ),
+          }));
 
           return {
-            id: `sizing_${Date.now()}_${index}`,
-            uri: asset.uri || asset.url || null,
-            fileName: asset.fileName || `sizing-reference-${index + 1}.jpg`,
-            base64: asset.base64 || null,
-            preview: asset.base64
-              ? `data:${asset.type || 'image/jpeg'};base64,${asset.base64}`
-              : asset.uri || asset.url || null,
+            id: tempUploadId,
+            url: uploadResult.url,
+            uri: uploadResult.url,
+            fileName: uploadResult.fileName,
+            preview: uploadResult.url,
           };
-        })
-        .filter(Boolean);
+        } catch (error) {
+          console.error('[NewOrderStepper] Error uploading sizing image:', error);
+          
+          // Mark upload as failed
+          setCurrentSetDraft((prev) => ({
+            ...prev,
+            sizingUploads: (prev.sizingUploads || []).map((upload) =>
+              upload.id === tempUploadId
+                ? {
+                    ...upload,
+                    uploading: false,
+                    error: error.message || 'Upload failed',
+                  }
+                : upload,
+            ),
+          }));
 
-      if (!uploadsToAdd.length) {
-        Alert.alert('Upload error', 'Unable to read the selected images. Please try again.');
-        return;
-      }
+          Alert.alert('Upload Error', `Failed to upload image: ${error.message || 'Please try again.'}`);
+          return null;
+        }
+      });
 
-      setCurrentSetDraft((prev) => ({
-        ...prev,
-        sizingUploads: [...(prev.sizingUploads || []), ...uploadsToAdd],
-      }));
+      await Promise.all(uploadPromises);
     } catch (err) {
       Alert.alert('Upload error', err.message || 'Something went wrong. Please try again.');
     }
@@ -2416,7 +2543,7 @@ function DesignStep({
                   <TouchableOpacity
                     style={styles.designUploadThumbnailFrame}
                     onPress={openPreview}
-                    disabled={!imageSource}
+                    disabled={!imageSource || upload.uploading}
                     activeOpacity={0.85}
                     accessibilityRole="imagebutton"
                     accessibilityLabel={
@@ -2424,7 +2551,21 @@ function DesignStep({
                     }
                   >
                     {imageSource ? (
-                      <Image source={imageSource} style={styles.designUploadImage} resizeMode="cover" />
+                      <>
+                        <Image source={imageSource} style={styles.designUploadImage} resizeMode="cover" />
+                        {upload.uploading && (
+                          <View style={styles.uploadOverlay}>
+                            <ActivityIndicator color={accent} size="small" />
+                            <Text style={[styles.uploadOverlayText, { color: surface }]}>Uploading...</Text>
+                          </View>
+                        )}
+                        {upload.error && !upload.uploading && (
+                          <View style={[styles.uploadOverlay, { backgroundColor: 'rgba(255, 0, 0, 0.8)' }]}>
+                            <Icon name="close" color={surface} size={16} />
+                            <Text style={[styles.uploadOverlayText, { color: surface }]}>Failed</Text>
+                          </View>
+                        )}
+                      </>
                     ) : (
                       <View
                         style={[
@@ -2432,15 +2573,21 @@ function DesignStep({
                           { backgroundColor: withOpacity(secondaryBackground, 0.35) },
                         ]}
                       >
-                        <Icon name="image" color={withOpacity(primaryFont, 0.4)} size={18} />
-                        <Text
-                          style={[
-                            styles.designUploadEmptyText,
-                            { color: primaryFont },
-                          ]}
-                        >
-                          No preview
-                        </Text>
+                        {upload.uploading ? (
+                          <ActivityIndicator color={accent} size="small" />
+                        ) : (
+                          <>
+                            <Icon name="image" color={withOpacity(primaryFont, 0.4)} size={18} />
+                            <Text
+                              style={[
+                                styles.designUploadEmptyText,
+                                { color: primaryFont },
+                              ]}
+                            >
+                              No preview
+                            </Text>
+                          </>
+                        )}
                       </View>
                     )}
                   </TouchableOpacity>
@@ -4633,11 +4780,28 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     height: 96,
     backgroundColor: 'rgba(0,0,0,0.05)',
+    position: 'relative',
   },
   designUploadImage: {
     width: '100%',
     height: '100%',
     borderRadius: 12,
+  },
+  uploadOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 12,
+  },
+  uploadOverlayText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   designUploadEmpty: {
     flex: 1,

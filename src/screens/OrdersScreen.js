@@ -12,6 +12,7 @@ import {
   Alert,
   Modal,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme';
@@ -19,6 +20,7 @@ import { useAppState } from '../context/AppContext';
 import { logEvent } from '../utils/analytics';
 import { withOpacity } from '../utils/color';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { uploadImageToStorage } from '../services/imageStorageService';
 import Icon from '../icons/Icon';
 import { deleteOrder } from '../services/api';
 import { getNextWeekStart, getNextWeekStartDateTime, formatNextAvailabilityDateTime, checkCapacityAvailability } from '../services/workloadService';
@@ -354,6 +356,7 @@ function OrdersScreen({ route }) {
   const [showAdminControls, setShowAdminControls] = useState(isAdmin);
   const [expandedAdminOrders, setExpandedAdminOrders] = useState({});
   const [adminDrafts, setAdminDrafts] = useState({});
+  const [previewAdminImage, setPreviewAdminImage] = useState(null);
   
   // Dropdown modal states
   const [statusDropdownVisible, setStatusDropdownVisible] = useState(false);
@@ -622,49 +625,128 @@ function OrdersScreen({ route }) {
         const response = await launchImageLibrary({
           mediaType: 'photo',
           selectionLimit: 0,
-          includeBase64: false,
+          includeBase64: false, // Use URI for upload
         });
 
         if (response.didCancel || !Array.isArray(response.assets)) {
           return;
         }
 
-        const newEntries = response.assets
-          .filter((asset) => asset?.uri)
-          .map((asset, index) => ({
-            id:
-              asset.assetId ||
-              asset.fileName ||
-              `${order.id}_upload_${Date.now()}_${index}`,
-            uri: asset.uri,
-          }));
-
-        if (!newEntries.length) {
+        const assets = response.assets.filter((asset) => asset?.uri);
+        if (!assets.length) {
           return;
         }
 
         const baseDraft = getAdminDraft(order);
 
-        setAdminDrafts((prev) => {
-          const existingImages = (prev[order.id]?.images || baseDraft.images || []).filter(
-            Boolean,
-          );
-          return {
-            ...prev,
-            [order.id]: {
-              ...(prev[order.id] || baseDraft || {}),
-              images: [...existingImages, ...newEntries],
-            },
+        // Upload each image to Supabase Storage immediately
+        const uploadPromises = assets.map(async (asset, index) => {
+          // Create temporary entry with preview - use timestamp + random + index for uniqueness
+          const tempId = `${order.id}_admin_${Date.now()}_${Math.random().toString(36).substring(7)}_${index}`;
+          const tempEntry = {
+            id: tempId,
+            uri: asset.uri,
+            uploading: true,
+            error: null,
           };
+
+          // Add to draft immediately for preview - use functional update to get current state
+          setAdminDrafts((prev) => {
+            const currentDraft = prev[order.id] || baseDraft;
+            const currentImages = Array.isArray(currentDraft.images) ? currentDraft.images : [];
+            return {
+              ...prev,
+              [order.id]: {
+                ...currentDraft,
+                images: [...currentImages, tempEntry],
+              },
+            };
+          });
+
+          try {
+            // Upload to Storage
+            const uploadResult = await uploadImageToStorage(
+              {
+                uri: asset.uri,
+                type: asset.type || 'image/jpeg',
+                fileName: asset.fileName || `admin-image-${index + 1}.jpg`,
+              },
+              order.id,
+              null, // No setId for admin images
+              'admin', // Image type
+            );
+
+            // Update with Storage URL - use functional update to get current state
+            setAdminDrafts((prev) => {
+              const currentDraft = prev[order.id] || baseDraft;
+              const currentImages = Array.isArray(currentDraft.images) ? currentDraft.images : [];
+              return {
+                ...prev,
+                [order.id]: {
+                  ...currentDraft,
+                  images: currentImages.map((img) =>
+                    img.id === tempId
+                      ? {
+                          ...img,
+                          id: tempId,
+                          url: uploadResult.url,
+                          uri: uploadResult.url, // Use Storage URL for display
+                          uploading: false,
+                          fileName: uploadResult.fileName,
+                        }
+                      : img,
+                  ),
+                },
+              };
+            });
+
+            return {
+              id: tempId,
+              url: uploadResult.url,
+              uri: uploadResult.url,
+              fileName: uploadResult.fileName,
+            };
+          } catch (err) {
+            console.error('[OrdersScreen] Error uploading admin image:', err);
+            
+            const errorMessage = err?.message || err?.error?.message || 'Upload failed';
+            
+            // Mark upload as failed - use functional update to get current state
+            setAdminDrafts((prev) => {
+              const currentDraft = prev[order.id] || baseDraft;
+              const currentImages = Array.isArray(currentDraft.images) ? currentDraft.images : [];
+              return {
+                ...prev,
+                [order.id]: {
+                  ...currentDraft,
+                  images: currentImages.map((img) =>
+                    img.id === tempId
+                      ? {
+                          ...img,
+                          uploading: false,
+                          error: errorMessage,
+                        }
+                      : img,
+                  ),
+                },
+              };
+            });
+
+            Alert.alert('Upload Error', `Failed to upload image: ${errorMessage}`);
+            return null;
+          }
         });
+
+        await Promise.all(uploadPromises);
       } catch (error) {
+        console.error('[OrdersScreen] Error in handleAdminImageUpload:', error);
         setState((prev) => ({
           ...prev,
           statusMessage: 'Unable to add images. Please try again.',
         }));
       }
     },
-    [getAdminDraft, setState],
+    [getAdminDraft, adminDrafts, setState],
   );
 
   const handleAdminImageRemove = useCallback((orderId, imageId) => {
@@ -752,8 +834,12 @@ function OrdersScreen({ route }) {
         const payload = {
           status: draft.status,
           adminNotes: draft.notes,
+          // Save Storage URLs (preferred) or URIs (for backward compatibility)
           adminImages: Array.isArray(draft.images)
-            ? draft.images.map((image) => image?.uri).filter(Boolean)
+            ? draft.images
+                .filter((image) => !image.uploading && !image.error) // Only save successfully uploaded images
+                .map((image) => image?.url || image?.uri) // Use Storage URL if available, fallback to URI
+                .filter(Boolean)
             : [],
           trackingNumber: draft.trackingNumber || undefined,
         };
@@ -785,7 +871,11 @@ function OrdersScreen({ route }) {
               Array.isArray(updated?.adminImages)
                 ? updated.adminImages
                     .filter(Boolean)
-                    .map((uri, index) => ({ id: `${order.id}_admin_${index}`, uri }))
+                    .map((urlOrUri, index) => ({
+                      id: `${order.id}_admin_${Date.now()}_${index}_${Math.random().toString(36).substring(7)}`,
+                      url: urlOrUri, // Store as URL (could be Storage URL or legacy URI)
+                      uri: urlOrUri, // Also set uri for display compatibility
+                    }))
                 : [],
             discount:
               updated?.discount !== undefined && updated?.discount !== null
@@ -1112,31 +1202,66 @@ function OrdersScreen({ route }) {
                 <Text style={[styles.adminLabel, { color: primaryFontColor }]}>Upload images</Text>
                 <View style={styles.adminUploadsRow}>
                   {adminImages.length ? (
-                    adminImages.map((image) => (
-                      <View
-                        key={image.id}
-                        style={[
-                          styles.adminImageWrapper,
-                          {
-                            borderColor: withOpacity(borderColor, 0.6),
-                            backgroundColor: withOpacity(surfaceColor, 0.6),
-                          },
-                        ]}
-                      >
-                        <Image source={{ uri: image.uri }} style={styles.adminImage} />
-                        <TouchableOpacity
-                          onPress={() => handleAdminImageRemove(order.id, image.id)}
+                    adminImages.map((image) => {
+                      const imageUri = image.url || image.uri;
+                      return (
+                        <View
+                          key={image.id}
                           style={[
-                            styles.adminImageRemove,
+                            styles.adminImageWrapper,
                             {
-                              backgroundColor: withOpacity(primaryBackgroundColor, 0.9),
+                              borderColor: withOpacity(borderColor, 0.6),
+                              backgroundColor: withOpacity(surfaceColor, 0.6),
                             },
                           ]}
                         >
-                          <Text style={[styles.adminImageRemoveText, { color: accentColor }]}>×</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))
+                          {imageUri ? (
+                            <>
+                              <TouchableOpacity
+                                onPress={() => setPreviewAdminImage(imageUri)}
+                                activeOpacity={0.9}
+                                style={styles.adminImageTouchable}
+                              >
+                                <Image source={{ uri: imageUri }} style={styles.adminImage} />
+                              </TouchableOpacity>
+                              {image.uploading && (
+                                <View style={styles.uploadOverlay}>
+                                  <ActivityIndicator color={accentColor} size="small" />
+                                  <Text style={[styles.uploadOverlayText, { color: surfaceColor }]}>Uploading...</Text>
+                                </View>
+                              )}
+                              {image.error && !image.uploading && (
+                                <View style={[styles.uploadOverlay, { backgroundColor: 'rgba(255, 0, 0, 0.8)' }]}>
+                                  <Icon name="close" color={surfaceColor} size={16} />
+                                  <Text style={[styles.uploadOverlayText, { color: surfaceColor }]}>Failed</Text>
+                                </View>
+                              )}
+                            </>
+                          ) : (
+                            <View style={styles.adminImagePlaceholder}>
+                              {image.uploading ? (
+                                <ActivityIndicator color={accentColor} size="small" />
+                              ) : (
+                                <Icon name="image" color={withOpacity(primaryFontColor, 0.4)} size={18} />
+                              )}
+                            </View>
+                          )}
+                          {!image.uploading && (
+                            <TouchableOpacity
+                              onPress={() => handleAdminImageRemove(order.id, image.id)}
+                              style={[
+                                styles.adminImageRemove,
+                                {
+                                  backgroundColor: withOpacity(primaryBackgroundColor, 0.9),
+                                },
+                              ]}
+                            >
+                              <Text style={[styles.adminImageRemoveText, { color: accentColor }]}>×</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      );
+                    })
                   ) : (
                     <View
                       style={[
@@ -1812,6 +1937,43 @@ function OrdersScreen({ route }) {
       </View>
     </ScrollView>
     
+      {/* Admin Image Preview Modal */}
+      {previewAdminImage ? (
+        <Modal
+          transparent
+          animationType="fade"
+          visible={!!previewAdminImage}
+          onRequestClose={() => setPreviewAdminImage(null)}
+        >
+          <View
+            style={[
+              styles.previewModalContainer,
+              { backgroundColor: 'rgba(0, 0, 0, 0.9)' },
+            ]}
+          >
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              onPress={() => setPreviewAdminImage(null)}
+              activeOpacity={1}
+            />
+            <View style={styles.previewModalContent}>
+              <TouchableOpacity
+                onPress={() => setPreviewAdminImage(null)}
+                style={styles.previewModalClose}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Icon name="close" color={surfaceColor} size={24} />
+              </TouchableOpacity>
+              <Image
+                source={{ uri: previewAdminImage }}
+                style={styles.previewModalImage}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
+        </Modal>
+      ) : null}
+    
       {/* Toast notification for awaiting submission */}
       {toastMessage ? (
         <View
@@ -2189,6 +2351,60 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+  },
+  adminImageTouchable: {
+    width: '100%',
+    height: '100%',
+  },
+  adminImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  previewModalContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  previewModalContent: {
+    width: '100%',
+    maxWidth: 600,
+    position: 'relative',
+  },
+  previewModalClose: {
+    position: 'absolute',
+    top: -40,
+    right: 0,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewModalImage: {
+    width: '100%',
+    height: 500,
+    borderRadius: 12,
+  },
+  uploadOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  uploadOverlayText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
   adminImageRemove: {
     position: 'absolute',

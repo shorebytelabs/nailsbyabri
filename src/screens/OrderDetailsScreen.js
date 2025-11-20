@@ -1090,23 +1090,42 @@ function resolveImageSource(upload) {
   if (!upload) {
     return null;
   }
+  
+  // Priority: Storage URL > uri > base64 (for backward compatibility)
+  const storageUrl = upload.url || upload.storageUrl || null;
+  const uri = upload.uri || null;
+  const base64Data = upload.data || upload.base64 || upload.content || null;
+  
+  // If we have a Storage URL, use it
+  if (storageUrl && !storageUrl.startsWith('data:')) {
+    return storageUrl;
+  }
+  
+  // If we have a URI (could be Storage URL or file URI), use it
+  if (uri && !uri.startsWith('data:')) {
+    return uri;
+  }
+  
+  // Fallback to base64 for backward compatibility
+  if (base64Data) {
+    return `data:image/jpeg;base64,${base64Data}`;
+  }
+  
+  // Legacy fallback for other formats
   const possible =
-    upload.uri ||
-    upload.url ||
     upload.preview ||
-    upload.data ||
-    upload.base64 ||
-    upload.content ||
+    upload.thumbnail ||
+    upload.source ||
     null;
+    
   if (!possible || typeof possible !== 'string') {
     return null;
   }
+  
   if (/^https?:|^file:|^data:/.test(possible)) {
     return possible;
   }
-  if (possible.startsWith('data:')) {
-    return possible;
-  }
+  
   return `data:image/jpeg;base64,${possible}`;
 }
 
