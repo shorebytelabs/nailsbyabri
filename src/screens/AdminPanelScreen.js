@@ -18,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import Icon from '../icons/Icon';
 import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
@@ -116,8 +117,10 @@ function AdminPanelScreen({ navigation }) {
     allow_dismiss: true,
     status: 'draft',
   });
-  const [tempSendAtDate, setTempSendAtDate] = useState({ date: '', time: '' });
-  const [tempExpireAtDate, setTempExpireAtDate] = useState({ date: '', time: '' });
+  const [showSendAtPicker, setShowSendAtPicker] = useState(false);
+  const [showExpireAtPicker, setShowExpireAtPicker] = useState(false);
+  const [sendAtDate, setSendAtDate] = useState(new Date());
+  const [expireAtDate, setExpireAtDate] = useState(new Date());
 
   // Form state
   const [formData, setFormData] = useState({
@@ -625,6 +628,113 @@ function AdminPanelScreen({ navigation }) {
     );
   };
 
+  // Helper functions for California timezone (PST/PDT)
+  const formatCaliforniaDateTime = (dateString) => {
+    if (!dateString) return '';
+    // Ensure the date string is parsed as UTC
+    // If the string doesn't have timezone info (no 'Z', '+', or '-' after the date), append 'Z' to force UTC parsing
+    let date;
+    if (typeof dateString === 'string' && dateString.includes('T')) {
+      // Check if it has timezone info
+      const hasTimezone = dateString.includes('Z') || 
+                         dateString.includes('+') || 
+                         (dateString.match(/-/g) || []).length > 2; // More than 2 dashes means timezone offset
+      if (!hasTimezone) {
+        // Date string like "2025-11-20T21:00" or "2025-11-20T21:00:00" - add 'Z' to force UTC parsing
+        date = new Date(dateString + 'Z');
+      } else {
+        date = new Date(dateString);
+      }
+    } else {
+      date = new Date(dateString);
+    }
+    // Format in California timezone
+    return date.toLocaleString('en-US', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
+
+  const parseStoredDateForPicker = (storedDateString) => {
+    if (!storedDateString) return new Date();
+    // Parse the stored ISO string
+    const storedDate = new Date(storedDateString);
+    // Get the California time components
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    const parts = formatter.formatToParts(storedDate);
+    const year = parseInt(parts.find(p => p.type === 'year').value);
+    const month = parseInt(parts.find(p => p.type === 'month').value) - 1;
+    const day = parseInt(parts.find(p => p.type === 'day').value);
+    const hour = parseInt(parts.find(p => p.type === 'hour').value);
+    const minute = parseInt(parts.find(p => p.type === 'minute').value);
+    // Create a date in local time with the California time values
+    // This makes the picker show the correct time when opened
+    return new Date(year, month, day, hour, minute);
+  };
+
+  const convertLocalDateToISOForStorage = (localDate) => {
+    // The picker gives us a Date object in local time, but we interpret it as California time
+    // Get the time components (year, month, day, hour, minute)
+    const year = localDate.getFullYear();
+    const month = localDate.getMonth();
+    const day = localDate.getDate();
+    const hour = localDate.getHours();
+    const minute = localDate.getMinutes();
+    
+    // We need to create a UTC date that, when displayed in California timezone, shows this time
+    // Get timezone offset for California on this specific date
+    // Create a test UTC date at noon on this day to check if it's PST or PDT
+    const testUTC = new Date(Date.UTC(year, month, day, 12, 0));
+    const caTestStr = testUTC.toLocaleString('en-US', {
+      timeZone: 'America/Los_Angeles',
+      timeZoneName: 'short',
+    });
+    const isPDT = caTestStr.includes('PDT');
+    const offsetHours = isPDT ? 7 : 8; // PDT is UTC-7, PST is UTC-8
+    
+    // Convert California time to UTC by ADDING the offset hours
+    // Example: If it's 1pm PST (UTC-8), UTC is 1pm + 8 hours = 9pm UTC (13 + 8 = 21)
+    // Example: If it's 1pm PDT (UTC-7), UTC is 1pm + 7 hours = 8pm UTC (13 + 7 = 20)
+    let utcHour = hour + offsetHours;
+    let utcDay = day;
+    let utcMonth = month;
+    let utcYear = year;
+    
+    // Handle hour overflow
+    if (utcHour >= 24) {
+      utcHour = utcHour - 24;
+      utcDay = utcDay + 1;
+      // Handle day overflow
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      if (utcDay > daysInMonth) {
+        utcDay = 1;
+        utcMonth = utcMonth + 1;
+        if (utcMonth >= 12) {
+          utcMonth = 0;
+          utcYear = utcYear + 1;
+        }
+      }
+    }
+    
+    // Create UTC date and return as ISO string with 'Z' suffix to ensure UTC parsing
+    const utcDate = new Date(Date.UTC(utcYear, utcMonth, utcDay, utcHour, minute));
+    // Return full ISO string with 'Z' to ensure it's always parsed as UTC
+    return utcDate.toISOString();
+  };
+
   // Notification handlers
   const handleCreateNotification = () => {
     setEditingNotification(null);
@@ -640,30 +750,29 @@ function AdminPanelScreen({ navigation }) {
       allow_dismiss: true,
       status: 'draft',
     });
-    setTempSendAtDate({ date: '', time: '' });
-    setTempExpireAtDate({ date: '', time: '' });
+    setSendAtDate(now);
+    setExpireAtDate(now);
     setShowNotificationForm(true);
   };
 
   const handleEditNotification = (notification) => {
     setEditingNotification(notification);
-    const sendAtDateStr = notification.send_at ? new Date(notification.send_at).toISOString().slice(0, 10) : '';
-    const sendAtTimeStr = notification.send_at ? new Date(notification.send_at).toTimeString().slice(0, 5) : '';
-    const expireAtDateStr = notification.expire_at ? new Date(notification.expire_at).toISOString().slice(0, 10) : '';
-    const expireAtTimeStr = notification.expire_at ? new Date(notification.expire_at).toTimeString().slice(0, 5) : '';
+    // Parse stored dates for the picker - these should show the correct time when opened
+    const sendAt = notification.send_at ? parseStoredDateForPicker(notification.send_at) : new Date();
+    const expireAt = notification.expire_at ? parseStoredDateForPicker(notification.expire_at) : new Date();
     setNotificationFormData({
       title: notification.title || '',
       message: notification.message || '',
       youtube_url: notification.youtube_url || '',
       audience: notification.audience || 'all',
-      send_at: notification.send_at ? new Date(notification.send_at).toISOString().slice(0, 16) : '',
-      expire_at: notification.expire_at ? new Date(notification.expire_at).toISOString().slice(0, 16) : '',
+      send_at: notification.send_at || '',
+      expire_at: notification.expire_at || '',
       is_sticky: notification.is_sticky || false,
       allow_dismiss: notification.allow_dismiss !== false,
       status: notification.status || 'draft',
     });
-    setTempSendAtDate({ date: sendAtDateStr, time: sendAtTimeStr });
-    setTempExpireAtDate({ date: expireAtDateStr, time: expireAtTimeStr });
+    setSendAtDate(sendAt);
+    setExpireAtDate(expireAt);
     setShowNotificationForm(true);
   };
 
@@ -681,12 +790,26 @@ function AdminPanelScreen({ navigation }) {
       }
 
       // Format dates for API
-      const sendAt = notificationFormData.send_at
-        ? new Date(notificationFormData.send_at).toISOString()
-        : null;
-      const expireAt = notificationFormData.expire_at
-        ? new Date(notificationFormData.expire_at).toISOString()
-        : null;
+      // The dates are already in UTC format (from convertLocalDateToISOForStorage)
+      // But they may not have 'Z' suffix, so we need to ensure they're parsed as UTC
+      let sendAt = null;
+      if (notificationFormData.send_at) {
+        const dateStr = notificationFormData.send_at;
+        // If it doesn't have timezone info, append 'Z' to force UTC parsing
+        const utcDateStr = dateStr.includes('T') && !dateStr.includes('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)
+          ? dateStr + 'Z'
+          : dateStr;
+        sendAt = new Date(utcDateStr).toISOString();
+      }
+      let expireAt = null;
+      if (notificationFormData.expire_at) {
+        const dateStr = notificationFormData.expire_at;
+        // If it doesn't have timezone info, append 'Z' to force UTC parsing
+        const utcDateStr = dateStr.includes('T') && !dateStr.includes('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)
+          ? dateStr + 'Z'
+          : dateStr;
+        expireAt = new Date(utcDateStr).toISOString();
+      }
 
       if (editingNotification) {
         await updateGlobalNotification(editingNotification.id, {
@@ -1402,12 +1525,12 @@ function AdminPanelScreen({ navigation }) {
                                   </Text>
                                   {notification.send_at && (
                                     <Text style={[styles.notificationMetaText, { color: secondaryFont }]}>
-                                      Send: {new Date(notification.send_at).toLocaleString()}
+                                      Send: {formatCaliforniaDateTime(notification.send_at)}
                                     </Text>
                                   )}
                                   {notification.expire_at && (
                                     <Text style={[styles.notificationMetaText, { color: secondaryFont }]}>
-                                      Expire: {new Date(notification.expire_at).toLocaleString()}
+                                      Expire: {formatCaliforniaDateTime(notification.expire_at)}
                                     </Text>
                                   )}
                                   {notification.is_sticky && (
@@ -1845,92 +1968,140 @@ function AdminPanelScreen({ navigation }) {
               </View>
 
               <Text style={[styles.formLabel, { color: primaryFont }]}>Send At (optional)</Text>
-              <View style={styles.dateTimeRow}>
-                <View style={styles.dateTimeInputWrapper}>
-                  <Text style={[styles.dateTimeLabel, { color: secondaryFont }]}>Date</Text>
-                  <TextInput
-                    style={[styles.formInput, styles.dateTimeInput, { borderColor: withOpacity(borderColor, 0.5) }]}
-                    value={tempSendAtDate.date || (notificationFormData.send_at ? new Date(notificationFormData.send_at).toISOString().slice(0, 10) : '')}
-                    onChangeText={(text) => {
-                      setTempSendAtDate((prev) => ({ ...prev, date: text }));
-                      if (text && tempSendAtDate.time) {
-                        const dateTime = `${text}T${tempSendAtDate.time}`;
-                        setNotificationFormData((prev) => ({ ...prev, send_at: dateTime }));
-                      } else if (text) {
-                        setNotificationFormData((prev) => ({ ...prev, send_at: `${text}T00:00` }));
+              <TouchableOpacity
+                onPress={() => setShowSendAtPicker(true)}
+                style={[styles.formInput, styles.datePickerButton, { borderColor: withOpacity(borderColor, 0.5) }]}
+              >
+                <Text style={[styles.datePickerText, { color: notificationFormData.send_at ? primaryFont : secondaryFont }]}>
+                  {notificationFormData.send_at
+                    ? formatCaliforniaDateTime(notificationFormData.send_at)
+                    : 'Select date and time'}
+                </Text>
+                <Icon name="note" color={secondaryFont} size={20} />
+              </TouchableOpacity>
+              {Platform.OS === 'android' && showSendAtPicker && (
+                <DateTimePicker
+                  value={sendAtDate}
+                  mode="datetime"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    if (event.type === 'set' && selectedDate) {
+                      setSendAtDate(selectedDate);
+                      setNotificationFormData((prev) => ({
+                        ...prev,
+                        send_at: convertLocalDateToISOForStorage(selectedDate),
+                      }));
+                    }
+                    setShowSendAtPicker(false);
+                  }}
+                  minimumDate={new Date()}
+                />
+              )}
+              {Platform.OS === 'ios' && showSendAtPicker && (
+                <View style={styles.iosPickerContainer}>
+                  <View style={[styles.iosPickerHeader, { backgroundColor: surface, borderColor: borderColor }]}>
+                    <TouchableOpacity
+                      onPress={() => setShowSendAtPicker(false)}
+                      style={styles.iosPickerButton}
+                    >
+                      <Text style={[styles.iosPickerButtonText, { color: primaryFont }]}>Cancel</Text>
+                    </TouchableOpacity>
+                    <Text style={[styles.iosPickerTitle, { color: primaryFont }]}>Select Date & Time</Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setNotificationFormData((prev) => ({
+                          ...prev,
+                          send_at: convertLocalDateToISOForStorage(sendAtDate),
+                        }));
+                        setShowSendAtPicker(false);
+                      }}
+                      style={styles.iosPickerButton}
+                    >
+                      <Text style={[styles.iosPickerButtonText, { color: accent }]}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker
+                    value={sendAtDate}
+                    mode="datetime"
+                    display="spinner"
+                    onChange={(event, selectedDate) => {
+                      if (selectedDate) {
+                        setSendAtDate(selectedDate);
                       }
                     }}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={secondaryFont}
+                    minimumDate={new Date()}
+                    style={styles.iosPicker}
                   />
                 </View>
-                <View style={styles.dateTimeInputWrapper}>
-                  <Text style={[styles.dateTimeLabel, { color: secondaryFont }]}>Time</Text>
-                  <TextInput
-                    style={[styles.formInput, styles.dateTimeInput, { borderColor: withOpacity(borderColor, 0.5) }]}
-                    value={tempSendAtDate.time || (notificationFormData.send_at ? new Date(notificationFormData.send_at).toTimeString().slice(0, 5) : '')}
-                    onChangeText={(text) => {
-                      setTempSendAtDate((prev) => ({ ...prev, time: text }));
-                      if (text && tempSendAtDate.date) {
-                        const dateTime = `${tempSendAtDate.date}T${text}`;
-                        setNotificationFormData((prev) => ({ ...prev, send_at: dateTime }));
-                      } else if (text && notificationFormData.send_at) {
-                        const currentDate = notificationFormData.send_at.split('T')[0];
-                        setNotificationFormData((prev) => ({ ...prev, send_at: `${currentDate}T${text}` }));
-                      }
-                    }}
-                    placeholder="HH:MM"
-                    placeholderTextColor={secondaryFont}
-                  />
-                </View>
-              </View>
-              <Text style={[styles.helpText, { color: secondaryFont, fontSize: 12, marginTop: 4 }]}>
-                Format: YYYY-MM-DD and HH:MM (24-hour)
-              </Text>
+              )}
 
               <Text style={[styles.formLabel, { color: primaryFont }]}>Expire At (optional)</Text>
-              <View style={styles.dateTimeRow}>
-                <View style={styles.dateTimeInputWrapper}>
-                  <Text style={[styles.dateTimeLabel, { color: secondaryFont }]}>Date</Text>
-                  <TextInput
-                    style={[styles.formInput, styles.dateTimeInput, { borderColor: withOpacity(borderColor, 0.5) }]}
-                    value={tempExpireAtDate.date || (notificationFormData.expire_at ? new Date(notificationFormData.expire_at).toISOString().slice(0, 10) : '')}
-                    onChangeText={(text) => {
-                      setTempExpireAtDate((prev) => ({ ...prev, date: text }));
-                      if (text && tempExpireAtDate.time) {
-                        const dateTime = `${text}T${tempExpireAtDate.time}`;
-                        setNotificationFormData((prev) => ({ ...prev, expire_at: dateTime }));
-                      } else if (text) {
-                        setNotificationFormData((prev) => ({ ...prev, expire_at: `${text}T00:00` }));
+              <TouchableOpacity
+                onPress={() => setShowExpireAtPicker(true)}
+                style={[styles.formInput, styles.datePickerButton, { borderColor: withOpacity(borderColor, 0.5) }]}
+              >
+                <Text style={[styles.datePickerText, { color: notificationFormData.expire_at ? primaryFont : secondaryFont }]}>
+                  {notificationFormData.expire_at
+                    ? formatCaliforniaDateTime(notificationFormData.expire_at)
+                    : 'Select date and time'}
+                </Text>
+                <Icon name="note" color={secondaryFont} size={20} />
+              </TouchableOpacity>
+              {Platform.OS === 'android' && showExpireAtPicker && (
+                <DateTimePicker
+                  value={expireAtDate}
+                  mode="datetime"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    if (event.type === 'set' && selectedDate) {
+                      setExpireAtDate(selectedDate);
+                      setNotificationFormData((prev) => ({
+                        ...prev,
+                        expire_at: convertLocalDateToISOForStorage(selectedDate),
+                      }));
+                    }
+                    setShowExpireAtPicker(false);
+                  }}
+                  minimumDate={sendAtDate || new Date()}
+                />
+              )}
+              {Platform.OS === 'ios' && showExpireAtPicker && (
+                <View style={styles.iosPickerContainer}>
+                  <View style={[styles.iosPickerHeader, { backgroundColor: surface, borderColor: borderColor }]}>
+                    <TouchableOpacity
+                      onPress={() => setShowExpireAtPicker(false)}
+                      style={styles.iosPickerButton}
+                    >
+                      <Text style={[styles.iosPickerButtonText, { color: primaryFont }]}>Cancel</Text>
+                    </TouchableOpacity>
+                    <Text style={[styles.iosPickerTitle, { color: primaryFont }]}>Select Date & Time</Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setNotificationFormData((prev) => ({
+                          ...prev,
+                          expire_at: convertLocalDateToISOForStorage(expireAtDate),
+                        }));
+                        setShowExpireAtPicker(false);
+                      }}
+                      style={styles.iosPickerButton}
+                    >
+                      <Text style={[styles.iosPickerButtonText, { color: accent }]}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker
+                    value={expireAtDate}
+                    mode="datetime"
+                    display="spinner"
+                    onChange={(event, selectedDate) => {
+                      if (selectedDate) {
+                        setExpireAtDate(selectedDate);
                       }
                     }}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={secondaryFont}
+                    minimumDate={sendAtDate || new Date()}
+                    style={styles.iosPicker}
                   />
                 </View>
-                <View style={styles.dateTimeInputWrapper}>
-                  <Text style={[styles.dateTimeLabel, { color: secondaryFont }]}>Time</Text>
-                  <TextInput
-                    style={[styles.formInput, styles.dateTimeInput, { borderColor: withOpacity(borderColor, 0.5) }]}
-                    value={tempExpireAtDate.time || (notificationFormData.expire_at ? new Date(notificationFormData.expire_at).toTimeString().slice(0, 5) : '')}
-                    onChangeText={(text) => {
-                      setTempExpireAtDate((prev) => ({ ...prev, time: text }));
-                      if (text && tempExpireAtDate.date) {
-                        const dateTime = `${tempExpireAtDate.date}T${text}`;
-                        setNotificationFormData((prev) => ({ ...prev, expire_at: dateTime }));
-                      } else if (text && notificationFormData.expire_at) {
-                        const currentDate = notificationFormData.expire_at.split('T')[0];
-                        setNotificationFormData((prev) => ({ ...prev, expire_at: `${currentDate}T${text}` }));
-                      }
-                    }}
-                    placeholder="HH:MM"
-                    placeholderTextColor={secondaryFont}
-                  />
-                </View>
-              </View>
-              <Text style={[styles.helpText, { color: secondaryFont, fontSize: 12, marginTop: 4 }]}>
-                Format: YYYY-MM-DD and HH:MM (24-hour)
-              </Text>
+              )}
 
               <Text style={[styles.formLabel, { color: primaryFont }]}>Status *</Text>
               <View style={styles.typeButtons}>
@@ -2486,23 +2657,47 @@ function createStyles(colors) {
       fontSize: 14,
       fontWeight: '600',
     },
-    dateTimeRow: {
+    datePickerButton: {
       flexDirection: 'row',
-      gap: 12,
-      marginBottom: 4,
-    },
-    dateTimeInputWrapper: {
-      flex: 1,
-    },
-    dateTimeLabel: {
-      fontSize: 12,
-      marginBottom: 4,
-      fontWeight: '500',
-    },
-    dateTimeInput: {
+      alignItems: 'center',
+      justifyContent: 'space-between',
       paddingHorizontal: 12,
-      paddingVertical: 10,
+      paddingVertical: 12,
+    },
+    datePickerText: {
       fontSize: 14,
+    },
+    iosPickerContainer: {
+      backgroundColor: surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      marginTop: 8,
+      overflow: 'hidden',
+    },
+    iosPickerHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    iosPickerButton: {
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+    },
+    iosPickerButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    iosPickerTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      flex: 1,
+      textAlign: 'center',
+    },
+    iosPicker: {
+      height: 200,
     },
     notificationsSection: {
       padding: 20,
