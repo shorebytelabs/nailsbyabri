@@ -1053,14 +1053,12 @@ function OrdersScreen({ route }) {
             style={[
               styles.capacityInfoBanner,
               {
-                backgroundColor: capacityInfo?.isFull
-                  ? withOpacity(warning || '#FF9800', 0.08)
-                  : capacityInfo?.isAlmostFull
+                // Default to warning (orange) if capacityInfo is null or if capacity is full/almost full
+                // Only use success (green) if capacity is available and not full
+                backgroundColor: !capacityInfo || capacityInfo?.isFull || capacityInfo?.isAlmostFull
                   ? withOpacity(warning || '#FF9800', 0.08)
                   : withOpacity(success || '#4CAF50', 0.08),
-                borderColor: capacityInfo?.isFull
-                  ? withOpacity(warning || '#FF9800', 0.3)
-                  : capacityInfo?.isAlmostFull
+                borderColor: !capacityInfo || capacityInfo?.isFull || capacityInfo?.isAlmostFull
                   ? withOpacity(warning || '#FF9800', 0.3)
                   : withOpacity(success || '#4CAF50', 0.3),
               },
@@ -1070,9 +1068,9 @@ function OrdersScreen({ route }) {
               style={[
                 styles.capacityInfoText,
                 {
-                  color: capacityInfo?.isFull
-                    ? warning || '#FF9800'
-                    : capacityInfo?.isAlmostFull
+                  // Default to warning (orange) if capacityInfo is null or if capacity is full/almost full
+                  // Only use success (green) if capacity is available and not full
+                  color: !capacityInfo || capacityInfo?.isFull || capacityInfo?.isAlmostFull
                     ? warning || '#FF9800'
                     : success || '#4CAF50',
                 },
