@@ -11,15 +11,22 @@ const STORAGE_BUCKET = 'order-images';
 /**
  * Upload an image file to Supabase Storage
  * @param {Object} file - File object with { uri, type, fileName }
- * @param {string} orderId - Order ID (optional, for draft orders use 'draft')
+ * @param {string} userId - User ID (required)
+ * @param {string} orderId - Order ID (required)
  * @param {string} setId - Set ID (optional)
  * @param {string} imageType - 'design', 'sizing', or 'admin'
- * @returns {Promise<{url: string, path: string}>} Public URL and storage path
+ * @returns {Promise<{url: string, path: string, fileName: string}>} Public URL and storage path
  */
-export async function uploadImageToStorage(file, orderId = 'draft', setId = null, imageType = 'design') {
+export async function uploadImageToStorage(file, userId, orderId, setId = null, imageType = 'design') {
   try {
     if (!file.uri) {
       throw new Error('File URI is required');
+    }
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+    if (!orderId) {
+      throw new Error('Order ID is required');
     }
 
     // Get session for authentication
@@ -34,8 +41,8 @@ export async function uploadImageToStorage(file, orderId = 'draft', setId = null
     const randomId = Math.random().toString(36).substring(7);
     const fileName = `${timestamp}_${randomId}.${fileExt}`;
     
-    // Build storage path: order-images/{orderId}/{setId}/{imageType}/{fileName}
-    const pathParts = [orderId];
+    // Build storage path: order-images/{userId}/{orderId}/{setId}/{imageType}/{fileName}
+    const pathParts = [userId, orderId];
     if (setId) {
       pathParts.push(setId);
     }

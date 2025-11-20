@@ -1014,8 +1014,12 @@ function NewOrderStepperScreen({ route }) {
         }
       : { mode: 'standard', values: {} };
 
+    // Include order ID if it exists (for updates)
+    // Priority: resumeDraft > activeOrder > draftOrderId (set by ensureOrderExists)
+    const orderId = resumeDraft?.id || state.activeOrder?.id || draftOrderId || null;
+    
     return {
-      id: draftOrderId,
+      id: orderId,
       userId: state.currentUser?.id,
       nailSets: mappedSets,
       customerSizes,
@@ -1206,6 +1210,30 @@ function NewOrderStepperScreen({ route }) {
     }
   };
 
+  // Helper function to ensure an order exists (create draft if needed)
+  const ensureOrderExists = async () => {
+    // If we already have an order ID, use it
+    if (resumeDraft?.id || state.activeOrder?.id || draftOrderId) {
+      return resumeDraft?.id || state.activeOrder?.id || draftOrderId;
+    }
+
+    // Create a new draft order immediately so we have an order ID for image uploads
+    try {
+      const payload = buildOrderPayload('Draft');
+      const response = await createOrUpdateOrder(payload);
+      const newOrderId = response.order.id;
+      setDraftOrderId(newOrderId);
+      handleDraftSaved(response.order, {
+        currentStepKey: currentStepKey,
+        currentSetId: editingSetId,
+      });
+      return newOrderId;
+    } catch (error) {
+      console.error('[NewOrderStepper] Failed to create draft order:', error);
+      throw new Error('Failed to create order. Please try again.');
+    }
+  };
+
   const handleAddDesignUpload = async () => {
     try {
       const response = await launchImageLibrary({
@@ -1230,8 +1258,15 @@ function NewOrderStepperScreen({ route }) {
         return;
       }
 
-      // Get orderId and setId for storage path
-      const orderId = resumeDraft?.id || state.activeOrder?.id || 'draft';
+      // Ensure we have a user ID and order ID before uploading
+      const userId = state.currentUser?.id || state.currentUser?.userId;
+      if (!userId) {
+        Alert.alert('Error', 'Please log in to upload images.');
+        return;
+      }
+
+      // Ensure order exists (create draft if needed) to get an order ID
+      const orderId = await ensureOrderExists();
       const setId = currentSetDraft.id || `set_${Date.now()}`;
 
       // Upload each image to Supabase Storage immediately
@@ -1259,13 +1294,14 @@ function NewOrderStepperScreen({ route }) {
         }));
 
         try {
-          // Upload to Storage
+          // Upload to Storage - use {userId}/{orderId}/... path structure
           const uploadResult = await uploadImageToStorage(
             {
               uri: asset.uri,
               type: asset.type || 'image/jpeg',
               fileName: asset.fileName || `design-reference-${index + 1}.jpg`,
             },
+            userId,
             orderId,
             setId,
             'design',
@@ -1355,8 +1391,15 @@ function NewOrderStepperScreen({ route }) {
         return;
       }
 
-      // Get orderId and setId for storage path
-      const orderId = resumeDraft?.id || state.activeOrder?.id || 'draft';
+      // Ensure we have a user ID and order ID before uploading
+      const userId = state.currentUser?.id || state.currentUser?.userId;
+      if (!userId) {
+        Alert.alert('Error', 'Please log in to upload images.');
+        return;
+      }
+
+      // Ensure order exists (create draft if needed) to get an order ID
+      const orderId = await ensureOrderExists();
       const setId = currentSetDraft.id || `set_${Date.now()}`;
 
       // Upload each image to Supabase Storage immediately
@@ -1384,13 +1427,14 @@ function NewOrderStepperScreen({ route }) {
         }));
 
         try {
-          // Upload to Storage
+          // Upload to Storage - use {userId}/{orderId}/... path structure
           const uploadResult = await uploadImageToStorage(
             {
               uri: asset.uri,
               type: asset.type || 'image/jpeg',
               fileName: asset.fileName || `sizing-reference-${index + 1}.jpg`,
             },
+            userId,
             orderId,
             setId,
             'sizing',

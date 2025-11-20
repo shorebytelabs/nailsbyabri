@@ -664,13 +664,20 @@ function OrdersScreen({ route }) {
           });
 
           try {
-            // Upload to Storage
+            // Get userId from order or current user for storage path
+            const userId = order.user_id || order.userId || state.currentUser?.id || state.currentUser?.userId;
+            if (!userId) {
+              throw new Error('User ID not found for order');
+            }
+
+            // Upload to Storage - use {userId}/{orderId}/... path structure
             const uploadResult = await uploadImageToStorage(
               {
                 uri: asset.uri,
                 type: asset.type || 'image/jpeg',
                 fileName: asset.fileName || `admin-image-${index + 1}.jpg`,
               },
+              userId,
               order.id,
               null, // No setId for admin images
               'admin', // Image type
