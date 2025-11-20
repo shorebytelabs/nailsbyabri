@@ -1080,7 +1080,7 @@ function NewOrderStepperScreen({ route }) {
                 {
                   name: 'MainTabs',
                   state: {
-                    index: 2,
+                    index: 2, // Orders tab index
                     routes: [
                       { name: 'Home' },
                       { name: 'Gallery' },
