@@ -43,6 +43,12 @@ import {
   deleteTip,
   toggleTipEnabled,
 } from '../services/tipsService';
+import {
+  getAllGlobalNotifications,
+  createGlobalNotification,
+  updateGlobalNotification,
+  deleteGlobalNotification,
+} from '../services/notificationService';
 import { uploadImageToStorage } from '../services/imageStorageService';
 import { launchImageLibrary } from 'react-native-image-picker';
 import PrimaryButton from '../components/PrimaryButton';
@@ -92,6 +98,24 @@ function AdminPanelScreen({ navigation }) {
   });
   const [uploadingImage, setUploadingImage] = useState(false);
 
+  // Notifications state
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsExpanded, setNotificationsExpanded] = useState(false);
+  const [editingNotification, setEditingNotification] = useState(null);
+  const [showNotificationForm, setShowNotificationForm] = useState(false);
+  const [notificationFormData, setNotificationFormData] = useState({
+    title: '',
+    message: '',
+    youtube_url: '',
+    audience: 'all',
+    send_at: '',
+    expire_at: '',
+    is_sticky: false,
+    allow_dismiss: true,
+    status: 'draft',
+  });
+
   // Form state
   const [formData, setFormData] = useState({
     code: '',
@@ -130,7 +154,13 @@ function AdminPanelScreen({ navigation }) {
     if (workloadExpanded) {
       loadWorkloadInfo();
     }
-  }, [isAdmin, navigation, promoCodesExpanded, workloadExpanded, state.impersonating]);
+    if (notificationsExpanded) {
+      loadNotifications();
+    }
+    if (tipsExpanded) {
+      loadTips();
+    }
+  }, [isAdmin, navigation, promoCodesExpanded, workloadExpanded, notificationsExpanded, tipsExpanded, state.impersonating]);
 
   useEffect(() => {
     if (!confirmation) {

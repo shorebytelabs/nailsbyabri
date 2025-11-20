@@ -1,7 +1,7 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StyleSheet, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import HomeDashboardScreen from '../screens/HomeDashboardScreen';
 import GalleryScreen from '../screens/GalleryScreen';
 import OrdersScreen from '../screens/OrdersScreen';
@@ -13,6 +13,7 @@ import { useAppState } from '../context/AppContext';
 import { logEvent } from '../utils/analytics';
 import { useTheme } from '../theme';
 import { withOpacity } from '../utils/color';
+import { getUnreadNotificationCount } from '../services/notificationService';
 
 const Tab = createBottomTabNavigator();
 
@@ -30,10 +31,24 @@ export default function MainTabs() {
                         (state.activeOrder?.status || '').toLowerCase() === 'draft';
   const draftBadgeCount = isDraftStatus ? 1 : 0;
 
-  // Calculate notification badge count
-  // Show notifications if user has no active orders (prompt to create first) or has active orders (tips)
-  const activeOrdersCount = state.activeOrder ? 1 : 0;
-  const notificationBadgeCount = activeOrdersCount === 0 ? 1 : 2; // 1 for empty state, 2 for active orders
+  // Fetch real unread notification count
+  const [notificationBadgeCount, setNotificationBadgeCount] = useState(0);
+  const currentUserId = state.currentUser?.id || state.currentUser?.userId;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (currentUserId) {
+        getUnreadNotificationCount(currentUserId)
+          .then((count) => setNotificationBadgeCount(count || 0))
+          .catch((error) => {
+            console.error('[MainTabs] Error fetching notification count:', error);
+            setNotificationBadgeCount(0);
+          });
+      } else {
+        setNotificationBadgeCount(0);
+      }
+    }, [currentUserId])
+  );
 
   const openCreateFlow = useCallback(() => {
     const canProceed = handleStartOrder({ navigation });

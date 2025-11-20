@@ -5,6 +5,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { calculatePriceBreakdown } from '../utils/pricing';
 import { extractStoragePathFromUrl } from './imageStorageService';
+import { createSystemNotification } from './notificationService';
 
 /**
  * Normalize nail sets for storage
@@ -1247,16 +1248,25 @@ export async function updateOrder(orderId, updates) {
       return { order: transformed };
     }
 
-    // First verify the order exists
+    // First verify the order exists and get previous state for notifications
     const { data: existingOrder, error: checkError } = await supabase
       .from('orders')
-      .select('id')
+      .select('id, status, tracking_number, paid_at, discount, user_id')
       .eq('id', orderId)
       .single();
 
     if (checkError || !existingOrder) {
       throw new Error(`Order not found: ${orderId}`);
     }
+
+    // Store previous state for notification triggers
+    const previousOrder = {
+      status: existingOrder.status,
+      tracking_number: existingOrder.tracking_number,
+      paid_at: existingOrder.paid_at,
+      discount: existingOrder.discount,
+      user_id: existingOrder.user_id,
+    };
 
     // Update order
     const { data: updatedOrder, error: updateError } = await supabase
@@ -1321,6 +1331,95 @@ export async function updateOrder(orderId, updates) {
     }
     
     const completeOrder = transformed;
+
+    // Create system notifications for relevant events
+    if (updatedOrder.user_id && previousOrder) {
+      const orderNumber = (orderId || '').slice(0, 8).toUpperCase();
+      
+      try {
+        // 1. Tracking number added
+        if (updates.trackingNumber !== undefined && updates.trackingNumber && 
+            !previousOrder.tracking_number) {
+          await createSystemNotification({
+            title: 'Order Shipped',
+            message: `Good news — your order #${orderNumber} has shipped! Tracking: ${updates.trackingNumber}.`,
+            systemEventType: 'tracking_added',
+            relatedOrderId: orderId,
+            relatedUserId: updatedOrder.user_id,
+            metadata: { trackingNumber: updates.trackingNumber },
+          });
+        }
+
+        // 2. Status → Approved
+        if (updates.status && (
+          updates.status.toLowerCase() === 'approved & in progress' ||
+          updates.status.toLowerCase() === 'approved_in_progress'
+        ) && previousOrder.status?.toLowerCase() !== 'approved & in progress') {
+          await createSystemNotification({
+            title: 'Order Approved',
+            message: `Order #${orderNumber} has been approved — we're getting started!`,
+            systemEventType: 'status_approved',
+            relatedOrderId: orderId,
+            relatedUserId: updatedOrder.user_id,
+          });
+        }
+
+        // Note: "In Progress" is the same as "Approved & In Progress", handled above
+
+        // 4. Status → Ready (Pickup/Shipping/Delivery)
+        if (updates.status && (
+          updates.status.toLowerCase() === 'ready for pickup' ||
+          updates.status.toLowerCase() === 'ready_for_pickup' ||
+          updates.status.toLowerCase() === 'ready for shipping' ||
+          updates.status.toLowerCase() === 'ready_for_shipping' ||
+          updates.status.toLowerCase() === 'ready for delivery' ||
+          updates.status.toLowerCase() === 'ready_for_delivery'
+        )) {
+          const readyMessage = updates.status.toLowerCase().includes('pickup') 
+            ? `Order #${orderNumber} is ready for pickup.`
+            : updates.status.toLowerCase().includes('shipping')
+            ? `Order #${orderNumber} is ready for shipping.`
+            : `Order #${orderNumber} is ready for delivery.`;
+          
+          await createSystemNotification({
+            title: 'Order Ready',
+            message: readyMessage,
+            systemEventType: 'status_ready',
+            relatedOrderId: orderId,
+            relatedUserId: updatedOrder.user_id,
+            metadata: { readyType: updates.status },
+          });
+        }
+
+        // 5. Discount applied
+        if (updates.discount !== undefined && updates.discount > 0 && 
+            (!previousOrder.discount || previousOrder.discount === 0)) {
+          await createSystemNotification({
+            title: 'Discount Applied',
+            message: `A discount was added to order #${orderNumber}.`,
+            systemEventType: 'discount_applied',
+            relatedOrderId: orderId,
+            relatedUserId: updatedOrder.user_id,
+            metadata: { discountAmount: updates.discount },
+          });
+        }
+
+        // 6. Payment received
+        if (updates.paid_at !== undefined && updates.paid_at && 
+            !previousOrder.paid_at) {
+          await createSystemNotification({
+            title: 'Payment Received',
+            message: `Payment for order #${orderNumber} received — Thank you!`,
+            systemEventType: 'payment_received',
+            relatedOrderId: orderId,
+            relatedUserId: updatedOrder.user_id,
+          });
+        }
+      } catch (notificationError) {
+        // Don't fail the order update if notification creation fails
+        console.error('[orders] Error creating system notification:', notificationError);
+      }
+    }
 
     if (__DEV__) {
       console.log('[orders] ✅ Order updated successfully');
