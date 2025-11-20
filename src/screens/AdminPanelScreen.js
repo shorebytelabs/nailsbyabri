@@ -36,9 +36,19 @@ import {
   formatNextWeekStartForAdmin,
   getNextWeekStartDateTime,
 } from '../services/workloadService';
+import {
+  getAllTips,
+  createTip,
+  updateTip,
+  deleteTip,
+  toggleTipEnabled,
+} from '../services/tipsService';
+import { uploadImageToStorage } from '../services/imageStorageService';
+import { launchImageLibrary } from 'react-native-image-picker';
 import PrimaryButton from '../components/PrimaryButton';
 import ManageUsersScreen from './ManageUsersScreen';
 import UserDetailScreen from './UserDetailScreen';
+import { Image } from 'react-native';
 
 function AdminPanelScreen({ navigation }) {
   const { theme } = useTheme();
@@ -64,6 +74,23 @@ function AdminPanelScreen({ navigation }) {
   const [capacityInput, setCapacityInput] = useState('');
   const [savingCapacity, setSavingCapacity] = useState(false);
   const [resettingWeek, setResettingWeek] = useState(false);
+
+  // Tips state
+  const [tips, setTips] = useState([]);
+  const [tipsLoading, setTipsLoading] = useState(false);
+  const [tipsExpanded, setTipsExpanded] = useState(false);
+  const [editingTip, setEditingTip] = useState(null);
+  const [showTipForm, setShowTipForm] = useState(false);
+  const [tipFormData, setTipFormData] = useState({
+    title: '',
+    description: '',
+    image_url: null,
+    image_path: null,
+    youtube_url: '',
+    enabled: true,
+    display_order: 0,
+  });
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -352,6 +379,206 @@ function AdminPanelScreen({ navigation }) {
     );
   };
 
+  const loadTips = async () => {
+    try {
+      setTipsLoading(true);
+      const allTips = await getAllTips();
+      setTips(allTips || []);
+    } catch (error) {
+      console.error('[AdminPanel] Error loading tips:', error);
+      Alert.alert('Error', 'Failed to load tips. Please try again.');
+    } finally {
+      setTipsLoading(false);
+    }
+  };
+
+  const handleCreateTip = () => {
+    setEditingTip(null);
+    setTipFormData({
+      title: '',
+      description: '',
+      image_url: null,
+      image_path: null,
+      youtube_url: '',
+      enabled: true,
+      display_order: tips.length,
+    });
+    setShowTipForm(true);
+  };
+
+  const handleEditTip = (tip) => {
+    setEditingTip(tip);
+    setTipFormData({
+      title: tip.title || '',
+      description: tip.description || '',
+      image_url: tip.image_url || null,
+      image_path: tip.image_path || null,
+      youtube_url: tip.youtube_url || '',
+      enabled: tip.enabled !== false,
+      display_order: tip.display_order || 0,
+    });
+    setShowTipForm(true);
+  };
+
+  const handleUploadTipImage = async () => {
+    try {
+      setUploadingImage(true);
+      const response = await launchImageLibrary({
+        mediaType: 'photo',
+        includeBase64: false,
+        quality: 0.85,
+        maxWidth: 1500,
+      });
+
+      if (response.didCancel || !response.assets?.[0]) {
+        setUploadingImage(false);
+        return;
+      }
+
+      const asset = response.assets[0];
+      if (!asset.uri) {
+        setUploadingImage(false);
+        return;
+      }
+
+      // Upload directly to Supabase Storage for tips
+      const { supabase } = require('../lib/supabaseClient');
+      const { SUPABASE_URL } = require('../config/env');
+      const STORAGE_BUCKET = 'order-images'; // Using same bucket as orders
+
+      // Get session for authentication
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        throw new Error('Not authenticated');
+      }
+
+      // Generate unique filename
+      const fileExt = asset.fileName?.split('.').pop() || asset.type?.split('/')[1] || 'jpg';
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substring(7);
+      const fileName = `${timestamp}_${randomId}.${fileExt}`;
+      
+      // Build storage path: tips/{tipId or 'new'}/{fileName}
+      const tipId = editingTip?.id || 'new';
+      const filePath = `tips/${tipId}/${fileName}`;
+
+      // Create FormData for React Native
+      const formData = new FormData();
+      formData.append('file', {
+        uri: asset.uri,
+        type: asset.type || 'image/jpeg',
+        name: fileName,
+      });
+
+      // Upload using Supabase Storage REST API
+      const uploadUrl = `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${filePath}`;
+
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        let errorMessage = 'Upload failed';
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.message || errorJson.error || errorMessage;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(filePath);
+
+      if (!urlData?.publicUrl) {
+        throw new Error('Failed to get image URL from storage.');
+      }
+
+      setTipFormData((prev) => ({
+        ...prev,
+        image_url: urlData.publicUrl,
+        image_path: filePath,
+      }));
+    } catch (error) {
+      console.error('[AdminPanel] Error uploading tip image:', error);
+      Alert.alert('Upload Error', error.message || 'Failed to upload image. Please try again.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleSaveTip = async () => {
+    try {
+      if (!tipFormData.title || !tipFormData.description) {
+        Alert.alert('Error', 'Title and description are required.');
+        return;
+      }
+
+      const adminId = state.currentUser?.id;
+      if (!adminId) {
+        Alert.alert('Error', 'Admin user ID not found');
+        return;
+      }
+
+      if (editingTip) {
+        await updateTip(editingTip.id, tipFormData);
+        setConfirmation('Tip updated');
+      } else {
+        await createTip(tipFormData, adminId);
+        setConfirmation('Tip created');
+      }
+
+      setShowTipForm(false);
+      await loadTips();
+    } catch (error) {
+      console.error('[AdminPanel] Error saving tip:', error);
+      Alert.alert('Error', error.message || 'Failed to save tip. Please try again.');
+    }
+  };
+
+  const handleToggleTipEnabled = async (tip) => {
+    try {
+      await toggleTipEnabled(tip.id, !tip.enabled);
+      await loadTips();
+      setConfirmation(tip.enabled ? 'Tip disabled' : 'Tip enabled');
+    } catch (error) {
+      console.error('[AdminPanel] Error toggling tip:', error);
+      Alert.alert('Error', 'Failed to update tip. Please try again.');
+    }
+  };
+
+  const handleDeleteTip = (tip) => {
+    Alert.alert(
+      'Delete Tip',
+      `Are you sure you want to delete "${tip.title}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteTip(tip.id);
+              await loadTips();
+              setConfirmation('Tip deleted');
+            } catch (error) {
+              console.error('[AdminPanel] Error deleting tip:', error);
+              Alert.alert('Error', 'Failed to delete tip. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (!isAdmin) {
     return null;
   }
@@ -393,6 +620,20 @@ function AdminPanelScreen({ navigation }) {
         setWorkloadExpanded((prev) => !prev);
         if (!workloadExpanded) {
           loadWorkloadInfo();
+        }
+      },
+    },
+    {
+      key: 'tips',
+      title: 'Manage Tips',
+      description: 'Configure tips displayed on home screen',
+      icon: 'info',
+      expandable: true,
+      expanded: tipsExpanded,
+      onPress: () => {
+        setTipsExpanded((prev) => !prev);
+        if (!tipsExpanded) {
+          loadTips();
         }
       },
     },
@@ -737,6 +978,110 @@ function AdminPanelScreen({ navigation }) {
                       </View>
                     </View>
                   ) : null}
+
+                  {item.key === 'tips' ? (
+                    <View style={styles.tipsSection}>
+                      <View style={styles.sectionHeaderRow}>
+                        <Text style={[styles.sectionTitle, { color: primaryFont }]}>Tips</Text>
+                        <TouchableOpacity
+                          onPress={handleCreateTip}
+                          style={[styles.addButton, { backgroundColor: accent }]}
+                        >
+                          <Icon name="plus" color={colors.accentContrast || '#FFFFFF'} size={16} />
+                          <Text style={[styles.addButtonText, { color: colors.accentContrast || '#FFFFFF' }]}>
+                            Create
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {tipsLoading ? (
+                        <ActivityIndicator size="large" color={accent} style={styles.loader} />
+                      ) : tips.length === 0 ? (
+                        <Text style={[styles.emptyText, { color: secondaryFont }]}>
+                          No tips yet. Create one to get started.
+                        </Text>
+                      ) : (
+                        <View style={styles.tipsList}>
+                          {tips.map((tip) => (
+                            <View
+                              key={tip.id}
+                              style={[
+                                styles.tipCard,
+                                {
+                                  backgroundColor: surface,
+                                  borderColor: withOpacity(borderColor, 0.5),
+                                },
+                              ]}
+                            >
+                              <View style={styles.tipCardHeader}>
+                                <View style={styles.tipCardTitleRow}>
+                                  <Text style={[styles.tipTitle, { color: primaryFont }]}>{tip.title}</Text>
+                                  <TouchableOpacity
+                                    onPress={() => handleToggleTipEnabled(tip)}
+                                    style={[
+                                      styles.toggleButton,
+                                      {
+                                        backgroundColor: tip.enabled
+                                          ? withOpacity(accent, 0.1)
+                                          : withOpacity(borderColor, 0.2),
+                                      },
+                                    ]}
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.toggleText,
+                                        {
+                                          color: tip.enabled ? accent : secondaryFont,
+                                        },
+                                      ]}
+                                    >
+                                      {tip.enabled ? 'Enabled' : 'Disabled'}
+                                    </Text>
+                                  </TouchableOpacity>
+                                </View>
+                                {tip.description && (
+                                  <Text style={[styles.tipDescription, { color: secondaryFont }]} numberOfLines={2}>
+                                    {tip.description}
+                                  </Text>
+                                )}
+                                {tip.image_url && (
+                                  <View style={styles.tipImagePreview}>
+                                    <Image
+                                      source={{ uri: tip.image_url }}
+                                      style={styles.tipImageThumbnail}
+                                      resizeMode="cover"
+                                    />
+                                  </View>
+                                )}
+                                {tip.youtube_url && (
+                                  <Text style={[styles.tipYoutube, { color: accent }]} numberOfLines={1}>
+                                    Video: {tip.youtube_url}
+                                  </Text>
+                                )}
+                              </View>
+
+                              <View style={styles.tipActions}>
+                                <TouchableOpacity
+                                  onPress={() => handleEditTip(tip)}
+                                  style={[styles.actionButton, { borderColor: withOpacity(borderColor, 0.5) }]}
+                                >
+                                  <Text style={[styles.actionButtonText, { color: primaryFont }]}>Edit</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  onPress={() => handleDeleteTip(tip)}
+                                  style={[styles.actionButton, { borderColor: withOpacity(colors.error || '#B33A3A', 0.5) }]}
+                                >
+                                  <Text style={[styles.actionButtonText, { color: colors.error || '#B33A3A' }]}>
+                                    Delete
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  ) : null}
                 </View>
               ) : null}
             </View>
@@ -928,6 +1273,139 @@ function AdminPanelScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* Tip Form Modal */}
+      <Modal visible={showTipForm} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: surface }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: primaryFont }]}>
+                {editingTip ? 'Edit Tip' : 'Create Tip'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowTipForm(false)}>
+                <Icon name="close" color={primaryFont} size={24} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.formContent}>
+              <Text style={[styles.formLabel, { color: primaryFont }]}>Title *</Text>
+              <TextInput
+                style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
+                value={tipFormData.title}
+                onChangeText={(text) => setTipFormData((prev) => ({ ...prev, title: text }))}
+                placeholder="How to prep your nails"
+              />
+
+              <Text style={[styles.formLabel, { color: primaryFont }]}>Description *</Text>
+              <TextInput
+                style={[styles.formInput, styles.formTextArea, { borderColor: withOpacity(borderColor, 0.5) }]}
+                value={tipFormData.description}
+                onChangeText={(text) => setTipFormData((prev) => ({ ...prev, description: text }))}
+                placeholder="Cleanse with alcohol wipes before applying press-ons for longer wear."
+                multiline
+                numberOfLines={3}
+              />
+
+              <Text style={[styles.formLabel, { color: primaryFont }]}>Photo</Text>
+              {tipFormData.image_url ? (
+                <View style={styles.imagePreviewContainer}>
+                  <Image
+                    source={{ uri: tipFormData.image_url }}
+                    style={styles.imagePreview}
+                    resizeMode="cover"
+                  />
+                  <TouchableOpacity
+                    onPress={() => setTipFormData((prev) => ({ ...prev, image_url: null, image_path: null }))}
+                    style={styles.removeImageButton}
+                  >
+                    <Icon name="close" color={colors.accentContrast || '#FFFFFF'} size={16} />
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+              <TouchableOpacity
+                onPress={handleUploadTipImage}
+                disabled={uploadingImage}
+                style={[
+                  styles.uploadButton,
+                  {
+                    backgroundColor: uploadingImage
+                      ? withOpacity(borderColor, 0.2)
+                      : withOpacity(accent, 0.1),
+                    borderColor: withOpacity(borderColor, 0.5),
+                  },
+                ]}
+              >
+                {uploadingImage ? (
+                  <ActivityIndicator size="small" color={accent} />
+                ) : (
+                  <>
+                    <Icon name="image" color={accent} size={18} />
+                    <Text style={[styles.uploadButtonText, { color: accent }]}>
+                      {tipFormData.image_url ? 'Change Photo' : 'Upload Photo'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <Text style={[styles.formLabel, { color: primaryFont }]}>YouTube Video URL (Optional)</Text>
+              <TextInput
+                style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
+                value={tipFormData.youtube_url}
+                onChangeText={(text) => setTipFormData((prev) => ({ ...prev, youtube_url: text }))}
+                placeholder="https://www.youtube.com/watch?v=example"
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+
+              <Text style={[styles.formLabel, { color: primaryFont }]}>Display Order</Text>
+              <TextInput
+                style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
+                value={String(tipFormData.display_order)}
+                onChangeText={(text) => {
+                  const order = parseInt(text, 10);
+                  setTipFormData((prev) => ({ ...prev, display_order: isNaN(order) ? 0 : order }));
+                }}
+                placeholder="0"
+                keyboardType="numeric"
+              />
+
+              <View style={styles.checkboxRow}>
+                <TouchableOpacity
+                  onPress={() => setTipFormData((prev) => ({ ...prev, enabled: !prev.enabled }))}
+                  style={styles.checkboxContainer}
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      {
+                        backgroundColor: tipFormData.enabled ? accent : 'transparent',
+                        borderColor: withOpacity(borderColor, 0.5),
+                      },
+                    ]}
+                  >
+                    {tipFormData.enabled && <Icon name="check" color={colors.accentContrast || '#FFFFFF'} size={14} />}
+                  </View>
+                  <Text style={[styles.checkboxLabel, { color: primaryFont }]}>Enabled</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                onPress={() => setShowTipForm(false)}
+                style={[styles.cancelButton, { borderColor: withOpacity(borderColor, 0.5) }]}
+              >
+                <Text style={[styles.cancelButtonText, { color: primaryFont }]}>Cancel</Text>
+              </TouchableOpacity>
+              <PrimaryButton
+                label={editingTip ? 'Update' : 'Create'}
+                onPress={handleSaveTip}
+                disabled={!tipFormData.title.trim() || !tipFormData.description.trim()}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1054,6 +1532,95 @@ function createStyles(colors) {
     workloadSection: {
       gap: 18,
       padding: 16,
+    },
+    tipsSection: {
+      padding: 20,
+      gap: 16,
+    },
+    tipsList: {
+      gap: 12,
+    },
+    tipCard: {
+      borderRadius: 12,
+      borderWidth: 1,
+      padding: 16,
+      gap: 12,
+    },
+    tipCardHeader: {
+      gap: 8,
+    },
+    tipCardTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    tipTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      flex: 1,
+    },
+    tipDescription: {
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    tipImagePreview: {
+      marginTop: 8,
+      borderRadius: 8,
+      overflow: 'hidden',
+      width: '100%',
+      height: 120,
+    },
+    tipImageThumbnail: {
+      width: '100%',
+      height: '100%',
+    },
+    tipYoutube: {
+      fontSize: 12,
+      marginTop: 4,
+    },
+    tipActions: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 4,
+    },
+    imagePreviewContainer: {
+      position: 'relative',
+      marginBottom: 12,
+      borderRadius: 8,
+      overflow: 'hidden',
+      width: '100%',
+      height: 200,
+    },
+    imagePreview: {
+      width: '100%',
+      height: '100%',
+    },
+    removeImageButton: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      borderRadius: 16,
+      width: 32,
+      height: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    uploadButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      borderWidth: 1,
+      gap: 8,
+      marginBottom: 8,
+    },
+    uploadButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
     },
     workloadInfo: {
       gap: 12,
@@ -1241,6 +1808,10 @@ function createStyles(colors) {
       borderRadius: 8,
       padding: 12,
       fontSize: 14,
+    },
+    formTextArea: {
+      minHeight: 80,
+      textAlignVertical: 'top',
     },
     typeButtons: {
       flexDirection: 'row',

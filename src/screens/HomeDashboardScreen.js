@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -17,6 +17,7 @@ import { useAppState } from '../context/AppContext';
 import Icon from '../icons/Icon';
 import { logEvent } from '../utils/analytics';
 import { withOpacity } from '../utils/color';
+import { getEnabledTips } from '../services/tipsService';
 
 const CTA_LABEL = 'Create Nail Set';
 
@@ -57,20 +58,26 @@ function HomeDashboardScreen() {
     return list.slice(0, 3);
   }, [state.activeOrder, state.lastCompletedOrder]);
 
-  const tips = [
-    {
-      id: 'tip1',
-      title: 'How to prep your nails',
-      copy: 'Cleanse with alcohol wipes before applying press-ons for longer wear. Watch this video for a step-by-step guide: https://www.youtube.com/watch?v=example1',
-      image: 'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=400&h=300&fit=crop', // Temporary placeholder - replace with actual image
-    },
-    {
-      id: 'tip2',
-      title: 'How to glue your nails',
-      copy: 'Learn the best techniques for applying glue and securing your press-ons. Watch this video tutorial: https://www.youtube.com/watch?v=example2',
-      image: 'https://images.unsplash.com/photo-1522338242992-e1a54906a8da?w=400&h=300&fit=crop', // Temporary placeholder - replace with actual image
-    },
-  ];
+  const [tips, setTips] = useState([]);
+  const [tipsLoading, setTipsLoading] = useState(true);
+
+  useEffect(() => {
+    loadTips();
+  }, []);
+
+  const loadTips = async () => {
+    try {
+      setTipsLoading(true);
+      const enabledTips = await getEnabledTips();
+      setTips(enabledTips || []);
+    } catch (error) {
+      console.error('[HomeDashboard] Error loading tips:', error);
+      // Fallback to empty array on error
+      setTips([]);
+    } finally {
+      setTipsLoading(false);
+    }
+  };
 
   // Calculate notification count for badge
   const notificationCount = useMemo(() => {
@@ -102,35 +109,22 @@ function HomeDashboardScreen() {
     }
   };
 
-  // Helper function to extract URL from tip copy text
-  const extractUrlFromText = (text) => {
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const match = text.match(urlRegex);
-    return match ? match[0] : null;
-  };
-
-  // Helper function to render tip copy with clickable links
-  const renderTipCopy = (copy) => {
-    const url = extractUrlFromText(copy);
-    if (!url) {
-      return <Text style={[styles.tipCopy, { color: colors.secondaryFont }]}>{copy}</Text>;
+  // Helper function to render tip description with optional YouTube link
+  const renderTipDescription = (description, youtubeUrl) => {
+    if (!youtubeUrl) {
+      return <Text style={[styles.tipCopy, { color: colors.secondaryFont }]}>{description}</Text>;
     }
-
-    // Split text around the URL and render with a clickable link
-    const parts = copy.split(url);
-    const beforeUrl = parts[0];
-    const afterUrl = parts.slice(1).join(url); // In case URL appears multiple times
 
     return (
       <Text style={[styles.tipCopy, { color: colors.secondaryFont }]}>
-        {beforeUrl}
+        {description}
+        {' '}
         <Text
           style={[styles.tipLink, { color: accentColor }]}
-          onPress={() => handleOpenUrl(url)}
+          onPress={() => handleOpenUrl(youtubeUrl)}
         >
           Watch this video
         </Text>
-        {afterUrl}
       </Text>
     );
   };
@@ -391,49 +385,59 @@ function HomeDashboardScreen() {
             Tips
           </Text>
         </View>
-        <FlatList
-          data={tips}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[
-            styles.tipsCarousel,
-            { paddingLeft: horizontalPadding },
-          ]}
-          snapToInterval={cardWidth + 12} // card width + gap
-          decelerationRate="fast"
-          pagingEnabled={false}
-          renderItem={({ item: tip }) => (
-            <View
-              style={[
-                styles.tipCard,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                  width: cardWidth,
-                },
-              ]}
-            >
-              {tip.image ? (
-                <Image
-                  source={{ uri: tip.image }}
-                  style={styles.tipImage}
-                  resizeMode="cover"
-                />
-              ) : null}
-              <Text
+        {tipsLoading ? (
+          <View style={styles.tipsLoadingContainer}>
+            <Text style={[styles.tipsLoadingText, { color: colors.secondaryFont }]}>Loading tips...</Text>
+          </View>
+        ) : tips.length === 0 ? (
+          <View style={styles.tipsEmptyContainer}>
+            <Text style={[styles.tipsEmptyText, { color: colors.secondaryFont }]}>No tips available</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={tips}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={[
+              styles.tipsCarousel,
+              { paddingLeft: horizontalPadding },
+            ]}
+            snapToInterval={cardWidth + 12} // card width + gap
+            decelerationRate="fast"
+            pagingEnabled={false}
+            renderItem={({ item: tip }) => (
+              <View
                 style={[
-                  styles.tipTitle,
-                  { color: colors.primaryFont },
+                  styles.tipCard,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    width: cardWidth,
+                  },
                 ]}
-                numberOfLines={1}
               >
-                {tip.title}
-              </Text>
-              {renderTipCopy(tip.copy)}
-            </View>
-          )}
-        />
+                {tip.image_url ? (
+                  <Image
+                    source={{ uri: tip.image_url }}
+                    style={styles.tipImage}
+                    resizeMode="cover"
+                  />
+                ) : null}
+                <Text
+                  style={[
+                    styles.tipTitle,
+                    { color: colors.primaryFont },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {tip.title}
+                </Text>
+                {renderTipDescription(tip.description, tip.youtube_url)}
+              </View>
+            )}
+          />
+        )}
     </ScrollView>
   );
 }
@@ -575,6 +579,20 @@ const styles = StyleSheet.create({
   tipsCarousel: {
     paddingVertical: 4,
     gap: 12,
+  },
+  tipsLoadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  tipsLoadingText: {
+    fontSize: 14,
+  },
+  tipsEmptyContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  tipsEmptyText: {
+    fontSize: 14,
   },
   tipCard: {
     borderRadius: 18,
