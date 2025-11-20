@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -115,6 +116,8 @@ function AdminPanelScreen({ navigation }) {
     allow_dismiss: true,
     status: 'draft',
   });
+  const [tempSendAtDate, setTempSendAtDate] = useState({ date: '', time: '' });
+  const [tempExpireAtDate, setTempExpireAtDate] = useState({ date: '', time: '' });
 
   // Form state
   const [formData, setFormData] = useState({
@@ -180,6 +183,19 @@ function AdminPanelScreen({ navigation }) {
       Alert.alert('Error', 'Failed to load promo codes. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadNotifications = async () => {
+    try {
+      setNotificationsLoading(true);
+      const notifs = await getAllGlobalNotifications();
+      setNotifications(notifs || []);
+    } catch (error) {
+      console.error('[AdminPanel] Error loading notifications:', error);
+      Alert.alert('Error', 'Failed to load notifications. Please try again.');
+    } finally {
+      setNotificationsLoading(false);
     }
   };
 
@@ -609,6 +625,141 @@ function AdminPanelScreen({ navigation }) {
     );
   };
 
+  // Notification handlers
+  const handleCreateNotification = () => {
+    setEditingNotification(null);
+    const now = new Date();
+    setNotificationFormData({
+      title: '',
+      message: '',
+      youtube_url: '',
+      audience: 'all',
+      send_at: '',
+      expire_at: '',
+      is_sticky: false,
+      allow_dismiss: true,
+      status: 'draft',
+    });
+    setTempSendAtDate({ date: '', time: '' });
+    setTempExpireAtDate({ date: '', time: '' });
+    setShowNotificationForm(true);
+  };
+
+  const handleEditNotification = (notification) => {
+    setEditingNotification(notification);
+    const sendAtDateStr = notification.send_at ? new Date(notification.send_at).toISOString().slice(0, 10) : '';
+    const sendAtTimeStr = notification.send_at ? new Date(notification.send_at).toTimeString().slice(0, 5) : '';
+    const expireAtDateStr = notification.expire_at ? new Date(notification.expire_at).toISOString().slice(0, 10) : '';
+    const expireAtTimeStr = notification.expire_at ? new Date(notification.expire_at).toTimeString().slice(0, 5) : '';
+    setNotificationFormData({
+      title: notification.title || '',
+      message: notification.message || '',
+      youtube_url: notification.youtube_url || '',
+      audience: notification.audience || 'all',
+      send_at: notification.send_at ? new Date(notification.send_at).toISOString().slice(0, 16) : '',
+      expire_at: notification.expire_at ? new Date(notification.expire_at).toISOString().slice(0, 16) : '',
+      is_sticky: notification.is_sticky || false,
+      allow_dismiss: notification.allow_dismiss !== false,
+      status: notification.status || 'draft',
+    });
+    setTempSendAtDate({ date: sendAtDateStr, time: sendAtTimeStr });
+    setTempExpireAtDate({ date: expireAtDateStr, time: expireAtTimeStr });
+    setShowNotificationForm(true);
+  };
+
+  const handleSaveNotification = async () => {
+    try {
+      if (!notificationFormData.title || !notificationFormData.message) {
+        Alert.alert('Error', 'Title and message are required.');
+        return;
+      }
+
+      const adminId = state.currentUser?.id;
+      if (!adminId) {
+        Alert.alert('Error', 'Admin user ID not found');
+        return;
+      }
+
+      // Format dates for API
+      const sendAt = notificationFormData.send_at
+        ? new Date(notificationFormData.send_at).toISOString()
+        : null;
+      const expireAt = notificationFormData.expire_at
+        ? new Date(notificationFormData.expire_at).toISOString()
+        : null;
+
+      if (editingNotification) {
+        await updateGlobalNotification(editingNotification.id, {
+          title: notificationFormData.title,
+          message: notificationFormData.message,
+          youtubeUrl: notificationFormData.youtube_url || null,
+          audience: notificationFormData.audience,
+          sendAt,
+          expireAt,
+          isSticky: notificationFormData.is_sticky,
+          allowDismiss: notificationFormData.allow_dismiss,
+          status: notificationFormData.status,
+        });
+        setConfirmation('Notification updated');
+      } else {
+        await createGlobalNotification({
+          title: notificationFormData.title,
+          message: notificationFormData.message,
+          youtubeUrl: notificationFormData.youtube_url || null,
+          audience: notificationFormData.audience,
+          sendAt,
+          expireAt,
+          isSticky: notificationFormData.is_sticky,
+          allowDismiss: notificationFormData.allow_dismiss,
+          status: notificationFormData.status,
+          createdByAdminId: adminId,
+        });
+        setConfirmation('Notification created');
+      }
+
+      setShowNotificationForm(false);
+      await loadNotifications();
+    } catch (error) {
+      console.error('[AdminPanel] Error saving notification:', error);
+      Alert.alert('Error', error.message || 'Failed to save notification. Please try again.');
+    }
+  };
+
+  const handleDeleteNotification = (notification) => {
+    Alert.alert(
+      'Delete Notification',
+      `Are you sure you want to delete "${notification.title}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteGlobalNotification(notification.id);
+              await loadNotifications();
+              setConfirmation('Notification deleted');
+            } catch (error) {
+              console.error('[AdminPanel] Error deleting notification:', error);
+              Alert.alert('Error', 'Failed to delete notification. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleToggleNotificationStatus = async (notification, newStatus) => {
+    try {
+      await updateGlobalNotification(notification.id, { status: newStatus });
+      await loadNotifications();
+      setConfirmation(`Notification ${newStatus}`);
+    } catch (error) {
+      console.error('[AdminPanel] Error updating notification status:', error);
+      Alert.alert('Error', 'Failed to update notification status. Please try again.');
+    }
+  };
+
   if (!isAdmin) {
     return null;
   }
@@ -654,6 +805,20 @@ function AdminPanelScreen({ navigation }) {
       },
     },
     {
+      key: 'notifications',
+      title: 'Manage Notifications',
+      description: 'Create and schedule global notifications',
+      icon: 'bell',
+      expandable: true,
+      expanded: notificationsExpanded,
+      onPress: () => {
+        setNotificationsExpanded((prev) => !prev);
+        if (!notificationsExpanded) {
+          loadNotifications();
+        }
+      },
+    },
+    {
       key: 'tips',
       title: 'Manage Tips',
       description: 'Configure tips displayed on home screen',
@@ -675,6 +840,54 @@ function AdminPanelScreen({ navigation }) {
   const borderColor = colors.border || '#D9C8A9';
   const accent = colors.accent || '#6F171F';
   const warningColor = colors.warning || '#FF9800';
+
+  // Helper functions for notifications
+  const formatStatus = (status) => {
+    const statusMap = {
+      draft: 'Draft',
+      scheduled: 'Scheduled',
+      published: 'Published',
+      paused: 'Paused',
+      archived: 'Archived',
+    };
+    return statusMap[status] || status;
+  };
+
+  const formatAudience = (audience) => {
+    const audienceMap = {
+      all: 'All users',
+      active_orders: 'Users with active orders',
+      no_orders: 'Users with no orders',
+    };
+    return audienceMap[audience] || audience;
+  };
+
+  const getStatusColor = (status, accentColor, warningColor, secondaryFontColor) => {
+    switch (status) {
+      case 'published':
+        return withOpacity(accentColor, 0.1);
+      case 'scheduled':
+        return withOpacity(warningColor, 0.1);
+      case 'paused':
+        return withOpacity(warningColor, 0.1);
+      case 'archived':
+        return withOpacity(secondaryFontColor, 0.1);
+      default:
+        return withOpacity(borderColor, 0.2);
+    }
+  };
+
+  const getStatusTextColor = (status, accentColor, warningColor) => {
+    switch (status) {
+      case 'published':
+        return accentColor;
+      case 'scheduled':
+      case 'paused':
+        return warningColor;
+      default:
+        return secondaryFont;
+    }
+  };
 
   // If User Detail view is active, render it inline
   if (activeView === 'userDetail' && selectedUserId) {
@@ -1112,6 +1325,122 @@ function AdminPanelScreen({ navigation }) {
                       )}
                     </View>
                   ) : null}
+
+                  {item.key === 'notifications' ? (
+                    <View style={styles.notificationsSection}>
+                      <View style={styles.sectionHeaderRow}>
+                        <Text style={[styles.sectionTitle, { color: primaryFont }]}>Global Notifications</Text>
+                        <TouchableOpacity
+                          onPress={handleCreateNotification}
+                          style={[styles.addButton, { backgroundColor: accent }]}
+                        >
+                          <Icon name="plus" color={colors.accentContrast || '#FFFFFF'} size={16} />
+                          <Text style={[styles.addButtonText, { color: colors.accentContrast || '#FFFFFF' }]}>
+                            Create
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {notificationsLoading ? (
+                        <ActivityIndicator size="large" color={accent} style={styles.loader} />
+                      ) : notifications.length === 0 ? (
+                        <Text style={[styles.emptyText, { color: secondaryFont }]}>
+                          No notifications yet. Create one to get started.
+                        </Text>
+                      ) : (
+                        <View style={styles.notificationsList}>
+                          {notifications.map((notification) => (
+                            <View
+                              key={notification.id}
+                              style={[
+                                styles.notificationCard,
+                                {
+                                  backgroundColor: surface,
+                                  borderColor: withOpacity(borderColor, 0.5),
+                                },
+                              ]}
+                            >
+                              <View style={styles.notificationCardHeader}>
+                                <View style={styles.notificationCardTitleRow}>
+                                  <Text style={[styles.notificationTitle, { color: primaryFont }]}>
+                                    {notification.title}
+                                  </Text>
+                                  <View style={styles.notificationStatusRow}>
+                                    <TouchableOpacity
+                                      onPress={() => {
+                                        const statuses = ['draft', 'scheduled', 'published', 'paused', 'archived'];
+                                        const currentIndex = statuses.indexOf(notification.status);
+                                        const nextStatus = statuses[(currentIndex + 1) % statuses.length];
+                                        handleToggleNotificationStatus(notification, nextStatus);
+                                      }}
+                                      style={[
+                                        styles.statusButton,
+                                        {
+                                          backgroundColor: getStatusColor(notification.status, accent, warningColor, secondaryFont),
+                                        },
+                                      ]}
+                                    >
+                                      <Text
+                                        style={[
+                                          styles.statusButtonText,
+                                          {
+                                            color: getStatusTextColor(notification.status, accent, warningColor),
+                                          },
+                                        ]}
+                                      >
+                                        {formatStatus(notification.status)}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  </View>
+                                </View>
+                                <Text style={[styles.notificationMessage, { color: secondaryFont }]} numberOfLines={2}>
+                                  {notification.message}
+                                </Text>
+                                <View style={styles.notificationMeta}>
+                                  <Text style={[styles.notificationMetaText, { color: secondaryFont }]}>
+                                    Audience: {formatAudience(notification.audience)}
+                                  </Text>
+                                  {notification.send_at && (
+                                    <Text style={[styles.notificationMetaText, { color: secondaryFont }]}>
+                                      Send: {new Date(notification.send_at).toLocaleString()}
+                                    </Text>
+                                  )}
+                                  {notification.expire_at && (
+                                    <Text style={[styles.notificationMetaText, { color: secondaryFont }]}>
+                                      Expire: {new Date(notification.expire_at).toLocaleString()}
+                                    </Text>
+                                  )}
+                                  {notification.is_sticky && (
+                                    <Text style={[styles.notificationMetaText, { color: accent }]}>📌 Sticky</Text>
+                                  )}
+                                  {!notification.allow_dismiss && (
+                                    <Text style={[styles.notificationMetaText, { color: warningColor }]}>🔒 No dismiss</Text>
+                                  )}
+                                </View>
+                              </View>
+
+                              <View style={styles.notificationActions}>
+                                <TouchableOpacity
+                                  onPress={() => handleEditNotification(notification)}
+                                  style={[styles.actionButton, { borderColor: withOpacity(borderColor, 0.5) }]}
+                                >
+                                  <Text style={[styles.actionButtonText, { color: primaryFont }]}>Edit</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  onPress={() => handleDeleteNotification(notification)}
+                                  style={[styles.actionButton, { borderColor: withOpacity(colors.error || '#B33A3A', 0.5) }]}
+                                >
+                                  <Text style={[styles.actionButtonText, { color: colors.error || '#B33A3A' }]}>
+                                    Delete
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  ) : null}
                 </View>
               ) : null}
             </View>
@@ -1431,6 +1760,268 @@ function AdminPanelScreen({ navigation }) {
                 label={editingTip ? 'Update' : 'Create'}
                 onPress={handleSaveTip}
                 disabled={!tipFormData.title.trim() || !tipFormData.description.trim()}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Notification Form Modal */}
+      <Modal visible={showNotificationForm} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: surface }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: primaryFont }]}>
+                {editingNotification ? 'Edit Notification' : 'Create Notification'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowNotificationForm(false)}>
+                <Icon name="close" color={primaryFont} size={24} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.formContent}>
+              <Text style={[styles.formLabel, { color: primaryFont }]}>Title *</Text>
+              <TextInput
+                style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
+                value={notificationFormData.title}
+                onChangeText={(text) => setNotificationFormData((prev) => ({ ...prev, title: text }))}
+                placeholder="New promotion available"
+              />
+
+              <Text style={[styles.formLabel, { color: primaryFont }]}>Message *</Text>
+              <TextInput
+                style={[styles.formInput, styles.formTextArea, { borderColor: withOpacity(borderColor, 0.5) }]}
+                value={notificationFormData.message}
+                onChangeText={(text) => setNotificationFormData((prev) => ({ ...prev, message: text }))}
+                placeholder="Get 20% off your next order with code SAVE20"
+                multiline
+                numberOfLines={4}
+              />
+
+              <Text style={[styles.formLabel, { color: primaryFont }]}>YouTube URL (optional)</Text>
+              <TextInput
+                style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
+                value={notificationFormData.youtube_url}
+                onChangeText={(text) => setNotificationFormData((prev) => ({ ...prev, youtube_url: text }))}
+                placeholder="https://www.youtube.com/watch?v=..."
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+
+              <Text style={[styles.formLabel, { color: primaryFont }]}>Audience *</Text>
+              <View style={styles.typeButtons}>
+                {[
+                  { value: 'all', label: 'All users' },
+                  { value: 'active_orders', label: 'Users with active orders' },
+                  { value: 'no_orders', label: 'Users with no orders' },
+                ].map((audience) => (
+                  <TouchableOpacity
+                    key={audience.value}
+                    onPress={() => setNotificationFormData((prev) => ({ ...prev, audience: audience.value }))}
+                    style={[
+                      styles.typeButton,
+                      {
+                        backgroundColor:
+                          notificationFormData.audience === audience.value
+                            ? withOpacity(accent, 0.1)
+                            : withOpacity(borderColor, 0.2),
+                        borderColor:
+                          notificationFormData.audience === audience.value ? accent : withOpacity(borderColor, 0.5),
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.typeButtonText,
+                        {
+                          color: notificationFormData.audience === audience.value ? accent : primaryFont,
+                        },
+                      ]}
+                    >
+                      {audience.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.formLabel, { color: primaryFont }]}>Send At (optional)</Text>
+              <View style={styles.dateTimeRow}>
+                <View style={styles.dateTimeInputWrapper}>
+                  <Text style={[styles.dateTimeLabel, { color: secondaryFont }]}>Date</Text>
+                  <TextInput
+                    style={[styles.formInput, styles.dateTimeInput, { borderColor: withOpacity(borderColor, 0.5) }]}
+                    value={tempSendAtDate.date || (notificationFormData.send_at ? new Date(notificationFormData.send_at).toISOString().slice(0, 10) : '')}
+                    onChangeText={(text) => {
+                      setTempSendAtDate((prev) => ({ ...prev, date: text }));
+                      if (text && tempSendAtDate.time) {
+                        const dateTime = `${text}T${tempSendAtDate.time}`;
+                        setNotificationFormData((prev) => ({ ...prev, send_at: dateTime }));
+                      } else if (text) {
+                        setNotificationFormData((prev) => ({ ...prev, send_at: `${text}T00:00` }));
+                      }
+                    }}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={secondaryFont}
+                  />
+                </View>
+                <View style={styles.dateTimeInputWrapper}>
+                  <Text style={[styles.dateTimeLabel, { color: secondaryFont }]}>Time</Text>
+                  <TextInput
+                    style={[styles.formInput, styles.dateTimeInput, { borderColor: withOpacity(borderColor, 0.5) }]}
+                    value={tempSendAtDate.time || (notificationFormData.send_at ? new Date(notificationFormData.send_at).toTimeString().slice(0, 5) : '')}
+                    onChangeText={(text) => {
+                      setTempSendAtDate((prev) => ({ ...prev, time: text }));
+                      if (text && tempSendAtDate.date) {
+                        const dateTime = `${tempSendAtDate.date}T${text}`;
+                        setNotificationFormData((prev) => ({ ...prev, send_at: dateTime }));
+                      } else if (text && notificationFormData.send_at) {
+                        const currentDate = notificationFormData.send_at.split('T')[0];
+                        setNotificationFormData((prev) => ({ ...prev, send_at: `${currentDate}T${text}` }));
+                      }
+                    }}
+                    placeholder="HH:MM"
+                    placeholderTextColor={secondaryFont}
+                  />
+                </View>
+              </View>
+              <Text style={[styles.helpText, { color: secondaryFont, fontSize: 12, marginTop: 4 }]}>
+                Format: YYYY-MM-DD and HH:MM (24-hour)
+              </Text>
+
+              <Text style={[styles.formLabel, { color: primaryFont }]}>Expire At (optional)</Text>
+              <View style={styles.dateTimeRow}>
+                <View style={styles.dateTimeInputWrapper}>
+                  <Text style={[styles.dateTimeLabel, { color: secondaryFont }]}>Date</Text>
+                  <TextInput
+                    style={[styles.formInput, styles.dateTimeInput, { borderColor: withOpacity(borderColor, 0.5) }]}
+                    value={tempExpireAtDate.date || (notificationFormData.expire_at ? new Date(notificationFormData.expire_at).toISOString().slice(0, 10) : '')}
+                    onChangeText={(text) => {
+                      setTempExpireAtDate((prev) => ({ ...prev, date: text }));
+                      if (text && tempExpireAtDate.time) {
+                        const dateTime = `${text}T${tempExpireAtDate.time}`;
+                        setNotificationFormData((prev) => ({ ...prev, expire_at: dateTime }));
+                      } else if (text) {
+                        setNotificationFormData((prev) => ({ ...prev, expire_at: `${text}T00:00` }));
+                      }
+                    }}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={secondaryFont}
+                  />
+                </View>
+                <View style={styles.dateTimeInputWrapper}>
+                  <Text style={[styles.dateTimeLabel, { color: secondaryFont }]}>Time</Text>
+                  <TextInput
+                    style={[styles.formInput, styles.dateTimeInput, { borderColor: withOpacity(borderColor, 0.5) }]}
+                    value={tempExpireAtDate.time || (notificationFormData.expire_at ? new Date(notificationFormData.expire_at).toTimeString().slice(0, 5) : '')}
+                    onChangeText={(text) => {
+                      setTempExpireAtDate((prev) => ({ ...prev, time: text }));
+                      if (text && tempExpireAtDate.date) {
+                        const dateTime = `${tempExpireAtDate.date}T${text}`;
+                        setNotificationFormData((prev) => ({ ...prev, expire_at: dateTime }));
+                      } else if (text && notificationFormData.expire_at) {
+                        const currentDate = notificationFormData.expire_at.split('T')[0];
+                        setNotificationFormData((prev) => ({ ...prev, expire_at: `${currentDate}T${text}` }));
+                      }
+                    }}
+                    placeholder="HH:MM"
+                    placeholderTextColor={secondaryFont}
+                  />
+                </View>
+              </View>
+              <Text style={[styles.helpText, { color: secondaryFont, fontSize: 12, marginTop: 4 }]}>
+                Format: YYYY-MM-DD and HH:MM (24-hour)
+              </Text>
+
+              <Text style={[styles.formLabel, { color: primaryFont }]}>Status *</Text>
+              <View style={styles.typeButtons}>
+                {['draft', 'scheduled', 'published', 'paused', 'archived'].map((status) => (
+                  <TouchableOpacity
+                    key={status}
+                    onPress={() => setNotificationFormData((prev) => ({ ...prev, status }))}
+                    style={[
+                      styles.typeButton,
+                      {
+                        backgroundColor:
+                          notificationFormData.status === status
+                            ? withOpacity(accent, 0.1)
+                            : withOpacity(borderColor, 0.2),
+                        borderColor:
+                          notificationFormData.status === status ? accent : withOpacity(borderColor, 0.5),
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.typeButtonText,
+                        {
+                          color: notificationFormData.status === status ? accent : primaryFont,
+                        },
+                      ]}
+                    >
+                      {formatStatus(status)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.checkboxRow}>
+                <TouchableOpacity
+                  onPress={() => setNotificationFormData((prev) => ({ ...prev, is_sticky: !prev.is_sticky }))}
+                  style={styles.checkboxContainer}
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      {
+                        backgroundColor: notificationFormData.is_sticky ? accent : 'transparent',
+                        borderColor: withOpacity(borderColor, 0.5),
+                      },
+                    ]}
+                  >
+                    {notificationFormData.is_sticky && (
+                      <Icon name="check" color={colors.accentContrast || '#FFFFFF'} size={14} />
+                    )}
+                  </View>
+                  <Text style={[styles.checkboxLabel, { color: primaryFont }]}>Sticky (pin to top)</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.checkboxRow}>
+                <TouchableOpacity
+                  onPress={() =>
+                    setNotificationFormData((prev) => ({ ...prev, allow_dismiss: !prev.allow_dismiss }))
+                  }
+                  style={styles.checkboxContainer}
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      {
+                        backgroundColor: notificationFormData.allow_dismiss ? accent : 'transparent',
+                        borderColor: withOpacity(borderColor, 0.5),
+                      },
+                    ]}
+                  >
+                    {notificationFormData.allow_dismiss && (
+                      <Icon name="check" color={colors.accentContrast || '#FFFFFF'} size={14} />
+                    )}
+                  </View>
+                  <Text style={[styles.checkboxLabel, { color: primaryFont }]}>Allow dismiss</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                onPress={() => setShowNotificationForm(false)}
+                style={[styles.cancelButton, { borderColor: withOpacity(borderColor, 0.5) }]}
+              >
+                <Text style={[styles.cancelButtonText, { color: primaryFont }]}>Cancel</Text>
+              </TouchableOpacity>
+              <PrimaryButton
+                label={editingNotification ? 'Update' : 'Create'}
+                onPress={handleSaveNotification}
+                disabled={!notificationFormData.title.trim() || !notificationFormData.message.trim()}
               />
             </View>
           </View>
@@ -1894,6 +2485,82 @@ function createStyles(colors) {
     cancelButtonText: {
       fontSize: 14,
       fontWeight: '600',
+    },
+    dateTimeRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 4,
+    },
+    dateTimeInputWrapper: {
+      flex: 1,
+    },
+    dateTimeLabel: {
+      fontSize: 12,
+      marginBottom: 4,
+      fontWeight: '500',
+    },
+    dateTimeInput: {
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 14,
+    },
+    notificationsSection: {
+      padding: 20,
+      gap: 16,
+    },
+    notificationsList: {
+      gap: 12,
+    },
+    notificationCard: {
+      padding: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      marginBottom: 12,
+    },
+    notificationCardHeader: {
+      marginBottom: 12,
+    },
+    notificationCardTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+      gap: 8,
+    },
+    notificationTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      flex: 1,
+    },
+    notificationStatusRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    statusButton: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    statusButtonText: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    notificationMessage: {
+      fontSize: 14,
+      marginBottom: 8,
+      lineHeight: 20,
+    },
+    notificationMeta: {
+      gap: 4,
+      marginTop: 8,
+    },
+    notificationMetaText: {
+      fontSize: 12,
+    },
+    notificationActions: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 12,
     },
   });
 }

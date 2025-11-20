@@ -370,8 +370,9 @@ export async function updateGlobalNotification(notificationId, updates) {
       throw error;
     }
 
-    // If status changed to 'published' or 'scheduled', create recipients if needed
-    if ((updates.status === 'published' || updates.status === 'scheduled') && data.send_at && new Date(data.send_at) <= new Date()) {
+    // If status changed to 'published', always create recipients (regardless of send_at)
+    // If status changed to 'scheduled' and send_at is now or in the past, create recipients
+    if (updates.status === 'published' || (updates.status === 'scheduled' && data.send_at && new Date(data.send_at) <= new Date())) {
       // Check if recipients already exist
       const { count } = await supabase
         .from('notification_recipients')
@@ -379,10 +380,14 @@ export async function updateGlobalNotification(notificationId, updates) {
         .eq('notification_id', notificationId);
 
       if (count === 0) {
-        await supabase.rpc('create_global_notification_recipients', {
+        const { error: recipientsError } = await supabase.rpc('create_global_notification_recipients', {
           p_notification_id: notificationId,
           p_audience: data.audience || 'all',
         });
+        if (recipientsError) {
+          console.error('[notificationService] Error creating recipients:', recipientsError);
+          // Don't throw - notification was updated, recipients can be retried
+        }
       }
     }
 

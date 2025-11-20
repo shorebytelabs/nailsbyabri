@@ -335,7 +335,7 @@ function NotificationsScreen() {
                         style={styles.youtubeLink}
                       >
                         <Text style={[styles.youtubeLinkText, { color: accentColor }]}>
-                          Watch video →
+                          Watch this video
                         </Text>
                       </TouchableOpacity>
                     )}
