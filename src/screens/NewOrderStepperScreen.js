@@ -386,6 +386,7 @@ function NewOrderStepperScreen({ route }) {
   const [isPromoInputVisible, setPromoInputVisible] = useState(false);
   const [promoInputValue, setPromoInputValue] = useState('');
   const [saveAsDefault, setSaveAsDefault] = useState(false);
+  const [capacityInfo, setCapacityInfo] = useState(null);
 
   const savedSizeProfiles = useMemo(() => {
     const nailSizes = state?.preferences?.nailSizes;
@@ -486,6 +487,26 @@ function NewOrderStepperScreen({ route }) {
     logEvent('start_order_step', { step: STEP_DEFINITIONS[currentStep].key });
   }, [currentStep]);
 
+  // Fetch capacity info when on review step
+  useEffect(() => {
+    const currentStepKey = STEP_DEFINITIONS[currentStep]?.key;
+    if (currentStepKey === 'review') {
+      // Load capacity info when user reaches review step
+      const loadCapacityInfo = async () => {
+        try {
+          const { checkCapacityAvailability } = await import('../services/workloadService');
+          const info = await checkCapacityAvailability();
+          setCapacityInfo(info);
+        } catch (error) {
+          console.error('[NewOrderStepper] Failed to load capacity info:', error);
+          // Don't block user if capacity check fails
+          setCapacityInfo(null);
+        }
+      };
+      loadCapacityInfo();
+    }
+  }, [currentStep]);
+
   useEffect(() => {
     if (!toastMessage) {
       return undefined;
@@ -574,12 +595,15 @@ function NewOrderStepperScreen({ route }) {
   }, [orderDraft.sets.length, orderDraft.deliveryDetails?.method, orderDraft.deliveryDetails?.speed, orderDraft.promoCode, state.currentUser?.id]);
 
   const resumeFlag = Boolean(route?.params?.resume);
-  // Check if order is a draft (handle both old 'draft' and new 'Draft' formats)
-  const isDraftStatus = state.activeOrder?.status === 'draft' || 
-                        state.activeOrder?.status === 'Draft' ||
-                        (state.activeOrder?.status || '').toLowerCase() === 'draft';
-  const resumeDraft = resumeFlag && isDraftStatus ? state.activeOrder : null;
-  const stepperTitle = resumeDraft ? 'Edit Draft Order' : 'Design & Order Your Nails';
+  // Check if order is a draft or "Awaiting Submission" (both can be edited)
+  const orderStatusLower = (state.activeOrder?.status || '').toLowerCase();
+  const isDraftStatus = orderStatusLower === 'draft';
+  const isAwaitingSubmission = orderStatusLower === 'awaiting submission';
+  const isEditableOrder = isDraftStatus || isAwaitingSubmission;
+  const resumeDraft = resumeFlag && isEditableOrder ? state.activeOrder : null;
+  const stepperTitle = resumeDraft 
+    ? (isAwaitingSubmission ? 'Resubmit Order' : 'Edit Draft Order')
+    : 'Design & Order Your Nails';
 
   useEffect(() => {
     if (!resumeDraft) {
@@ -717,6 +741,14 @@ function NewOrderStepperScreen({ route }) {
     });
 
     const resolvedStepKey = (() => {
+      // Check if route params specify an initial step (e.g., for "Awaiting Submission" orders)
+      const initialStep = route?.params?.initialStep;
+      if (initialStep) {
+        const exists = STEP_DEFINITIONS.some((step) => step.key === initialStep);
+        if (exists) {
+          return initialStep;
+        }
+      }
       if (resumeDraft.resumeStepKey) {
         const exists = STEP_DEFINITIONS.some((step) => step.key === resumeDraft.resumeStepKey);
         if (exists) {
@@ -1097,13 +1129,70 @@ function NewOrderStepperScreen({ route }) {
         setCurrentStep(0);
         return;
       }
-      // When submitting an order, status is automatically set to "Submitted"
-      const payload = buildOrderPayload('Submitted');
+      
+      // Check capacity availability before submitting
+      const { checkCapacityAvailability, incrementWeeklyOrders, formatNextAvailability } = await import('../services/workloadService');
+      const capacityInfo = await checkCapacityAvailability();
+      
+      let orderStatus = 'Submitted';
+      let shouldIncrementCapacity = true;
+      
+      // If capacity is full, set status to "Awaiting Submission"
+      if (capacityInfo.isFull) {
+        orderStatus = 'Awaiting Submission';
+        shouldIncrementCapacity = false; // Don't increment capacity for awaiting submission orders
+      } else if (capacityInfo.available) {
+        // Capacity available - increment count when order is submitted
+        try {
+          await incrementWeeklyOrders();
+        } catch (capacityError) {
+          console.warn('[NewOrderStepper] Failed to increment capacity, but allowing submission:', capacityError);
+          // Continue with submission even if capacity increment fails
+        }
+      }
+      
+      // When submitting an order, status is set based on capacity
+      const payload = buildOrderPayload(orderStatus);
       const response = await createOrUpdateOrder(payload);
       setDraftOrderId(response.order.id);
       handleOrderComplete(response.order, 'default');
-      logEvent('complete_order', { order_id: response.order.id, variant: 'default' });
-      navigation.replace('OrderConfirmation', { order: response.order });
+      logEvent('complete_order', { order_id: response.order.id, variant: 'default', status: orderStatus });
+      
+      // If order is "Awaiting Submission", navigate to Orders tab with toast message
+      if (orderStatus === 'Awaiting Submission') {
+        // Calculate number of days until next availability
+        let daysUntilNext = 0;
+        if (capacityInfo.nextWeekStartDate) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const nextWeek = new Date(capacityInfo.nextWeekStartDate);
+          nextWeek.setHours(0, 0, 0, 0);
+          daysUntilNext = Math.ceil((nextWeek - today) / (1000 * 60 * 60 * 24));
+        }
+        
+        const toastMessage = `Your order is in Awaiting Submission! Come back in ${daysUntilNext} day${daysUntilNext !== 1 ? 's' : ''} to submit it when availability opens.`;
+        
+        // Navigate to Orders tab with toast message in params
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'MainTabs',
+              state: {
+                index: 2, // Orders tab index
+                routes: [
+                  { name: 'Home' },
+                  { name: 'Gallery' },
+                  { name: 'Orders', params: { toastMessage } },
+                ],
+              },
+            },
+          ],
+        });
+      } else {
+        // Normal submission - go to confirmation page
+        navigation.replace('OrderConfirmation', { order: response.order });
+      }
     } catch (err) {
       const message = err?.details?.error || err.message || 'Please try again.';
       Alert.alert('Unable to submit order', message);
@@ -1940,6 +2029,7 @@ function NewOrderStepperScreen({ route }) {
             onChangePromoInput={handleChangePromoInput}
             onApplyPromoCode={handleApplyPromoCode}
             onClearPromoCode={handleClearPromoCode}
+            capacityInfo={capacityInfo}
             />
           ) : null}
           </ScrollView>
@@ -3803,6 +3893,7 @@ function ReviewStep({
   onChangePromoInput = () => {},
   onApplyPromoCode = () => {},
   onClearPromoCode = () => {},
+  capacityInfo = null,
 }) {
   const {
     primaryFont = '#220707',
@@ -3811,6 +3902,7 @@ function ReviewStep({
     border = '#D9C8A9',
     surface = '#FFFFFF',
     surfaceMuted = '#F4EBE3',
+    warning: warningColor = '#FF9800',
   } = colors || {};
 
   const methodConfig = pricingConstants.DELIVERY_METHODS[deliveryDetails?.method] || null;
@@ -3829,6 +3921,28 @@ function ReviewStep({
         deliveryDetails.address.postalCode,
       ].filter(Boolean)
     : [];
+
+  // Import formatNextAvailability for capacity messaging
+  const formatNextAvailability = (nextWeekStartDate) => {
+    if (!nextWeekStartDate) return 'soon';
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const nextWeek = new Date(nextWeekStartDate);
+    nextWeek.setHours(0, 0, 0, 0);
+    
+    const daysDiff = Math.ceil((nextWeek - today) / (1000 * 60 * 60 * 24));
+    
+    if (daysDiff === 0) return 'today';
+    if (daysDiff === 1) return 'tomorrow';
+    if (daysDiff <= 7) return `in ${daysDiff} days`;
+    
+    return nextWeek.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: nextWeek.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
+    });
+  };
 
   return (
     <View style={styles.reviewContainer}>
@@ -4140,6 +4254,74 @@ function ReviewStep({
           ) : null}
         </View>
       </View>
+
+      {/* Capacity messaging - shown on review screen */}
+      {capacityInfo && (capacityInfo.isAlmostFull || capacityInfo.isFull) && (
+        <View
+          style={[
+            styles.capacityMessage,
+            {
+              borderColor: capacityInfo.isFull
+                ? withOpacity(warningColor || '#FF9800', 0.4)
+                : withOpacity(warningColor || '#FF9800', 0.3),
+              backgroundColor: capacityInfo.isFull
+                ? withOpacity(warningColor || '#FF9800', 0.08)
+                : withOpacity(warningColor || '#FF9800', 0.06),
+            },
+          ]}
+        >
+          {capacityInfo.isFull ? (
+            <>
+              <Text
+                style={[
+                  styles.capacityMessageTitle,
+                  { color: warningColor || '#FF9800' },
+                ]}
+              >
+                This Week Is Full!
+              </Text>
+              <Text
+                style={[
+                  styles.capacityMessageText,
+                  { color: secondaryFont },
+                ]}
+              >
+                Go ahead and submit! You'll need to submit again when the next window opens in{' '}
+                <Text style={{ fontWeight: '600' }}>
+                  {(() => {
+                    if (!capacityInfo.nextWeekStartDate) return 'soon';
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const nextWeek = new Date(capacityInfo.nextWeekStartDate);
+                    nextWeek.setHours(0, 0, 0, 0);
+                    const daysDiff = Math.ceil((nextWeek - today) / (1000 * 60 * 60 * 24));
+                    return `${daysDiff} day${daysDiff !== 1 ? 's' : ''}`;
+                  })()}
+                </Text>
+              </Text>
+            </>
+          ) : capacityInfo.isAlmostFull ? (
+            <>
+              <Text
+                style={[
+                  styles.capacityMessageTitle,
+                  { color: warningColor || '#FF9800' },
+                ]}
+              >
+                Limited Availability
+              </Text>
+              <Text
+                style={[
+                  styles.capacityMessageText,
+                  { color: secondaryFont },
+                ]}
+              >
+                Only {capacityInfo.remaining} order{capacityInfo.remaining !== 1 ? 's' : ''} remaining this week. Submit your order soon to secure yours.
+              </Text>
+            </>
+          ) : null}
+        </View>
+      )}
 
       <View style={styles.reviewSection}>
         <View style={styles.reviewSectionHeader}>
@@ -5116,6 +5298,20 @@ const styles = StyleSheet.create({
   },
   promoContainer: {
     gap: 8,
+  },
+  capacityMessage: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    padding: 14,
+    gap: 8,
+  },
+  capacityMessageTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  capacityMessageText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   promoBadgeRow: {
     flexDirection: 'row',

@@ -28,6 +28,14 @@ import {
   togglePromoCode,
   deletePromoCode,
 } from '../services/promoCodeService';
+import {
+  getWeeklyCapacity,
+  updateWeeklyCapacity,
+  resetCurrentWeekCount,
+  createNextWeekCapacity,
+  formatNextWeekStartForAdmin,
+  getNextWeekStartDateTime,
+} from '../services/workloadService';
 import PrimaryButton from '../components/PrimaryButton';
 import ManageUsersScreen from './ManageUsersScreen';
 import UserDetailScreen from './UserDetailScreen';
@@ -48,6 +56,14 @@ function AdminPanelScreen({ navigation }) {
   const [editingPromo, setEditingPromo] = useState(null);
   const [showPromoForm, setShowPromoForm] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
+  
+  // Workload state
+  const [workloadExpanded, setWorkloadExpanded] = useState(false);
+  const [workloadInfo, setWorkloadInfo] = useState(null);
+  const [workloadLoading, setWorkloadLoading] = useState(false);
+  const [capacityInput, setCapacityInput] = useState('');
+  const [savingCapacity, setSavingCapacity] = useState(false);
+  const [resettingWeek, setResettingWeek] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -84,7 +100,10 @@ function AdminPanelScreen({ navigation }) {
     if (promoCodesExpanded) {
       loadPromoCodes();
     }
-  }, [isAdmin, navigation, promoCodesExpanded, state.impersonating]);
+    if (workloadExpanded) {
+      loadWorkloadInfo();
+    }
+  }, [isAdmin, navigation, promoCodesExpanded, workloadExpanded, state.impersonating]);
 
   useEffect(() => {
     if (!confirmation) {
@@ -227,6 +246,112 @@ function AdminPanelScreen({ navigation }) {
     return types[type] || type;
   };
 
+  const loadWorkloadInfo = async () => {
+    try {
+      setWorkloadLoading(true);
+      const info = await getWeeklyCapacity();
+      setWorkloadInfo(info);
+      setCapacityInput(String(info.weeklyCapacity));
+    } catch (error) {
+      console.error('[AdminPanel] Error loading workload info:', error);
+      
+      // Check if table doesn't exist
+      if (error?.code === 'PGRST205') {
+        Alert.alert(
+          'Database Migration Required',
+          'The workload_capacity table does not exist yet. Please run the SQL migration script in your Supabase SQL Editor:\n\n' +
+          'File: docs/supabase-create-workload-capacity.sql\n\n' +
+          'After running the script, wait a few seconds for the schema cache to refresh, then try again.',
+          [
+            {
+              text: 'OK',
+              style: 'default',
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Error', error?.message || 'Failed to load workload information. Please try again.');
+      }
+    } finally {
+      setWorkloadLoading(false);
+    }
+  };
+
+  const handleUpdateCapacity = async () => {
+    const capacity = parseInt(capacityInput, 10);
+    if (isNaN(capacity) || capacity < 1) {
+      Alert.alert('Invalid Input', 'Please enter a valid capacity number (minimum 1).');
+      return;
+    }
+
+    try {
+      setSavingCapacity(true);
+      await updateWeeklyCapacity(capacity);
+      await loadWorkloadInfo();
+      setConfirmation('Weekly capacity updated');
+    } catch (error) {
+      console.error('[AdminPanel] Error updating capacity:', error);
+      Alert.alert('Error', error.message || 'Failed to update capacity. Please try again.');
+    } finally {
+      setSavingCapacity(false);
+    }
+  };
+
+  const handleResetWeekCount = async () => {
+    Alert.alert(
+      'Reset Week Count',
+      'This will reset the current week\'s order count to 0. This is useful for testing weekly resets.\n\n' +
+      'Note: This only resets the count for the current week. The capacity setting will remain unchanged.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setResettingWeek(true);
+              await resetCurrentWeekCount();
+              await loadWorkloadInfo();
+              setConfirmation('Week count reset to 0');
+            } catch (error) {
+              console.error('[AdminPanel] Error resetting week count:', error);
+              Alert.alert('Error', error.message || 'Failed to reset week count. Please try again.');
+            } finally {
+              setResettingWeek(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleCreateNextWeek = async () => {
+    Alert.alert(
+      'Create Next Week',
+      'This will create a capacity record for next week (starting Monday). This simulates what happens when the week automatically resets.\n\n' +
+      'The next week will inherit the current week\'s capacity setting and start with 0 orders.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Create',
+          onPress: async () => {
+            try {
+              setResettingWeek(true);
+              await createNextWeekCapacity();
+              await loadWorkloadInfo();
+              setConfirmation('Next week capacity created');
+            } catch (error) {
+              console.error('[AdminPanel] Error creating next week:', error);
+              Alert.alert('Error', error.message || 'Failed to create next week. Please try again.');
+            } finally {
+              setResettingWeek(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (!isAdmin) {
     return null;
   }
@@ -257,13 +382,20 @@ function AdminPanelScreen({ navigation }) {
         setActiveView('manageUsers');
       },
     },
-    // {
-    //   key: 'workloads',
-    //   title: 'Manage Workloads',
-    //   description: 'Track and manage production workloads',
-    //   icon: 'calendar',
-    //   onPress: () => navigation.navigate('AdminWorkloads'),
-    // },
+    {
+      key: 'workload',
+      title: 'Manage Workload',
+      description: 'Set weekly order capacity',
+      icon: 'note', // Using note icon as calendar icon doesn't exist
+      expandable: true,
+      expanded: workloadExpanded,
+      onPress: () => {
+        setWorkloadExpanded((prev) => !prev);
+        if (!workloadExpanded) {
+          loadWorkloadInfo();
+        }
+      },
+    },
   ];
 
   const primaryFont = colors.primaryFont || '#220707';
@@ -271,6 +403,7 @@ function AdminPanelScreen({ navigation }) {
   const surface = colors.surface || '#FFFFFF';
   const borderColor = colors.border || '#D9C8A9';
   const accent = colors.accent || '#6F171F';
+  const warningColor = colors.warning || '#FF9800';
 
   // If User Detail view is active, render it inline
   if (activeView === 'userDetail' && selectedUserId) {
@@ -466,6 +599,142 @@ function AdminPanelScreen({ navigation }) {
                           ))}
                         </View>
                       )}
+                    </View>
+                  ) : null}
+
+                  {item.key === 'workload' ? (
+                    <View style={styles.workloadSection}>
+                      <View style={styles.sectionHeaderRow}>
+                        <Text style={[styles.sectionTitle, { color: primaryFont }]}>Weekly Capacity</Text>
+                      </View>
+
+                      {workloadLoading ? (
+                        <ActivityIndicator size="large" color={accent} style={styles.loader} />
+                      ) : workloadInfo ? (
+                        <View style={styles.workloadInfo}>
+                          <View style={styles.workloadStatRow}>
+                            <Text style={[styles.workloadLabel, { color: secondaryFont }]}>Current Weekly Capacity:</Text>
+                            <Text style={[styles.workloadValue, { color: primaryFont }]}>
+                              {workloadInfo.weeklyCapacity} orders
+                            </Text>
+                          </View>
+                          <View style={styles.workloadStatRow}>
+                            <Text style={[styles.workloadLabel, { color: secondaryFont }]}>Orders Submitted This Week:</Text>
+                            <Text style={[styles.workloadValue, { color: primaryFont }]}>
+                              {workloadInfo.ordersCount}
+                            </Text>
+                          </View>
+                          <View style={styles.workloadStatRow}>
+                            <Text style={[styles.workloadLabel, { color: secondaryFont }]}>Remaining Capacity:</Text>
+                            <Text
+                              style={[
+                                styles.workloadValue,
+                                {
+                                  color:
+                                    workloadInfo.remaining <= 3
+                                      ? warningColor || '#FF9800'
+                                      : workloadInfo.remaining <= 0
+                                      ? colors.error || '#B33A3A'
+                                      : accent,
+                                  fontWeight: '700',
+                                },
+                              ]}
+                            >
+                              {workloadInfo.remaining} orders
+                            </Text>
+                          </View>
+                          <View style={styles.workloadStatRow}>
+                            <Text style={[styles.workloadLabel, { color: secondaryFont }]}>Current Week Start:</Text>
+                            <Text style={[styles.workloadValue, { color: primaryFont }]}>
+                              {workloadInfo.weekStart
+                                ? new Date(workloadInfo.weekStart).toLocaleDateString() + ' at 9:00 AM PST'
+                                : '—'}
+                            </Text>
+                          </View>
+                          <View style={styles.workloadStatRow}>
+                            <Text style={[styles.workloadLabel, { color: secondaryFont }]}>Next Week Opens:</Text>
+                            <Text style={[styles.workloadValue, { color: primaryFont, fontWeight: '700' }]}>
+                              {workloadInfo.nextWeekStart
+                                ? formatNextWeekStartForAdmin(getNextWeekStartDateTime())
+                                : '—'}
+                            </Text>
+                          </View>
+                        </View>
+                      ) : null}
+
+                      <View style={styles.workloadEditSection}>
+                        <Text style={[styles.formLabel, { color: primaryFont }]}>Update Weekly Capacity</Text>
+                        <View style={styles.capacityInputRow}>
+                          <TextInput
+                            style={[
+                              styles.capacityInput,
+                              {
+                                borderColor: withOpacity(borderColor, 0.5),
+                                color: primaryFont,
+                              },
+                            ]}
+                            value={capacityInput}
+                            onChangeText={setCapacityInput}
+                            placeholder="50"
+                            keyboardType="number-pad"
+                          />
+                          <PrimaryButton
+                            label={savingCapacity ? 'Saving...' : 'Save'}
+                            onPress={handleUpdateCapacity}
+                            disabled={savingCapacity || !capacityInput.trim()}
+                            style={styles.saveCapacityButton}
+                          />
+                        </View>
+                        <Text style={[styles.helpText, { color: secondaryFont }]}>
+                          Set how many orders can be accepted per week. Capacity resets automatically each Monday at 9:00 AM PST.
+                        </Text>
+                      </View>
+
+                      {/* Testing/Admin Controls */}
+                      <View style={styles.workloadTestingSection}>
+                        <Text style={[styles.testingSectionTitle, { color: primaryFont }]}>
+                          Testing Controls
+                        </Text>
+                        <Text style={[styles.helpText, { color: secondaryFont, marginBottom: 12 }]}>
+                          Use these controls to test weekly reset behavior without waiting for Monday.
+                        </Text>
+                        <View style={styles.testingButtonsRow}>
+                          <TouchableOpacity
+                            onPress={handleResetWeekCount}
+                            disabled={resettingWeek || workloadLoading}
+                            style={[
+                              styles.testingButton,
+                              {
+                                backgroundColor: withOpacity(warningColor, 0.1),
+                                borderColor: withOpacity(warningColor, 0.3),
+                              },
+                            ]}
+                          >
+                            <Text style={[styles.testingButtonText, { color: warningColor }]}>
+                              {resettingWeek ? 'Resetting...' : 'Reset Week Count'}
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={handleCreateNextWeek}
+                            disabled={resettingWeek || workloadLoading}
+                            style={[
+                              styles.testingButton,
+                              {
+                                backgroundColor: withOpacity(accent, 0.1),
+                                borderColor: withOpacity(accent, 0.3),
+                              },
+                            ]}
+                          >
+                            <Text style={[styles.testingButtonText, { color: accent }]}>
+                              {resettingWeek ? 'Creating...' : 'Create Next Week'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={[styles.helpText, { color: secondaryFont, fontSize: 11, marginTop: 8 }]}>
+                          Reset Week Count: Sets current week's order count to 0.{'\n'}
+                          Create Next Week: Creates next week's capacity record (simulates Monday reset).
+                        </Text>
+                      </View>
                     </View>
                   ) : null}
                 </View>
@@ -781,6 +1050,86 @@ function createStyles(colors) {
     },
     promoList: {
       gap: 12,
+    },
+    workloadSection: {
+      gap: 18,
+      padding: 16,
+    },
+    workloadInfo: {
+      gap: 12,
+      padding: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: withOpacity(borderColor, 0.3),
+      backgroundColor: surface,
+    },
+    workloadStatRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: 12,
+    },
+    workloadLabel: {
+      fontSize: 14,
+      flex: 1,
+    },
+    workloadValue: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    workloadEditSection: {
+      gap: 12,
+      paddingTop: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: withOpacity(borderColor, 0.3),
+    },
+    capacityInputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    capacityInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 14,
+    },
+    saveCapacityButton: {
+      minWidth: 100,
+    },
+    helpText: {
+      fontSize: 12,
+      lineHeight: 16,
+      marginTop: 4,
+    },
+    workloadTestingSection: {
+      marginTop: 20,
+      paddingTop: 16,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: withOpacity(borderColor, 0.3),
+      gap: 8,
+    },
+    testingSectionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      marginBottom: 4,
+    },
+    testingButtonsRow: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    testingButton: {
+      flex: 1,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      alignItems: 'center',
+    },
+    testingButtonText: {
+      fontSize: 13,
+      fontWeight: '600',
     },
     promoCard: {
       padding: 16,

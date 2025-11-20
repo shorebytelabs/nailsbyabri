@@ -21,6 +21,7 @@ import { withOpacity } from '../utils/color';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from '../icons/Icon';
 import { deleteOrder } from '../services/api';
+import { getNextWeekStart, getNextWeekStartDateTime, formatNextAvailabilityDateTime, checkCapacityAvailability } from '../services/workloadService';
 
 /**
  * Order Status Constants
@@ -37,6 +38,7 @@ import { deleteOrder } from '../services/api';
  */
 const ORDER_STATUS = {
   DRAFT: 'Draft',
+  AWAITING_SUBMISSION: 'Awaiting Submission',
   SUBMITTED: 'Submitted',
   APPROVED_IN_PROGRESS: 'Approved & In Progress',
   READY_FOR_PICKUP: 'Ready for Pickup',
@@ -52,6 +54,7 @@ const ORDER_STATUS = {
  */
 const STATUS_TO_FILTER = {
   [ORDER_STATUS.DRAFT]: 'cart',
+  [ORDER_STATUS.AWAITING_SUBMISSION]: 'cart', // Awaiting Submission appears in Cart filter
   [ORDER_STATUS.SUBMITTED]: 'in_progress',
   [ORDER_STATUS.APPROVED_IN_PROGRESS]: 'in_progress',
   [ORDER_STATUS.READY_FOR_PICKUP]: 'ready',
@@ -126,7 +129,10 @@ function OrdersScreen({ route }) {
     secondaryFont,
     accent,
     border,
+    warning,
+    success,
   } = colors;
+  const warningColor = warning || '#FF9800';
   const accentColor = accent || '#6F171F';
   const secondaryBackgroundColor = secondaryBackground || '#BF9B7A';
   const primaryBackgroundColor = primaryBackground || '#F4EBE3';
@@ -137,6 +143,8 @@ function OrdersScreen({ route }) {
 
   const isAdmin = Boolean(state.currentUser?.isAdmin);
   const [hasRequestedOrders, setHasRequestedOrders] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
+  const [capacityInfo, setCapacityInfo] = useState(null);
 
   useEffect(() => {
     if (__DEV__) {
@@ -164,6 +172,62 @@ function OrdersScreen({ route }) {
       loadOrdersForUser(state.currentUser);
     }
   }, [isAdmin, loadOrdersForUser, state.ordersLoaded, state.ordersLoading, hasRequestedOrders, currentUserId, state.currentUser, state.orders]);
+
+  // Handle toast message from route params
+  useEffect(() => {
+    if (route?.params?.toastMessage) {
+      setToastMessage(route.params.toastMessage);
+      // Clear route param after showing toast
+      if (navigation.setParams) {
+        navigation.setParams({ toastMessage: null });
+      }
+    }
+  }, [route?.params?.toastMessage, navigation]);
+
+  // Auto-dismiss toast after 5 seconds
+  useEffect(() => {
+    if (!toastMessage) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      setToastMessage(null);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
+
+  // Load capacity info for "Awaiting Submission" order messaging
+  useEffect(() => {
+    // Only load if we have "Awaiting Submission" orders
+    const hasAwaitingSubmission = baseOrders.some((order) => {
+      const statusLower = (order.status || '').toLowerCase();
+      return statusLower === 'awaiting submission' || statusLower === 'awaiting_submission';
+    });
+
+    if (hasAwaitingSubmission) {
+      const loadCapacity = async () => {
+        try {
+          const info = await checkCapacityAvailability();
+          console.log('[OrdersScreen] Loaded capacity info:', info); // Debug log
+          setCapacityInfo(info);
+        } catch (error) {
+          console.error('[OrdersScreen] Error loading capacity info:', error);
+          // On error, default to "full" state to show wait message
+          setCapacityInfo({ isFull: true, remaining: 0 });
+        }
+      };
+      loadCapacity();
+      
+      // Refresh capacity info every 30 seconds to get latest status
+      const refreshInterval = setInterval(() => {
+        loadCapacity();
+      }, 30000);
+      
+      return () => clearInterval(refreshInterval);
+    } else {
+      // Clear capacity info if no awaiting submission orders
+      setCapacityInfo(null);
+    }
+  }, [baseOrders]); // Refresh when orders change
 
   const baseOrders = useMemo(() => {
     const map = new Map();
@@ -271,6 +335,7 @@ function OrdersScreen({ route }) {
     () => [
       { key: 'all', label: 'All statuses' },
       { key: ORDER_STATUS.DRAFT.toLowerCase(), label: ORDER_STATUS.DRAFT },
+      { key: ORDER_STATUS.AWAITING_SUBMISSION.toLowerCase().replace(/\s+/g, '_'), label: ORDER_STATUS.AWAITING_SUBMISSION },
       { key: ORDER_STATUS.SUBMITTED.toLowerCase(), label: ORDER_STATUS.SUBMITTED },
       { key: ORDER_STATUS.APPROVED_IN_PROGRESS.toLowerCase().replace(/\s+/g, '_'), label: ORDER_STATUS.APPROVED_IN_PROGRESS },
       { key: ORDER_STATUS.READY_FOR_PICKUP.toLowerCase().replace(/\s+/g, '_'), label: ORDER_STATUS.READY_FOR_PICKUP },
@@ -363,11 +428,11 @@ function OrdersScreen({ route }) {
       }
 
       logEvent('tap_order_view', { orderId: order.id, status: order.status });
-      // Navigate to order builder for draft orders, order details for others
+      // Navigate to order builder for draft orders and "Awaiting Submission" orders, order details for others
       // Check status case-insensitively
       const orderStatusLower = (order.status || '').toLowerCase();
-      if (orderStatusLower === 'draft') {
-        // For draft orders, fetch the full order details (including images) before editing
+      if (orderStatusLower === 'draft' || orderStatusLower === 'awaiting submission') {
+        // For draft and awaiting submission orders, fetch the full order details (including images) before editing
         // The list query excludes design_uploads and sizing_uploads for performance
         try {
           setState((prev) => ({ ...prev, ordersLoading: true }));
@@ -378,7 +443,12 @@ function OrdersScreen({ route }) {
             activeOrder: fullOrder,
             ordersLoading: false,
           }));
-          navigateToRoot('NewOrderFlow', { resume: true });
+          // Navigate to NewOrderFlow and go directly to Review & Submit step for "Awaiting Submission" orders
+          if (orderStatusLower === 'awaiting submission') {
+            navigateToRoot('NewOrderFlow', { resume: true, initialStep: 'review' });
+          } else {
+            navigateToRoot('NewOrderFlow', { resume: true });
+          }
         } catch (error) {
           console.error('[OrdersScreen] Failed to fetch full order details:', error);
           setState((prev) => ({ ...prev, ordersLoading: false }));
@@ -387,7 +457,12 @@ function OrdersScreen({ route }) {
             ...prev,
             activeOrder: order,
           }));
-          navigateToRoot('NewOrderFlow', { resume: true });
+          // Navigate to NewOrderFlow and go directly to Review & Submit step for "Awaiting Submission" orders
+          if (orderStatusLower === 'awaiting submission') {
+            navigateToRoot('NewOrderFlow', { resume: true, initialStep: 'review' });
+          } else {
+            navigateToRoot('NewOrderFlow', { resume: true });
+          }
         }
         return;
       }
@@ -780,6 +855,10 @@ function OrdersScreen({ route }) {
     if (normalizedStatus === 'draft') {
       statusLabel = ORDER_STATUS.DRAFT;
       statusBackground = withOpacity(secondaryBackgroundColor, 0.2);
+    } else if (normalizedStatus === 'awaiting_submission' || normalizedStatus === 'awaitingsubmission') {
+      statusLabel = ORDER_STATUS.AWAITING_SUBMISSION;
+      statusBackground = withOpacity(warning || '#FF9800', 0.12);
+      statusTextColor = warning || '#FF9800';
     } else if (normalizedStatus === 'submitted') {
       statusLabel = ORDER_STATUS.SUBMITTED;
       statusBackground = withOpacity(accentColor, 0.12);
@@ -871,6 +950,83 @@ function OrdersScreen({ route }) {
             </View>
           </View>
         </View>
+        {/* Show capacity messaging for Awaiting Submission orders */}
+        {normalizedStatus === 'awaiting_submission' || normalizedStatus === 'awaitingsubmission' ? (
+          <View
+            style={[
+              styles.capacityInfoBanner,
+              {
+                backgroundColor: capacityInfo?.isFull
+                  ? withOpacity(warning || '#FF9800', 0.08)
+                  : capacityInfo?.isAlmostFull
+                  ? withOpacity(warning || '#FF9800', 0.08)
+                  : withOpacity(success || '#4CAF50', 0.08),
+                borderColor: capacityInfo?.isFull
+                  ? withOpacity(warning || '#FF9800', 0.3)
+                  : capacityInfo?.isAlmostFull
+                  ? withOpacity(warning || '#FF9800', 0.3)
+                  : withOpacity(success || '#4CAF50', 0.3),
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.capacityInfoText,
+                {
+                  color: capacityInfo?.isFull
+                    ? warning || '#FF9800'
+                    : capacityInfo?.isAlmostFull
+                    ? warning || '#FF9800'
+                    : success || '#4CAF50',
+                },
+              ]}
+            >
+              {(() => {
+                // If capacity info not loaded yet, show default wait message
+                if (!capacityInfo) {
+                  const nextWeekStart = getNextWeekStartDateTime();
+                  const formattedDateTime = formatNextAvailabilityDateTime(nextWeekStart);
+                  return `Week full! You can submit it again when the next availability opens on ${formattedDateTime}.`;
+                }
+
+                // Debug: Log capacity info to help diagnose
+                console.log('[OrdersScreen] Capacity info for message:', {
+                  isFull: capacityInfo.isFull,
+                  isAlmostFull: capacityInfo.isAlmostFull,
+                  remaining: capacityInfo.remaining,
+                  available: capacityInfo.available,
+                });
+
+                // If capacity is full, show wait message
+                if (capacityInfo.isFull === true || capacityInfo.remaining <= 0) {
+                  const nextWeekStart = getNextWeekStartDateTime();
+                  const formattedDateTime = formatNextAvailabilityDateTime(nextWeekStart);
+                  return `Week full! You can submit it again when the next availability opens on ${formattedDateTime}.`;
+                }
+
+                // If capacity is almost full (few spots remaining)
+                if (capacityInfo.isAlmostFull === true && capacityInfo.remaining > 0 && capacityInfo.remaining <= 3) {
+                  return `Only ${capacityInfo.remaining} spot${capacityInfo.remaining !== 1 ? 's' : ''} remaining! Resubmit now.`;
+                }
+
+                // If capacity is available (remaining > 0 and not almost full)
+                if (capacityInfo.available === true && capacityInfo.remaining > 0) {
+                  return 'You can resubmit now!';
+                }
+
+                // Fallback: show available message if remaining > 0
+                if (capacityInfo.remaining > 0) {
+                  return 'You can resubmit now!';
+                }
+
+                // Default fallback
+                const nextWeekStart = getNextWeekStartDateTime();
+                const formattedDateTime = formatNextAvailabilityDateTime(nextWeekStart);
+                return `Week full! You can submit it again when the next availability opens on ${formattedDateTime}.`;
+              })()}
+            </Text>
+          </View>
+        ) : null}
         <Text
           style={[
             styles.cardMeta,
@@ -1133,11 +1289,12 @@ function OrdersScreen({ route }) {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.container,
-        { backgroundColor: primaryBackgroundColor },
-      ]}
+    <View style={{ flex: 1, backgroundColor: primaryBackgroundColor }}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: primaryBackgroundColor },
+        ]}
       refreshControl={
         !isAdmin
           ? (
@@ -1654,6 +1811,32 @@ function OrdersScreen({ route }) {
         )}
       </View>
     </ScrollView>
+    
+      {/* Toast notification for awaiting submission */}
+      {toastMessage ? (
+        <View
+          style={[
+            styles.toastContainer,
+            {
+              backgroundColor: withOpacity(warningColor || '#FF9800', 0.95),
+            },
+          ]}
+        >
+          <Text style={[styles.toastText, { color: primaryBackground || '#FFFFFF', flex: 1 }]}>
+            {toastMessage}
+          </Text>
+          <TouchableOpacity
+            onPress={() => setToastMessage(null)}
+            style={styles.toastCloseButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={[styles.toastCloseText, { color: primaryBackground || '#FFFFFF' }]}>
+              ×
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+  </View>
   );
 }
 
@@ -1782,6 +1965,18 @@ const styles = StyleSheet.create({
   cardMetaSecondary: {
     fontSize: 12,
     marginTop: 4,
+  },
+  capacityInfoBanner: {
+    marginTop: 10,
+    marginBottom: 8,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  capacityInfoText: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
   },
   cardFooter: {
     marginTop: 12,
@@ -2077,6 +2272,41 @@ const styles = StyleSheet.create({
   adminSaveButtonText: {
     fontSize: 13,
     fontWeight: '700',
+  },
+  toastContainer: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 12,
+    shadowColor: '#000000',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  toastText: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+    flex: 1,
+  },
+  toastCloseButton: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toastCloseText: {
+    fontSize: 24,
+    fontWeight: '300',
+    lineHeight: 24,
   },
 });
 

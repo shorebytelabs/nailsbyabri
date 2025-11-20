@@ -982,6 +982,7 @@ export async function updateOrder(orderId, updates) {
       'paid',
       // New status formats
       'Draft',
+      'Awaiting Submission',
       'Submitted',
       'Approved & In Progress',
       'Ready for Pickup',
@@ -999,6 +1000,9 @@ export async function updateOrder(orderId, updates) {
       const statusLower = String(updates.status).toLowerCase();
       const isAllowed = allowedStatuses.has(updates.status) ||
         statusLower === 'draft' ||
+        statusLower === 'awaiting submission' ||
+        statusLower === 'awaiting_submission' ||
+        statusLower === 'awaitingsubmission' ||
         statusLower === 'submitted' ||
         statusLower === 'approved & in progress' ||
         statusLower === 'approved_in_progress' ||
@@ -1016,6 +1020,8 @@ export async function updateOrder(orderId, updates) {
         // Normalize to the proper status format
         if (statusLower === 'draft') {
           updatePayload.status = 'Draft';
+        } else if (statusLower === 'awaiting submission' || statusLower === 'awaiting_submission' || statusLower === 'awaitingsubmission') {
+          updatePayload.status = 'Awaiting Submission';
         } else if (statusLower === 'submitted') {
           updatePayload.status = 'Submitted';
         } else if (statusLower === 'approved & in progress' || statusLower === 'approved_in_progress' || statusLower === 'in_progress') {
