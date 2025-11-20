@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import {
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -57,13 +58,13 @@ function HomeDashboardScreen() {
   const tips = [
     {
       id: 'tip1',
-      title: 'Prep your nails',
-      copy: 'Cleanse with alcohol wipes before applying press-ons for longer wear.',
+      title: 'How to prep your nails',
+      copy: 'Cleanse with alcohol wipes before applying press-ons for longer wear. Watch this video for a step-by-step guide: https://www.youtube.com/watch?v=example1',
     },
     {
       id: 'tip2',
-      title: 'Sizing cheat sheet',
-      copy: 'Keep a note of your perfect size mix so reorders are a breeze.',
+      title: 'How to glue your nails',
+      copy: 'Learn the best techniques for applying glue and securing your press-ons. Watch this video tutorial: https://www.youtube.com/watch?v=example2',
     },
   ];
 
@@ -96,10 +97,52 @@ function HomeDashboardScreen() {
     }
   };
 
-  const handleSizingGuide = () => {
-    logEvent('tap_home_sizing');
-    navigation.navigate('Orders');
+  const handleOpenUrl = async (url) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        console.warn('[HomeDashboard] Cannot open URL:', url);
+      }
+    } catch (error) {
+      console.error('[HomeDashboard] Error opening URL:', error);
+    }
   };
+
+  // Helper function to extract URL from tip copy text
+  const extractUrlFromText = (text) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const match = text.match(urlRegex);
+    return match ? match[0] : null;
+  };
+
+  // Helper function to render tip copy with clickable links
+  const renderTipCopy = (copy) => {
+    const url = extractUrlFromText(copy);
+    if (!url) {
+      return <Text style={[styles.tipCopy, { color: colors.secondaryFont }]}>{copy}</Text>;
+    }
+
+    // Split text around the URL and render with a clickable link
+    const parts = copy.split(url);
+    const beforeUrl = parts[0];
+    const afterUrl = parts.slice(1).join(url); // In case URL appears multiple times
+
+    return (
+      <Text style={[styles.tipCopy, { color: colors.secondaryFont }]}>
+        {beforeUrl}
+        <Text
+          style={[styles.tipLink, { color: accentColor }]}
+          onPress={() => handleOpenUrl(url)}
+        >
+          Watch this video
+        </Text>
+        {afterUrl}
+      </Text>
+    );
+  };
+
 
   return (
     <ScrollView
@@ -353,22 +396,8 @@ function HomeDashboardScreen() {
               { color: colors.primaryFont },
             ]}
           >
-            Tips & inspiration
+            Tips
           </Text>
-          <TouchableOpacity
-            onPress={handleSizingGuide}
-            accessibilityRole="button"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Text
-              style={[
-                styles.sectionAction,
-                { color: accentColor },
-              ]}
-            >
-              Sizing guide
-            </Text>
-          </TouchableOpacity>
         </View>
         <View style={styles.tipsGrid}>
           {tips.map((tip) => (
@@ -391,14 +420,7 @@ function HomeDashboardScreen() {
               >
                 {tip.title}
               </Text>
-              <Text
-                style={[
-                  styles.tipCopy,
-                  { color: colors.secondaryFont },
-                ]}
-              >
-                {tip.copy}
-              </Text>
+              {renderTipCopy(tip.copy)}
             </View>
           ))}
         </View>
@@ -593,6 +615,12 @@ const styles = StyleSheet.create({
   tipCopy: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  tipLink: {
+    fontSize: 13,
+    lineHeight: 18,
+    textDecorationLine: 'underline',
+    fontWeight: '600',
   },
   notificationList: {
     gap: 10,
