@@ -148,9 +148,6 @@ function HomeDashboardScreen() {
             styles.heroCard,
             {
               backgroundColor: colors.secondaryBackground,
-              flexDirection: 'row',
-              alignItems: 'flex-start',
-              flexWrap: 'nowrap',
             },
           ]}
         >
@@ -174,77 +171,21 @@ function HomeDashboardScreen() {
             <TouchableOpacity
               style={[
                 styles.heroButton,
-                { backgroundColor: accentColor },
+                { 
+                  backgroundColor: accentColor,
+                  shadowColor: accentColor,
+                },
               ]}
               onPress={handleCreatePress}
               accessibilityLabel="Create new custom nail set"
               accessibilityRole="button"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              activeOpacity={0.85}
             >
-              <Text style={[styles.heroButtonText, { color: accentContrastColor }]}>{CTA_LABEL}</Text>
-            </TouchableOpacity>
-          </View>
-          <View
-            style={[
-              styles.heroSwatches,
-              {
-                backgroundColor: colors.surface,
-                alignSelf: 'flex-start',
-                flexBasis: isCompact ? 88 : 110,
-                width: isCompact ? 88 : 110,
-                marginLeft: 'auto',
-                marginTop: isCompact ? 8 : 0,
-              },
-            ]}
-          >
-            <View style={[styles.swatchHeader, { borderColor: colors.divider }]}
-            >
-              <Text
-                style={[
-                  styles.swatchTitle,
-                  { color: colors.primaryFont },
-                ]}
-              >
-                Most-loved shape
+              <Text style={[styles.heroButtonText, { color: accentContrastColor }]}>
+                {CTA_LABEL}
               </Text>
-            </View>
-            <View style={styles.swatchPreviewRow}>
-              <View
-                style={[
-                  styles.swatchNail,
-                  {
-                    backgroundColor: colors.swatchBase,
-                    borderColor: colors.border,
-                    shadowColor: colors.shadow,
-                  },
-                ]}
-              />
-              <View style={styles.swatchPaletteRow}>
-                {[colors.swatchTone1, colors.swatchTone2, colors.swatchTone3]
-                  .filter((tone) => tone) // Filter out undefined/null values
-                  .map((tone, index) => (
-                  <View
-                    key={tone || `swatch-${index}`}
-                    style={[
-                      styles.swatchDot,
-                      {
-                        backgroundColor: tone,
-                        borderColor: withOpacity(colors.shadow, 0.06),
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-            </View>
-            <Text
-              style={[
-                styles.swatchCaption,
-                { color: colors.secondaryFont },
-              ]}
-              numberOfLines={2}
-            >
-              Almond silhouettes with blush gradients stay our client favorite.
-            </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -445,90 +386,44 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   heroCard: {
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    justifyContent: 'flex-start',
-    gap: 12,
+    borderRadius: 20,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    minHeight: 180,
+    justifyContent: 'center',
   },
   heroTextGroup: {
-    flex: 1,
-    minWidth: 0,
-    gap: 8,
+    gap: 12,
   },
   heroTitle: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '800',
-    letterSpacing: 0.25,
+    letterSpacing: -0.5,
+    lineHeight: 32,
   },
   heroSubtitle: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 2,
   },
   heroButton: {
-    marginTop: 4,
-    paddingHorizontal: 22,
-    paddingVertical: 12,
-    borderRadius: 24,
+    marginTop: 8,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 28,
     alignSelf: 'flex-start',
-    minHeight: 52,
+    minHeight: 56,
     justifyContent: 'center',
+    alignItems: 'center',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 4,
   },
   heroButtonText: {
     fontWeight: '700',
     fontSize: 16,
-    letterSpacing: 0.4,
-  },
-  heroSwatches: {
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    gap: 4,
-  },
-  swatchHeader: {
-    paddingBottom: 1,
-    marginBottom: 2,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  swatchTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
     letterSpacing: 0.3,
-  },
-  swatchPreviewRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 4,
-  },
-  swatchNail: {
-    width: 30,
-    height: 45,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    transform: [{ rotate: '-6deg' }],
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  swatchPaletteRow: {
-    flex: 1,
-    flexDirection: 'column',
-    gap: 3,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-  swatchDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  swatchCaption: {
-    fontSize: 10,
-    lineHeight: 14,
     marginTop: 2,
   },
   sectionHeader: {
