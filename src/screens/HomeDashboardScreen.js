@@ -399,10 +399,7 @@ function HomeDashboardScreen() {
             keyExtractor={(item) => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={[
-              styles.tipsCarousel,
-              { paddingLeft: horizontalPadding },
-            ]}
+            contentContainerStyle={styles.tipsCarousel}
             snapToInterval={cardWidth + 12} // card width + gap
             decelerationRate="fast"
             pagingEnabled={false}
