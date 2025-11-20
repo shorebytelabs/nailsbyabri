@@ -147,10 +147,36 @@ function HomeDashboardScreen() {
           style={[
             styles.heroCard,
             {
-              backgroundColor: colors.secondaryBackground,
+              // OPTION 1: Solid color (brown/beige)
+              // backgroundColor: colors.secondaryBackground,
+              
+              // OPTION 2: Lighter gradient-like color (uncomment to try)
+              // backgroundColor: withOpacity(colors.primaryBackground, 0.6),
+              
+              // OPTION 3: Accent color with low opacity
+              // backgroundColor: withOpacity(accentColor, 0.1),
+              
+              // OPTION 3B: Light cream/beige tint (ACTIVE) - similar to Option 3 but different color
+              backgroundColor: withOpacity(colors.secondaryBackground || '#E7D8CA', 0.3),
+              
+              // OPTION 4: White/light surface (uncomment to try)
+              // backgroundColor: colors.surface,
+              
+              // OPTION 5: Image Background - uncomment Image and overlay below
+              // backgroundColor: 'transparent',
             },
           ]}
         >
+          {/* OPTION 5: Image Background - uncomment to use */}
+          {/* 
+          <Image
+            source={{ uri: 'https://images.unsplash.com/photo-1604654894610-df63bc536371?auto=format&fit=crop&w=1200&q=80' }}
+            style={styles.heroBackgroundImage}
+            resizeMode="cover"
+          />
+          <View style={styles.heroOverlay} />
+          */}
+          
           <View style={styles.heroTextGroup}>
             <Text
               style={[
@@ -391,9 +417,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     minHeight: 180,
     justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  heroBackgroundImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  heroOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Dark overlay for text readability
   },
   heroTextGroup: {
     gap: 12,
+    zIndex: 1,
+    position: 'relative',
   },
   heroTitle: {
     fontSize: 26,
