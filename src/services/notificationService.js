@@ -5,12 +5,24 @@ import { supabase } from '../lib/supabaseClient';
 
 /**
  * Get unread notification count for current user
+ * Excludes paused, archived, and expired global notifications
  */
 export async function getUnreadNotificationCount(userId) {
   try {
-    const { count, error } = await supabase
+    // Get unread notifications with notification details to filter
+    const { data, error } = await supabase
       .from('notification_recipients')
-      .select('*', { count: 'exact', head: true })
+      .select(`
+        id,
+        is_read,
+        is_archived,
+        notification:notifications (
+          id,
+          type,
+          status,
+          expire_at
+        )
+      `)
       .eq('user_id', userId)
       .eq('is_read', false)
       .eq('is_archived', false);
@@ -20,7 +32,34 @@ export async function getUnreadNotificationCount(userId) {
       throw error;
     }
 
-    return count || 0;
+    // Filter out paused, archived, and expired global notifications
+    const now = new Date().toISOString();
+    const validNotifications = (data || []).filter((recipient) => {
+      const notification = recipient.notification;
+      if (!notification) return false;
+
+      // For global notifications, check status and expire_at
+      if (notification.type === 'global') {
+        // Filter out paused or archived notifications
+        if (notification.status === 'paused' || notification.status === 'archived') {
+          return false;
+        }
+
+        // Filter out expired notifications
+        if (notification.expire_at) {
+          const expireDate = new Date(notification.expire_at);
+          const currentDate = new Date(now);
+          if (expireDate < currentDate) {
+            return false;
+          }
+        }
+      }
+
+      // System notifications are always counted
+      return true;
+    });
+
+    return validNotifications.length;
   } catch (error) {
     console.error('[notificationService] Error getting unread count:', error);
     return 0;
@@ -39,6 +78,7 @@ export async function getUserNotifications(userId, options = {}) {
       offset = 0,
     } = options;
 
+    // Build the base query - include status and expire_at fields for filtering
     let query = supabase
       .from('notification_recipients')
       .select(`
@@ -52,6 +92,8 @@ export async function getUserNotifications(userId, options = {}) {
           system_event_type,
           related_order_id,
           created_at,
+          status,
+          expire_at,
           metadata
         )
       `)
@@ -75,8 +117,37 @@ export async function getUserNotifications(userId, options = {}) {
       throw error;
     }
 
-    // Transform the data to flatten notification fields
-    return (data || []).map((recipient) => ({
+    // Filter out notifications that should not be shown:
+    // 1. Global notifications with status 'paused' or 'archived' (double-check in case query filter didn't work)
+    // 2. Global notifications where expire_at is in the past
+    const now = new Date().toISOString();
+    const filteredData = (data || []).filter((recipient) => {
+      const notification = recipient.notification;
+      if (!notification) return false;
+
+      // For global notifications, check status and expire_at
+      if (notification.type === 'global') {
+        // Filter out paused or archived notifications
+        if (notification.status === 'paused' || notification.status === 'archived') {
+          return false;
+        }
+
+        // Filter out expired notifications
+        if (notification.expire_at) {
+          const expireDate = new Date(notification.expire_at);
+          const currentDate = new Date(now);
+          if (expireDate < currentDate) {
+            return false;
+          }
+        }
+      }
+
+      // System notifications are always shown (they don't have status or expire_at)
+      return true;
+    });
+
+    // Transform the filtered data to flatten notification fields
+    return filteredData.map((recipient) => ({
       id: recipient.notification.id,
       recipientId: recipient.id,
       title: recipient.notification.title,
