@@ -16,9 +16,11 @@ import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
 import Icon from '../icons/Icon';
 import { useTheme } from '../theme';
+import { useAppState } from '../context/AppContext';
 import { formatCurrency } from '../utils/pricing';
 import { withOpacity } from '../utils/color';
 import VenmoPaymentInfo from '../components/VenmoPaymentInfo';
+import { updateOrder } from '../services/orderService';
 
 const LOGO_SOURCE = require('../../assets/images/NailsByAbriLogo.png');
 const SUPPORT_EMAIL = 'mailto:NailsByAbriannaC@gmail.com';
@@ -515,6 +517,54 @@ function createStyles(colors) {
       letterSpacing: 0.6,
       color: colors.accent || '#6F171F',
     },
+    adminPaymentAction: {
+      marginTop: 16,
+      padding: 16,
+      borderRadius: 16,
+      backgroundColor: withOpacity(colors.accent || '#6F171F', 0.05),
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: withOpacity(colors.accent || '#6F171F', 0.2),
+      gap: 8,
+    },
+    markPaidButton: {
+      backgroundColor: colors.success || '#4B7A57',
+    },
+    adminPaymentHint: {
+      fontSize: 12,
+      color: colors.secondaryFont || '#767154',
+      textAlign: 'center',
+      fontStyle: 'italic',
+    },
+    paymentReceivedCard: {
+      borderRadius: 20,
+      padding: 20,
+      gap: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.divider || '#E6DCD0',
+      backgroundColor: colors.surface || '#FFFFFF',
+      ...cardShadow,
+    },
+    paymentReceivedHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    paymentReceivedTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.success || '#4B7A57',
+    },
+    paymentReceivedText: {
+      fontSize: 14,
+      color: colors.secondaryFont || '#767154',
+      lineHeight: 20,
+    },
+    paymentReceivedAdminNote: {
+      fontSize: 12,
+      color: colors.secondaryFont || '#767154',
+      fontStyle: 'italic',
+      marginTop: 4,
+    },
   });
 }
 
@@ -522,11 +572,14 @@ function OrderDetailsScreen({ navigation, route }) {
   const initialOrder = route.params?.order || null;
   const fromOrders = Boolean(route.params?.fromOrders);
   const { theme } = useTheme();
+  const { state } = useAppState();
   const colors = theme?.colors || {};
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const isAdmin = state.currentUser?.isAdmin || false;
 
   const [order, setOrder] = useState(initialOrder);
   const [loadingOrder, setLoadingOrder] = useState(false);
+  const [markingPaid, setMarkingPaid] = useState(false);
   const [copied, setCopied] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
 
@@ -629,6 +682,47 @@ function OrderDetailsScreen({ navigation, route }) {
     }
     Alert.alert('Contact Support', 'Please email NailsByAbriannaC@gmail.com for assistance.');
   }, []);
+
+  const handleMarkAsPaid = useCallback(async () => {
+    if (!order?.id) {
+      return;
+    }
+
+    Alert.alert(
+      'Mark Order as Paid',
+      `Are you sure you want to mark order #${displayOrderId} as paid? This will update the payment status.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Mark as Paid',
+          style: 'default',
+          onPress: async () => {
+            try {
+              setMarkingPaid(true);
+              const now = new Date().toISOString();
+              await updateOrder(order.id, {
+                paid_at: now,
+              });
+              
+              // Update local state
+              setOrder((prev) => ({
+                ...prev,
+                paid_at: now,
+                paidAt: now, // Also set camelCase version for consistency
+              }));
+              
+              Alert.alert('Success', 'Order has been marked as paid.');
+            } catch (error) {
+              console.error('[OrderDetailsScreen] Error marking order as paid:', error);
+              Alert.alert('Error', 'Failed to mark order as paid. Please try again.');
+            } finally {
+              setMarkingPaid(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [order?.id, displayOrderId]);
 
   const handlePreviewImage = useCallback((upload) => {
     const source = resolveImageSource(upload);
@@ -789,15 +883,42 @@ function OrderDetailsScreen({ navigation, route }) {
               </View>
             </View>
 
-            {/* Payment Info Section - Show if payment not confirmed */}
-            {!order?.paid_at && (
-              <VenmoPaymentInfo
-                totalAmount={order?.pricing?.total || order?.total}
-                orderNumber={orderId || displayOrderId}
-                showQRCode={true}
-                compact={false}
-                showPaymentNeeded={true}
-              />
+            {/* Payment Info Section */}
+            {/* Check paidAt (transformed field from fetchOrder) or paid_at (database field) */}
+            {!(order?.paidAt || order?.paid_at) ? (
+              <View>
+                <VenmoPaymentInfo
+                  totalAmount={order?.pricing?.total || order?.total}
+                  orderNumber={orderId || displayOrderId}
+                  showQRCode={true}
+                  compact={false}
+                  showPaymentNeeded={true}
+                />
+                {/* Admin: Mark as Paid Button */}
+                {isAdmin && (
+                  <View style={styles.adminPaymentAction}>
+                    <PrimaryButton
+                      label={markingPaid ? 'Marking as Paid...' : 'Mark Order as Paid'}
+                      onPress={handleMarkAsPaid}
+                      disabled={markingPaid}
+                      style={styles.markPaidButton}
+                    />
+                    <Text style={styles.adminPaymentHint}>
+                      Click this button after confirming payment has been received via Venmo.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View style={styles.paymentReceivedCard}>
+                <View style={styles.paymentReceivedHeader}>
+                  <Icon name="checkCircle" color={colors.success || '#4B7A57'} size={24} />
+                  <Text style={styles.paymentReceivedTitle}>Payment Received</Text>
+                </View>
+                <Text style={styles.paymentReceivedText}>
+                  Payment was received on {(order.paid_at || order.paidAt) ? new Date(order.paid_at || order.paidAt).toLocaleDateString() : '—'}
+                </Text>
+              </View>
             )}
 
             <View style={styles.card}>

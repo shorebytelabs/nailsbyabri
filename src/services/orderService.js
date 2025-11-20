@@ -1169,6 +1169,11 @@ export async function updateOrder(orderId, updates) {
         updates.trackingNumber === null ? '' : String(updates.trackingNumber).trim();
     }
 
+    // Handle paid_at update (for marking orders as paid)
+    if (updates.paid_at !== undefined) {
+      updatePayload.paid_at = updates.paid_at || null;
+    }
+
     // If discount is being updated, we need to fetch the order first to recalculate pricing
     let orderSetsForPricing = null;
     if (shouldRecalculatePricing) {
@@ -1214,6 +1219,45 @@ export async function updateOrder(orderId, updates) {
       updatePayload.pricing = newPricing;
     }
 
+    // Check if there's anything to update
+    if (Object.keys(updatePayload).length === 0) {
+      // Nothing to update, just fetch and return the current order
+      const { data: currentOrder, error: fetchError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      // Fetch order sets
+      const { data: sets, error: setsError } = await supabase
+        .from('order_sets')
+        .select('*')
+        .eq('order_id', orderId)
+        .order('created_at', { ascending: true });
+
+      if (setsError) {
+        throw setsError;
+      }
+
+      const transformed = transformOrderFromDB(currentOrder, sets || []);
+      return { order: transformed };
+    }
+
+    // First verify the order exists
+    const { data: existingOrder, error: checkError } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('id', orderId)
+      .single();
+
+    if (checkError || !existingOrder) {
+      throw new Error(`Order not found: ${orderId}`);
+    }
+
     // Update order
     const { data: updatedOrder, error: updateError } = await supabase
       .from('orders')
@@ -1223,7 +1267,15 @@ export async function updateOrder(orderId, updates) {
       .single();
 
     if (updateError) {
+      console.error('[orders] Update error:', updateError);
+      if (updateError.code === 'PGRST116') {
+        throw new Error(`Order not found or you don't have permission to update it: ${orderId}`);
+      }
       throw updateError;
+    }
+
+    if (!updatedOrder) {
+      throw new Error(`Update succeeded but no order data returned for: ${orderId}`);
     }
 
     // Fetch order sets (if we didn't already fetch them for pricing recalculation)
