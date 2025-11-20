@@ -1,5 +1,7 @@
 import React, { useMemo } from 'react';
 import {
+  FlatList,
+  Image,
   Linking,
   ScrollView,
   StyleSheet,
@@ -60,33 +62,23 @@ function HomeDashboardScreen() {
       id: 'tip1',
       title: 'How to prep your nails',
       copy: 'Cleanse with alcohol wipes before applying press-ons for longer wear. Watch this video for a step-by-step guide: https://www.youtube.com/watch?v=example1',
+      image: 'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=400&h=300&fit=crop', // Temporary placeholder - replace with actual image
     },
     {
       id: 'tip2',
       title: 'How to glue your nails',
       copy: 'Learn the best techniques for applying glue and securing your press-ons. Watch this video tutorial: https://www.youtube.com/watch?v=example2',
+      image: 'https://images.unsplash.com/photo-1522338242992-e1a54906a8da?w=400&h=300&fit=crop', // Temporary placeholder - replace with actual image
     },
   ];
 
-  const notifications = useMemo(() => {
+  // Calculate notification count for badge
+  const notificationCount = useMemo(() => {
+    // Return count of notifications (not the actual messages)
     if (activeOrders.length === 0) {
-      return [
-        {
-          id: 'notify-empty',
-          message: 'No shipments on the move yet. Create your first set to get started!',
-        },
-      ];
+      return 1; // "Create your first set" notification
     }
-    return [
-      {
-        id: 'notify-shipment',
-        message: 'Local delivery slots fill quickly—schedule pickup or delivery at checkout.',
-      },
-      {
-        id: 'notify-care',
-        message: 'Remember to store your sets flat to keep their shape perfect.',
-      },
-    ];
+    return 2; // Shipment and care notifications
   }, [activeOrders.length]);
 
   const handleCreatePress = () => {
@@ -399,66 +391,49 @@ function HomeDashboardScreen() {
             Tips
           </Text>
         </View>
-        <View style={styles.tipsGrid}>
-          {tips.map((tip) => (
+        <FlatList
+          data={tips}
+          keyExtractor={(item) => item.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.tipsCarousel,
+            { paddingLeft: horizontalPadding },
+          ]}
+          snapToInterval={cardWidth + 12} // card width + gap
+          decelerationRate="fast"
+          pagingEnabled={false}
+          renderItem={({ item: tip }) => (
             <View
-              key={tip.id}
               style={[
                 styles.tipCard,
                 {
                   backgroundColor: colors.surface,
                   borderColor: colors.border,
-                  flexBasis: isCompact ? '100%' : '48%',
+                  width: cardWidth,
                 },
               ]}
             >
+              {tip.image ? (
+                <Image
+                  source={{ uri: tip.image }}
+                  style={styles.tipImage}
+                  resizeMode="cover"
+                />
+              ) : null}
               <Text
                 style={[
                   styles.tipTitle,
                   { color: colors.primaryFont },
                 ]}
+                numberOfLines={1}
               >
                 {tip.title}
               </Text>
               {renderTipCopy(tip.copy)}
             </View>
-          ))}
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: colors.primaryFont },
-            ]}
-          >
-            Notifications
-          </Text>
-        </View>
-        <View style={styles.notificationList}>
-          {notifications.map((note) => (
-            <View
-              key={note.id}
-              style={[
-                styles.notificationCard,
-                {
-                  backgroundColor: withOpacity(colors.secondaryBackground, 0.25),
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              <Icon name="orders" color={accentColor} size={18} />
-              <Text
-                style={[
-                  styles.notificationText,
-                  { color: colors.primaryFont },
-                ]}
-              >
-                {note.message}
-              </Text>
-            </View>
-          ))}
-        </View>
+          )}
+        />
     </ScrollView>
   );
 }
@@ -597,46 +572,40 @@ const styles = StyleSheet.create({
   orderMeta: {
     fontSize: 12,
   },
-  tipsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  tipsCarousel: {
+    paddingVertical: 4,
     gap: 12,
   },
   tipCard: {
     borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
-    padding: 16,
-    gap: 8,
+    padding: 0,
+    gap: 0,
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  tipImage: {
+    width: '100%',
+    height: 120,
+    backgroundColor: '#f0f0f0',
   },
   tipTitle: {
     fontSize: 16,
     fontWeight: '700',
+    padding: 16,
+    paddingBottom: 8,
   },
   tipCopy: {
     fontSize: 13,
     lineHeight: 18,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   tipLink: {
     fontSize: 13,
     lineHeight: 18,
     textDecorationLine: 'underline',
     fontWeight: '600',
-  },
-  notificationList: {
-    gap: 10,
-  },
-  notificationCard: {
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 16,
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-  },
-  notificationText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
   },
 });
 

@@ -30,6 +30,11 @@ export default function MainTabs() {
                         (state.activeOrder?.status || '').toLowerCase() === 'draft';
   const draftBadgeCount = isDraftStatus ? 1 : 0;
 
+  // Calculate notification badge count
+  // Show notifications if user has no active orders (prompt to create first) or has active orders (tips)
+  const activeOrdersCount = state.activeOrder ? 1 : 0;
+  const notificationBadgeCount = activeOrdersCount === 0 ? 1 : 2; // 1 for empty state, 2 for active orders
+
   const openCreateFlow = useCallback(() => {
     const canProceed = handleStartOrder({ navigation });
     if (canProceed) {
@@ -42,12 +47,18 @@ export default function MainTabs() {
     navigation.navigate('AdminPanel');
   }, [navigation]);
 
+  const openNotifications = useCallback(() => {
+    navigation.navigate('Notifications');
+  }, [navigation]);
+
   return (
     <View style={styles.root}>
       <BrandHeader 
         showCreateButton 
         onPressCreate={openCreateFlow}
         onPressAdmin={state.currentUser?.isAdmin ? openAdminPanel : undefined}
+        onPressNotifications={openNotifications}
+        notificationBadgeCount={notificationBadgeCount}
         navigation={navigation}
       />
       <Tab.Navigator

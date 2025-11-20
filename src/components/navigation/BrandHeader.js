@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
 import Icon from '../../icons/Icon';
@@ -12,6 +12,8 @@ function BrandHeader({
   showCreateButton = false,
   onPressCreate,
   onPressAdmin,
+  onPressNotifications,
+  notificationBadgeCount = 0,
   rightContent = null,
   testID,
   navigation,
@@ -73,6 +75,46 @@ function BrandHeader({
           testID="brand-header-admin"
         >
           <Icon name="gear" color={colors.accent || '#6F171F'} size={20} />
+        </Pressable>
+      );
+    }
+
+    // Add notifications button
+    if (typeof onPressNotifications === 'function') {
+      buttons.push(
+        <Pressable
+          key="notifications"
+          accessibilityRole="button"
+          accessibilityLabel="Notifications"
+          onPress={onPressNotifications}
+          style={({ pressed }) => [
+            styles.headerButton,
+            {
+              backgroundColor: withOpacity(colors.accent || '#6F171F', 0.08),
+              shadowColor: colors.shadow || '#000000',
+              opacity: pressed ? 0.85 : 1,
+            },
+          ]}
+          testID="brand-header-notifications"
+        >
+          <View style={styles.iconWrapper}>
+            <Icon name="bell" color={colors.accent || '#6F171F'} size={20} />
+            {notificationBadgeCount > 0 && (
+              <View
+                style={[
+                  styles.badge,
+                  {
+                    backgroundColor: colors.accent || '#6F171F',
+                    borderColor: backgroundColor,
+                  },
+                ]}
+              >
+                <Text style={[styles.badgeText, { color: colors.accentContrast || '#FFFFFF' }]}>
+                  {notificationBadgeCount}
+                </Text>
+              </View>
+            )}
+          </View>
         </Pressable>
       );
     }
@@ -189,6 +231,29 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
     elevation: 4,
+  },
+  iconWrapper: {
+    position: 'relative',
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -10,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
 });
 

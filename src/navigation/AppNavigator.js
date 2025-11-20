@@ -15,6 +15,7 @@ import OrderBuilderScreen from '../screens/OrderBuilderScreen';
 import AdminPanelScreen from '../screens/AdminPanelScreen';
 import ManageUsersScreen from '../screens/ManageUsersScreen';
 import UserDetailScreen from '../screens/UserDetailScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 import MainTabs from './MainTabs';
 import NewOrderStepperScreen from '../screens/NewOrderStepperScreen';
 import { useAppState } from '../context/AppContext';
@@ -620,6 +621,13 @@ function AppNavigator() {
         <Stack.Screen
           name="AdminPanel"
           component={AdminPanelScreen}
+          options={{
+            presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
+          name="Notifications"
+          component={NotificationsScreen}
           options={{
             presentation: 'modal',
           }}
