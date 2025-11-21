@@ -56,6 +56,10 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import PrimaryButton from '../components/PrimaryButton';
 import ManageUsersScreen from './ManageUsersScreen';
 import UserDetailScreen from './UserDetailScreen';
+import ManagePromoCodesScreen from './ManagePromoCodesScreen';
+import ManageWorkloadScreen from './ManageWorkloadScreen';
+import ManageNotificationsScreen from './ManageNotificationsScreen';
+import ManageTipsScreen from './ManageTipsScreen';
 import { Image } from 'react-native';
 
 function AdminPanelScreen({ navigation }) {
@@ -890,16 +894,11 @@ function AdminPanelScreen({ navigation }) {
   const adminSections = [
     {
       key: 'promoCodes',
-      title: 'Promo Codes',
+      title: 'Manage Promo Codes',
       description: 'Create and manage promotional codes',
       icon: 'tag',
-      expandable: true,
-      expanded: promoCodesExpanded,
       onPress: () => {
-        setPromoCodesExpanded((prev) => !prev);
-        if (!promoCodesExpanded) {
-          loadPromoCodes();
-        }
+        setActiveView('promoCodes');
       },
     },
     {
@@ -918,13 +917,8 @@ function AdminPanelScreen({ navigation }) {
       title: 'Manage Workload',
       description: 'Set weekly order capacity',
       icon: 'note', // Using note icon as calendar icon doesn't exist
-      expandable: true,
-      expanded: workloadExpanded,
       onPress: () => {
-        setWorkloadExpanded((prev) => !prev);
-        if (!workloadExpanded) {
-          loadWorkloadInfo();
-        }
+        setActiveView('workload');
       },
     },
     {
@@ -932,13 +926,8 @@ function AdminPanelScreen({ navigation }) {
       title: 'Manage Notifications',
       description: 'Create and schedule global notifications',
       icon: 'bell',
-      expandable: true,
-      expanded: notificationsExpanded,
       onPress: () => {
-        setNotificationsExpanded((prev) => !prev);
-        if (!notificationsExpanded) {
-          loadNotifications();
-        }
+        setActiveView('notifications');
       },
     },
     {
@@ -946,13 +935,8 @@ function AdminPanelScreen({ navigation }) {
       title: 'Manage Tips',
       description: 'Configure tips displayed on home screen',
       icon: 'info',
-      expandable: true,
-      expanded: tipsExpanded,
       onPress: () => {
-        setTipsExpanded((prev) => !prev);
-        if (!tipsExpanded) {
-          loadTips();
-        }
+        setActiveView('tips');
       },
     },
   ];
@@ -1029,7 +1013,7 @@ function AdminPanelScreen({ navigation }) {
     );
   }
 
-  // If Manage Users view is active, render it inline
+  // If a dedicated view is active, render it inline
   if (activeView === 'manageUsers') {
     return (
       <ManageUsersScreen
@@ -1049,6 +1033,58 @@ function AdminPanelScreen({ navigation }) {
               // For other screens, use normal navigation
               navigation.navigate(screen, params);
             }
+          },
+        }}
+      />
+    );
+  }
+
+  if (activeView === 'promoCodes') {
+    return (
+      <ManagePromoCodesScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
+          },
+        }}
+      />
+    );
+  }
+
+  if (activeView === 'workload') {
+    return (
+      <ManageWorkloadScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
+          },
+        }}
+      />
+    );
+  }
+
+  if (activeView === 'notifications') {
+    return (
+      <ManageNotificationsScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
+          },
+        }}
+      />
+    );
+  }
+
+  if (activeView === 'tips') {
+    return (
+      <ManageTipsScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
           },
         }}
       />
