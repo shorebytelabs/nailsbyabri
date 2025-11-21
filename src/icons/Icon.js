@@ -40,6 +40,24 @@ const iconRenderers = {
       />
     </Svg>
   ),
+  chevronLeft: (props = {}) => (
+    <Svg
+      width={ICON_SIZE}
+      height={ICON_SIZE}
+      viewBox="0 0 24 24"
+      color={props.color || 'currentColor'}
+      {...props}
+    >
+      <Path
+        d="m15 6-6 6 6 6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.9}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  ),
   lock: (props = {}) => (
     <Svg
       width={ICON_SIZE}
@@ -600,6 +618,33 @@ const iconRenderers = {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </Svg>
+  ),
+  settings: (props = {}) => {
+    // Alias for gear icon - use the same renderer
+    return iconRenderers.gear(props);
+  },
+  palette: (props = {}) => (
+    <Svg
+      width={ICON_SIZE}
+      height={ICON_SIZE}
+      viewBox="0 0 24 24"
+      color={props.color || 'currentColor'}
+      {...props}
+    >
+      <Path
+        d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.4 0 .7-.3.7-.7 0-.2 0-.4-.1-.5l-1.1-2.2c-.1-.2 0-.4.1-.5.2-.1.3-.1.4 0l1.9 1.1c.1.1.3.1.4 0 .1 0 .2-.1.2-.2l1.1-1.9c.1-.1.1-.3 0-.4-.1-.1-.3-.2-.5-.1l-2.2 1.1c-.1 0-.3 0-.5-.1-.2-.1-.3-.3-.3-.4C13.5 5.5 18 5.5 18 12c0 2.2-1.8 4-4 4s-4-1.8-4-4c0-1.1.9-2 2-2s2 .9 2 2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Circle cx="8" cy="12" r="1.5" fill="currentColor" />
+      <Circle cx="12" cy="8" r="1.5" fill="currentColor" />
+      <Circle cx="16" cy="12" r="1.5" fill="currentColor" />
+      <Circle cx="12" cy="16" r="1.5" fill="currentColor" />
+      <Circle cx="20" cy="8" r="1.5" fill="currentColor" />
     </Svg>
   ),
   tag: (props = {}) => (

@@ -1,0 +1,191 @@
+/**
+ * App Settings Service
+ * Manages global application settings (like active theme) that apply to all users
+ */
+import { supabase } from '../lib/supabaseClient';
+
+/**
+ * Get the active theme ID
+ * @returns {Promise<string>} The active theme ID (e.g., 'classicChristmas', 'modernMaroon')
+ */
+export async function getActiveTheme() {
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'active_theme')
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // Setting doesn't exist, return default
+        if (__DEV__) {
+          console.log('[appSettings] Active theme setting not found, using default');
+        }
+        return 'classicChristmas';
+      }
+      throw error;
+    }
+
+    // Parse JSONB value
+    // Supabase JSONB values are returned as-is (string, number, object, etc.)
+    let themeId;
+    if (typeof data.value === 'string') {
+      // If stored as JSON string like '"classicChristmas"', parse it
+      try {
+        const parsed = JSON.parse(data.value);
+        themeId = typeof parsed === 'string' ? parsed : data.value;
+      } catch {
+        // If parsing fails, use as-is (might already be the theme ID string)
+        themeId = data.value;
+      }
+    } else {
+      // Already parsed, use directly
+      themeId = data.value;
+    }
+    
+    if (__DEV__) {
+      console.log('[appSettings] ✅ Active theme loaded:', themeId);
+    }
+    return themeId;
+  } catch (error) {
+    console.error('[appSettings] ❌ Error getting active theme:', error);
+    // Return default theme on error
+    return 'classicChristmas';
+  }
+}
+
+/**
+ * Set the active theme ID (admin only)
+ * @param {string} themeId - The theme ID to set as active
+ * @param {string} adminUserId - The ID of the admin making the change
+ * @returns {Promise<void>}
+ */
+export async function setActiveTheme(themeId, adminUserId) {
+  try {
+    if (__DEV__) {
+      console.log('[appSettings] Setting active theme to:', themeId, 'by admin:', adminUserId);
+    }
+
+    // Verify admin user exists and has admin role
+    const { data: adminProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, role, email')
+      .eq('id', adminUserId)
+      .single();
+
+    if (profileError || !adminProfile) {
+      console.error('[appSettings] ❌ Admin profile not found:', profileError);
+      throw new Error('Admin profile not found. Please ensure you are logged in as an admin.');
+    }
+
+    if (adminProfile.role !== 'admin') {
+      console.error('[appSettings] ❌ User is not an admin. Role:', adminProfile.role);
+      throw new Error('You do not have admin permissions to change the theme.');
+    }
+
+    if (__DEV__) {
+      console.log('[appSettings] ✅ Admin verified:', adminProfile.email, 'Role:', adminProfile.role);
+    }
+
+    // Try to update existing row
+    const { data: updateData, error: updateError } = await supabase
+      .from('app_settings')
+      .update({
+        value: themeId,
+        updated_by_admin_id: adminUserId,
+      })
+      .eq('key', 'active_theme')
+      .select();
+
+    // If there's an RLS error, provide more helpful message
+    if (updateError) {
+      if (updateError.code === '42501') {
+        console.error('[appSettings] ❌ RLS Policy Error - Admin role may not be recognized by RLS');
+        console.error('[appSettings] Admin User ID:', adminUserId);
+        console.error('[appSettings] Admin Email:', adminProfile.email);
+        console.error('[appSettings] Admin Role:', adminProfile.role);
+        throw new Error('Row-level security policy blocked the update. Please verify your admin role in the database and ensure RLS policies are correctly configured.');
+      }
+      console.error('[appSettings] ❌ Error updating active theme:', updateError);
+      throw updateError;
+    }
+
+    // If update succeeded but returned 0 rows, the row doesn't exist - try insert
+    if (!updateData || updateData.length === 0) {
+      if (__DEV__) {
+        console.log('[appSettings] No existing row found, attempting insert...');
+      }
+      
+      const { error: insertError } = await supabase
+        .from('app_settings')
+        .insert({
+          key: 'active_theme',
+          value: themeId,
+          updated_by_admin_id: adminUserId,
+        });
+
+      if (insertError) {
+        if (insertError.code === '42501') {
+          console.error('[appSettings] ❌ RLS Policy Error on INSERT');
+          throw new Error('Row-level security policy blocked the insert. Please verify your admin role in the database.');
+        }
+        console.error('[appSettings] ❌ Error inserting active theme:', insertError);
+        throw insertError;
+      }
+    }
+
+    if (__DEV__) {
+      console.log('[appSettings] ✅ Active theme updated successfully');
+    }
+  } catch (error) {
+    console.error('[appSettings] ❌ Failed to set active theme:', error);
+    throw error;
+  }
+}
+
+/**
+ * Subscribe to changes in app settings
+ * Useful for real-time theme updates
+ * @param {Function} callback - Callback function that receives the new theme ID
+ * @returns {Function} Unsubscribe function
+ */
+export function subscribeToActiveTheme(callback) {
+  const subscription = supabase
+    .channel('app_settings_changes')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'app_settings',
+        filter: 'key=eq.active_theme',
+      },
+      (payload) => {
+        // Parse the theme ID from the JSONB value
+        let newThemeId;
+        const value = payload.new?.value;
+        if (typeof value === 'string') {
+          try {
+            const parsed = JSON.parse(value);
+            newThemeId = typeof parsed === 'string' ? parsed : value;
+          } catch {
+            newThemeId = value;
+          }
+        } else {
+          newThemeId = value;
+        }
+        
+        if (__DEV__) {
+          console.log('[appSettings] Theme changed via real-time:', newThemeId);
+        }
+        callback(newThemeId);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    subscription.unsubscribe();
+  };
+}
+

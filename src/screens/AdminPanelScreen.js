@@ -53,6 +53,7 @@ import {
 } from '../services/notificationService';
 import { uploadImageToStorage } from '../services/imageStorageService';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { getActiveTheme, setActiveTheme } from '../services/appSettingsService';
 import PrimaryButton from '../components/PrimaryButton';
 import ManageUsersScreen from './ManageUsersScreen';
 import UserDetailScreen from './UserDetailScreen';
@@ -60,6 +61,7 @@ import ManagePromoCodesScreen from './ManagePromoCodesScreen';
 import ManageWorkloadScreen from './ManageWorkloadScreen';
 import ManageNotificationsScreen from './ManageNotificationsScreen';
 import ManageTipsScreen from './ManageTipsScreen';
+import ManageThemeScreen from './ManageThemeScreen';
 import { Image } from 'react-native';
 
 function AdminPanelScreen({ navigation }) {
@@ -939,6 +941,15 @@ function AdminPanelScreen({ navigation }) {
         setActiveView('tips');
       },
     },
+    {
+      key: 'theme',
+      title: 'Theme Selector',
+      description: 'Select the active app theme for all users',
+      icon: 'palette',
+      onPress: () => {
+        setActiveView('theme');
+      },
+    },
   ];
 
   const primaryFont = colors.primaryFont || '#220707';
@@ -1081,6 +1092,19 @@ function AdminPanelScreen({ navigation }) {
   if (activeView === 'tips') {
     return (
       <ManageTipsScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
+          },
+        }}
+      />
+    );
+  }
+
+  if (activeView === 'theme') {
+    return (
+      <ManageThemeScreen
         navigation={{
           ...navigation,
           goBack: () => {

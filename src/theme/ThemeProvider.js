@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useMemo, useState, useEffect } from 'react';
 import classicChristmas from './classicChristmas.json';
 import modernMaroon from './modernMaroon.json';
+import { getActiveTheme, subscribeToActiveTheme } from '../services/appSettingsService';
 
 const themeRegistry = [classicChristmas, modernMaroon];
 const themeIndex = themeRegistry.reduce((acc, theme) => {
@@ -43,6 +44,55 @@ export function ThemeProvider({ initialThemeId = defaultTheme.id, children }) {
   const [themeId, setThemeId] = useState(
     themeIndex[initialThemeId] ? initialThemeId : defaultTheme.id,
   );
+  const [isLoadingGlobalTheme, setIsLoadingGlobalTheme] = useState(true);
+
+  // Load global theme on mount
+  useEffect(() => {
+    let mounted = true;
+    let unsubscribe = null;
+
+    const loadGlobalTheme = async () => {
+      try {
+        const globalThemeId = await getActiveTheme();
+        if (__DEV__) {
+          console.log('[ThemeProvider] Loaded global theme:', globalThemeId);
+        }
+        if (mounted && themeIndex[globalThemeId]) {
+          setThemeId(globalThemeId);
+        }
+      } catch (error) {
+        console.error('[ThemeProvider] Error loading global theme:', error);
+        // Fall back to initialThemeId if global theme load fails
+      } finally {
+        if (mounted) {
+          setIsLoadingGlobalTheme(false);
+        }
+      }
+    };
+
+    loadGlobalTheme();
+
+    // Subscribe to real-time theme changes
+    try {
+      unsubscribe = subscribeToActiveTheme((newThemeId) => {
+        if (__DEV__) {
+          console.log('[ThemeProvider] Global theme changed:', newThemeId);
+        }
+        if (mounted && themeIndex[newThemeId]) {
+          setThemeId(newThemeId);
+        }
+      });
+    } catch (error) {
+      console.error('[ThemeProvider] Error subscribing to theme changes:', error);
+    }
+
+    return () => {
+      mounted = false;
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, []); // Only run on mount
 
   const value = useMemo(() => {
     const theme = themeIndex[themeId] || defaultTheme;
