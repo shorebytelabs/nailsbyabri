@@ -4218,8 +4218,8 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
               style={[
                 styles.addressDropdown,
                 {
-                  borderColor: border,
-                  backgroundColor: surface,
+                  borderColor: accent,
+                  backgroundColor: withOpacity(accent, 0.07),
                 },
               ]}
             >
