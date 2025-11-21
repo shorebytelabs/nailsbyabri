@@ -3981,6 +3981,7 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
   const [selectedAddressId, setSelectedAddressId] = useState('add_new'); // 'add_new' or address ID
   const [showDropdown, setShowDropdown] = useState(false);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const hasInitializedRef = useRef(false);
 
   const {
     primaryFont = '#220707',
@@ -3994,18 +3995,38 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
   // Load saved addresses when component mounts or when address is required
   useEffect(() => {
     if (fulfillment.method === 'delivery' || fulfillment.method === 'shipping') {
+      // Reset initialization flag and selection when method changes so we can re-initialize
+      hasInitializedRef.current = false;
+      setSelectedAddressId('add_new');
       loadSavedAddresses();
     }
   }, [fulfillment.method]);
 
-  // Initialize selection - always default to "Add New" on first load
-  // Only change if user has explicitly selected a saved address
+  // Initialize selection - check for default address first, otherwise default to "Add New"
   useEffect(() => {
-    // On initial load (when savedAddresses first populate), default to "Add New"
-    if (savedAddresses.length > 0 && selectedAddressId === null) {
-      setSelectedAddressId('add_new');
+    // Only initialize once when addresses are first loaded
+    if (!hasInitializedRef.current && savedAddresses.length > 0) {
+      hasInitializedRef.current = true;
+      // Check for a default address
+      const defaultAddress = savedAddresses.find(addr => addr.isDefault);
+      if (defaultAddress) {
+        // Select the default address and pre-fill the form
+        setSelectedAddressId(defaultAddress.id);
+        onChangeAddress({
+          label: defaultAddress.label || 'Home',
+          name: defaultAddress.name || '',
+          line1: defaultAddress.line1 || '',
+          line2: defaultAddress.line2 || '',
+          city: defaultAddress.city || '',
+          state: defaultAddress.state || '',
+          postalCode: defaultAddress.postalCode || '',
+        });
+      }
+      // If no default address, keep "Add New" selected (already set as default)
       setShowDropdown(false);
-    } else if (savedAddresses.length === 0) {
+    } else if (!hasInitializedRef.current && savedAddresses.length === 0) {
+      // No saved addresses, ensure "Add New" is selected
+      hasInitializedRef.current = true;
       setSelectedAddressId('add_new');
       setShowDropdown(false);
     }
