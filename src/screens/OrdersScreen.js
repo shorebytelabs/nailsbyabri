@@ -197,6 +197,23 @@ function OrdersScreen({ route }) {
     return () => clearTimeout(timer);
   }, [toastMessage]);
 
+  // Convert statusMessage from AppContext to toast (for order update messages)
+  useEffect(() => {
+    if (state.statusMessage && (
+      state.statusMessage.includes('Order updated') ||
+      state.statusMessage.includes('order updated') ||
+      state.statusMessage.includes('Unable to update') ||
+      state.statusMessage.includes('Unable to add images')
+    )) {
+      // Convert to toast and clear statusMessage
+      setToastMessage(state.statusMessage);
+      setState((prev) => ({
+        ...prev,
+        statusMessage: null,
+      }));
+    }
+  }, [state.statusMessage, setState]);
+
   // Load capacity info for "Awaiting Submission" order messaging
   useEffect(() => {
     // Only load if we have "Awaiting Submission" orders
@@ -552,17 +569,20 @@ function OrdersScreen({ route }) {
                     activeOrder: updatedActiveOrder,
                     lastCompletedOrder: updatedLastCompletedOrder,
                     ordersUpdating: false,
-                    statusMessage: 'Draft order deleted successfully.',
                   };
                 });
+
+                // Show toast notification instead of statusMessage
+                setToastMessage('Draft order deleted successfully.');
               } catch (err) {
                 const errorMessage = err?.message || err?.error?.message || 'Unable to delete order. Please try again.';
                 console.error('[orders] ❌ Failed to delete order:', err);
                 setState((prev) => ({
                   ...prev,
                   ordersUpdating: false,
-                  statusMessage: errorMessage,
                 }));
+                // Show error toast instead of statusMessage
+                setToastMessage(errorMessage);
               }
             },
           },
@@ -747,10 +767,13 @@ function OrdersScreen({ route }) {
         await Promise.all(uploadPromises);
       } catch (error) {
         console.error('[OrdersScreen] Error in handleAdminImageUpload:', error);
+        const errorMessage = error?.message || 'Unable to add images. Please try again.';
         setState((prev) => ({
           ...prev,
-          statusMessage: 'Unable to add images. Please try again.',
+          statusMessage: null, // Clear statusMessage to prevent banner popup
         }));
+        // Show error toast instead of statusMessage banner
+        setToastMessage(errorMessage);
       }
     },
     [getAdminDraft, adminDrafts, setState],
@@ -793,11 +816,21 @@ function OrdersScreen({ route }) {
         if (updated?.status) {
           handleAdminDraftChange(order.id, 'status', updated.status);
         }
-      } catch (error) {
+
+        // Clear statusMessage and show toast instead
         setState((prev) => ({
           ...prev,
-          statusMessage: error?.message || 'Unable to update status.',
+          statusMessage: null, // Clear statusMessage to prevent banner popup
         }));
+        setToastMessage('Order updated successfully.');
+      } catch (error) {
+        const errorMessage = error?.message || 'Unable to update status.';
+        setState((prev) => ({
+          ...prev,
+          statusMessage: null, // Clear statusMessage to prevent banner popup
+        }));
+        // Show error toast instead of statusMessage banner
+        setToastMessage(errorMessage);
         // Revert to previous status on error
         handleAdminDraftChange(order.id, 'status', previousStatus);
       }
@@ -911,14 +944,22 @@ function OrdersScreen({ route }) {
           return {
             ...prev,
             ordersUpdating: false,
+            statusMessage: null, // Clear statusMessage to prevent banner popup
           };
         });
+
+        // Show toast notification instead of statusMessage banner
+        setToastMessage('Order updated successfully.');
       } catch (error) {
+        const errorMessage = error?.message || error?.error?.message || 'Unable to update order. Please try again.';
+        console.error('[OrdersScreen] Failed to save admin changes:', error);
         setState((prev) => ({
           ...prev,
           ordersUpdating: false,
+          statusMessage: null, // Clear statusMessage to prevent banner popup
         }));
-        // errors handled via context status message
+        // Show error toast instead of statusMessage banner
+        setToastMessage(errorMessage);
       }
     },
     [getAdminDraft, updateOrderAdmin, setState],

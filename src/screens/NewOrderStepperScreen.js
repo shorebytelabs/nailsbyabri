@@ -517,7 +517,7 @@ function NewOrderStepperScreen({ route }) {
     }
     toastTimerRef.current = setTimeout(() => {
       setToastMessage(null);
-    }, 2500);
+    }, 5000); // Auto-dismiss after 5 seconds (matching OrdersScreen)
     return () => {
       if (toastTimerRef.current) {
         clearTimeout(toastTimerRef.current);
@@ -1079,33 +1079,32 @@ function NewOrderStepperScreen({ route }) {
         setId: editingSetId,
       });
       logEvent('save_order_draft', { order_id: order.id });
-      Alert.alert('Draft saved', 'You can continue editing this set anytime.', [
-        {
-          text: 'OK',
-          onPress: () => {
-            navigation.reset({
-              index: 0,
+      
+      // Navigate to Orders tab with toast message (similar to "Awaiting Submission" toast)
+      const toastMessage = 'Draft saved! You can continue editing this set anytime.';
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'MainTabs',
+            state: {
+              index: 2, // Orders tab index
               routes: [
+                { name: 'Home' },
+                { name: 'Gallery' },
                 {
-                  name: 'MainTabs',
-                  state: {
-                    index: 2, // Orders tab index
-                    routes: [
-                      { name: 'Home' },
-                      { name: 'Gallery' },
-                      {
-                        name: 'Orders',
-                        params: { initialTab: 'drafts' },
-                      },
-                      { name: 'Profile' },
-                    ],
+                  name: 'Orders',
+                  params: { 
+                    initialTab: 'drafts',
+                    toastMessage,
                   },
                 },
+                { name: 'Profile' },
               ],
-            });
+            },
           },
-        },
-      ]);
+        ],
+      });
     } catch (err) {
       const message = err?.details?.error || err.message || 'Please try again.';
       Alert.alert('Unable to save draft', message);
@@ -1722,10 +1721,9 @@ function NewOrderStepperScreen({ route }) {
     });
     setEditingSetId(null);
     setCurrentSetDraft(createEmptySetDraft());
-    showToast(`Saved set ${nextCount} — add another or continue to delivery.`);
     setStepErrors((prev) => ({ ...prev, summary: false }));
     setCurrentStep(3);
-  }, [computeSetPricing, currentSetDraft, editingSetId, showToast, validateCurrentSet]);
+  }, [computeSetPricing, currentSetDraft, editingSetId, validateCurrentSet]);
 
   const handleEditSet = useCallback(
     (setId) => {
@@ -2418,6 +2416,31 @@ function NewOrderStepperScreen({ route }) {
           </Modal>
         ) : null}
       </View>
+
+      {/* Toast notification for draft saved */}
+      {toastMessage ? (
+        <View
+          style={[
+            styles.toastContainer,
+            {
+              backgroundColor: withOpacity(accent || '#6F171F', 0.95),
+            },
+          ]}
+        >
+          <Text style={[styles.toastText, { color: primaryBackground || '#FFFFFF', flex: 1 }]}>
+            {toastMessage}
+          </Text>
+          <TouchableOpacity
+            onPress={() => setToastMessage(null)}
+            style={styles.toastCloseButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={[styles.toastCloseText, { color: primaryBackground || '#FFFFFF' }]}>
+              ×
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -4666,7 +4689,6 @@ function ReviewStep({
           </View>
         </View>
       </View>
-
     </View>
   );
 }
@@ -5661,26 +5683,39 @@ const styles = StyleSheet.create({
   footerButtonWrapperSummary: {
     flex: 1,
   },
-  toast: {
+  toastContainer: {
     position: 'absolute',
     left: 20,
     right: 20,
     bottom: 24,
     paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: withOpacity('#6F171F', 0.92),
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    paddingVertical: 14,
+    borderRadius: 12,
+    shadowColor: '#000000',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    elevation: 8,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   toastText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    lineHeight: 20,
+    flex: 1,
+  },
+  toastCloseButton: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toastCloseText: {
+    fontSize: 24,
+    fontWeight: '300',
   },
   summaryDetailRow: {
     flexDirection: 'row',
