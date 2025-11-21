@@ -440,20 +440,25 @@ export async function createOrUpdateOrder(orderData) {
       ? nailSets.map(normalizeNailSetForStorage).filter((set) => set.shape_id)
       : [];
 
-    if (!normalizedSets.length) {
+    // Allow empty nail sets for draft orders - validation will happen on submission
+    // This allows creating draft orders for image upload purposes before nail sets are created
+    if (!normalizedSets.length && status !== 'Draft') {
       throw new Error('At least one nail set is required');
     }
 
-    // Validate each set has design, description, or follow-up flag
-    const missingDesign = normalizedSets.some(
-      (set) =>
-        (!set.design_uploads || set.design_uploads.length === 0) &&
-        (!set.description || set.description.length === 0) &&
-        !set.requires_follow_up,
-    );
+    // Validate each set has design, description, or follow-up flag (skip for draft orders)
+    // Draft orders can be created with incomplete sets for image upload purposes
+    if (status !== 'Draft' && normalizedSets.length > 0) {
+      const missingDesign = normalizedSets.some(
+        (set) =>
+          (!set.design_uploads || set.design_uploads.length === 0) &&
+          (!set.description || set.description.length === 0) &&
+          !set.requires_follow_up,
+      );
 
-    if (missingDesign) {
-      throw new Error('Each nail set must include a design upload, description, or be marked for follow-up');
+      if (missingDesign) {
+        throw new Error('Each nail set must include a design upload, description, or be marked for follow-up');
+      }
     }
 
     // Calculate pricing (using frontend calculation)

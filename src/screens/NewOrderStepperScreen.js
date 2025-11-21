@@ -1217,9 +1217,33 @@ function NewOrderStepperScreen({ route }) {
     }
 
     // Create a new draft order immediately so we have an order ID for image uploads
+    // This minimal payload allows creating a draft order even without nail sets yet
     try {
-      const payload = buildOrderPayload('Draft');
-      const response = await createOrUpdateOrder(payload);
+      const userId = state.currentUser?.id;
+      if (!userId) {
+        throw new Error('Please log in to create an order.');
+      }
+
+      // Build minimal payload - allow empty nail sets for initial draft creation
+      // Get fulfillment from orderDraft, or use defaults
+      const deliveryDetails = orderDraft.deliveryDetails || createDefaultDeliveryDetails();
+      const minimalPayload = {
+        id: null, // New order
+        userId,
+        nailSets: [], // Empty array - will be validated when order is submitted, not when draft is created
+        customerSizes: { mode: 'standard', values: {} }, // Default - will be set properly when order is built
+        fulfillment: {
+          method: deliveryDetails.method || 'pickup',
+          speed: deliveryDetails.speed || 'standard',
+          address: deliveryDetails.address || null,
+          notes: deliveryDetails.notes || null,
+        },
+        orderNotes: null,
+        promoCode: null,
+        status: 'Draft',
+      };
+
+      const response = await createOrUpdateOrder(minimalPayload);
       const newOrderId = response.order.id;
       setDraftOrderId(newOrderId);
       handleDraftSaved(response.order, {
