@@ -16,8 +16,31 @@ import { upsertProfile, getProfile } from './supabaseService';
  */
 export async function signup({ email, password, name, ageGroup, consentAccepted = false }) {
   try {
+    // Sanitize and validate email
+    const sanitizedEmail = email ? email.trim().toLowerCase() : '';
+    if (!sanitizedEmail) {
+      throw new Error('Email is required.');
+    }
+
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(sanitizedEmail)) {
+      throw new Error('Please enter a valid email address.');
+    }
+
+    // Validate password
+    if (!password || password.trim().length === 0) {
+      throw new Error('Password is required.');
+    }
+
+    // Validate name
+    const sanitizedName = name ? name.trim() : '';
+    if (!sanitizedName) {
+      throw new Error('Name is required.');
+    }
+
     if (__DEV__) {
-      console.log('[auth] Signing up user:', { email, name, ageGroup });
+      console.log('[auth] Signing up user:', { email: sanitizedEmail, name: sanitizedName, ageGroup });
     }
 
     // Validate age group
@@ -32,22 +55,65 @@ export async function signup({ email, password, name, ageGroup, consentAccepted 
     }
 
     // Sign up with Supabase Auth
+    // Include consent acceptance in user metadata so the trigger can set consent timestamps
+    // Set emailRedirectTo to use deep link scheme so email verification opens the app
+    const now = new Date().toISOString();
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
+      email: sanitizedEmail,
       password,
       options: {
+        emailRedirectTo: 'nailsbyabri://email-verified',
         data: {
-          full_name: name,
+          full_name: sanitizedName,
           age_group: ageGroup,
+          consent_accepted: consentAccepted,
+          consent_accepted_at: consentAccepted ? now : null,
         },
       },
     });
 
     if (authError) {
+      // Log full error details for debugging
+      if (__DEV__) {
+        console.error('[auth] ❌ Supabase signup error:', {
+          message: authError.message,
+          code: authError.code,
+          status: authError.status,
+          details: authError.details,
+          hint: authError.hint,
+          fullError: authError,
+        });
+      }
+      
       if (authError.message?.includes('already registered') || authError.message?.includes('already exists')) {
         throw new Error('Account already exists for this email. Try logging in or use "Forgot password".');
       }
-      throw authError;
+      
+      // Handle database/trigger errors
+      // Note: "Database error saving new user" typically means the trigger failed
+      // The user might still be created in auth.users, but profile creation failed
+      if (authError.message?.includes('Database error') || 
+          authError.message?.includes('database') ||
+          authError.message?.includes('trigger') ||
+          authError.code === '23505' || // Unique violation
+          authError.code === '23503' || // Foreign key violation
+          authError.code === 'PGRST301' || // PostgREST error
+          authError.code === '42501') { // RLS policy violation
+        if (__DEV__) {
+          console.error('[auth] 💡 Database error likely means trigger failed. Check:');
+          console.error('[auth] 💡   1. Run docs/supabase-verify-and-fix-profile-trigger.sql');
+          console.error('[auth] 💡   2. Verify trigger exists: SELECT * FROM pg_trigger WHERE tgname = \'on_auth_user_created\';');
+          console.error('[auth] 💡   3. Check Supabase logs for trigger errors');
+        }
+        const userMessage = authError.message?.includes('Database error')
+          ? 'Unable to create account due to a database issue. The trigger that creates your profile may not be configured correctly. Please contact support.'
+          : `Unable to create account: ${authError.message || 'Database error'}`;
+        throw new Error(userMessage);
+      }
+      
+      // Re-throw other errors with a user-friendly message
+      const userMessage = authError.message || 'Unable to create account. Please try again.';
+      throw new Error(userMessage);
     }
 
     if (!authData.user) {
@@ -55,182 +121,77 @@ export async function signup({ email, password, name, ageGroup, consentAccepted 
     }
 
     const userId = authData.user.id;
-    const now = new Date().toISOString();
+    // Note: 'now' was already defined above for consent timestamps in user metadata
 
-    // IMPORTANT: Ensure the session is properly set in the Supabase client
-    // The session from signUp should be available, but we need to verify it's set
-    // Supabase automatically persists sessions to AsyncStorage, but we need to ensure
-    // the session from signUp is properly set before any RLS-protected operations
-    if (authData.session) {
-      // Set the session explicitly to ensure it's available for RLS checks
-      // This also persists it to AsyncStorage automatically
-      const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-        access_token: authData.session.access_token,
-        refresh_token: authData.session.refresh_token,
-      });
-      
-      if (sessionError) {
-        if (__DEV__) {
-          console.error('[auth] ❌ Error setting session:', sessionError.message);
-          console.error('[auth] Session error details:', {
-            code: sessionError.code,
-            message: sessionError.message,
-            userId,
-          });
-        }
-        // Don't throw - try to continue, session might still work
+    // IMPORTANT: Do NOT set session after signup - user must verify email first
+    // Supabase will send an email confirmation link automatically
+    // The user will not be logged in until they verify their email
+    if (__DEV__) {
+      if (authData.session) {
+        console.log('[auth] ℹ️  Session returned from signup (will be cleared - email verification required)');
       } else {
-        // Wait a moment for the session to be fully persisted to AsyncStorage
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Verify session is actually set and available
-        const { data: { session: verifiedSession }, error: verifyError } = await supabase.auth.getSession();
-        if (verifiedSession) {
-          if (__DEV__) {
-            console.log('[auth] ✅ Session set and verified, user ID:', verifiedSession.user.id);
-          }
-        } else {
-          if (__DEV__) {
-            console.error('[auth] ❌ Session was set but getSession returned null');
-            if (verifyError) {
-              console.error('[auth] Session verify error:', verifyError.message);
-            }
-          }
-          // This is a problem - session isn't available, which means RLS will block operations
-          // Log it prominently but don't throw - profile will be handled on login
-        }
+        console.log('[auth] ℹ️  No session in signUp response - email confirmation required');
       }
-    } else {
-      if (__DEV__) {
-        console.warn('[auth] ⚠️  No session in signUp response');
-        console.warn('[auth] This might mean email confirmation is required');
-        console.warn('[auth] Profile creation will be handled on first login');
-      }
-      // If there's no session, we can't create/update the profile now
-      // The trigger should create it, and it will be updated on first login
+      console.log('[auth] ✅ Account created successfully. Email verification required before login.');
     }
 
-    // Wait for the trigger to create the profile (if it hasn't already)
+    // Clear any existing session to ensure user is not logged in
+    await supabase.auth.signOut();
+
     // The trigger should create the profile automatically when auth.users is created
+    // Wait a moment for the trigger to execute
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Try to update the profile with consent timestamps and full_name
-    // The trigger should have created the profile, so this should be an UPDATE, not INSERT
-    try {
-      // First, verify we have a session
-      const { data: { session }, error: sessionCheckError } = await supabase.auth.getSession();
-      
-      if (!session) {
-        if (__DEV__) {
-          console.warn('[auth] ⚠️  No active session - profile will be updated on first login');
-          console.warn('[auth] The trigger should have created the profile, but consent timestamps will be set on login');
-        }
-        // Don't throw - let signup succeed, profile will be updated on login
-      } else if (session.user.id !== userId) {
-        if (__DEV__) {
-          console.error('[auth] ❌ Session user ID mismatch:', {
-            sessionUserId: session.user.id,
-            expectedUserId: userId,
+    // Verify profile was created by trigger (optional check for debugging)
+    if (__DEV__) {
+      try {
+        const { data: profileCheck, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, email, terms_accepted_at, privacy_accepted_at')
+          .eq('id', userId)
+          .single();
+        
+        if (profileError || !profileCheck) {
+          console.warn('[auth] ⚠️  Profile not found after signup. Trigger may not have executed:', profileError?.message || 'Profile not found');
+          console.warn('[auth] 💡 Make sure the trigger is set up: Run docs/supabase-fix-profile-trigger-simple.sql');
+        } else {
+          console.log('[auth] ✅ Profile created by trigger:', {
+            id: profileCheck.id,
+            email: profileCheck.email,
+            hasTermsConsent: !!profileCheck.terms_accepted_at,
+            hasPrivacyConsent: !!profileCheck.privacy_accepted_at,
           });
         }
-        throw new Error('Session user ID mismatch');
-      } else {
-        // We have a valid session - try to update the profile
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            full_name: name,
-            terms_accepted_at: now,
-            privacy_accepted_at: now,
-          })
-          .eq('id', userId);
-
-        if (updateError) {
-          // If profile doesn't exist (trigger hasn't run yet), that's OK
-          // It will be created on login or by the trigger
-          if (updateError.code === 'PGRST116' || updateError.message?.includes('No rows')) {
-            if (__DEV__) {
-              console.log('[auth] ℹ️  Profile not found - trigger will create it on next auth event or on login');
-            }
-          } else if (updateError.code === '42501') {
-            // RLS error - log prominently
-            if (__DEV__) {
-              console.error('[auth] ❌❌❌ CRITICAL: RLS policy is blocking profile update!');
-              console.error('[auth] Error details:', {
-                code: updateError.code,
-                message: updateError.message,
-                userId,
-                sessionUserId: session.user.id,
-              });
-              console.error('[auth] Please verify RLS policies allow users to update their own profile');
-            }
-            // Don't block signup, but log it as critical
-          } else {
-            // Other error - log but don't block signup
-            if (__DEV__) {
-              console.warn('[auth] ⚠️  Failed to update profile:', updateError.message);
-            }
-          }
-        } else {
-          if (__DEV__) {
-            console.log('[auth] ✅ Profile updated with consent timestamps');
-          }
-        }
-      }
-    } catch (profileError) {
-      // If update fails, don't block signup - profile will be updated on login
-      if (__DEV__) {
-        console.warn('[auth] ⚠️  Profile update failed (non-critical):', profileError.message);
-        console.warn('[auth] Profile will be created/updated on first login');
-        console.warn('[auth] The user will be prompted to accept consent again on next login if consent timestamps are missing');
-      }
-      // Continue signup even if profile update fails - user can accept consent on next login
-    }
-
-    // Fetch profile to get role (might have been set by trigger)
-    let profile = null;
-    try {
-      profile = await getProfile(userId);
-      
-      // Update last_login timestamp on signup (first login) if not already set
-      try {
-        await supabase
-          .from('profiles')
-          .update({ last_login: now })
-          .eq('id', userId);
-      } catch (updateError) {
-        // Non-critical - log but don't fail signup
+      } catch (checkError) {
+        // Silently fail - profile check is optional
         if (__DEV__) {
-          console.warn('[auth] ⚠️  Failed to update last_login (non-critical):', updateError.message);
+          console.warn('[auth] ⚠️  Could not verify profile creation:', checkError.message);
         }
       }
-    } catch (profileError) {
-      console.warn('[auth] ⚠️  Failed to fetch profile after signup (non-critical):', profileError.message);
     }
 
-    // Transform user data to match expected format
+    // Return user data for display purposes only (user is NOT logged in)
+    // Email verification is required before login
+    // Profile should be created by database trigger with consent timestamps
     const user = {
       id: userId,
-      email,
-      name,
+      email: sanitizedEmail,
+      name: sanitizedName,
       age_group: ageGroup,
       age: ageGroup === '55+' ? 55 : parseInt(ageGroup.split('-')[0]),
-      role: profile?.role || 'user', // Include role from profile (set by trigger for admin emails)
+      role: 'user',
       createdAt: now,
-      consentedAt: now,
-      consentApprover: name,
-      consentChannel: 'self',
-      pendingConsent: false,
     };
 
     if (__DEV__) {
-      console.log('[auth] ✅ User signed up successfully:', userId);
+      console.log('[auth] ✅ User account created successfully:', userId);
+      console.log('[auth] ℹ️  Profile should be created by database trigger with consent timestamps');
+      console.log('[auth] ℹ️  User must verify email before logging in');
     }
 
     return {
       user,
-      session: authData.session,
-      consentRequired: false,
+      emailConfirmationRequired: true,
     };
   } catch (error) {
     if (__DEV__) {
@@ -266,8 +227,11 @@ export async function login({ email, password }) {
       }
       
       // Handle email confirmation error
-      if (authError.message?.includes('Email not confirmed') || authError.message?.includes('email_not_confirmed')) {
-        const error = new Error('Please confirm your email address before logging in. Check your inbox for the confirmation email.');
+      if (authError.message?.includes('Email not confirmed') || 
+          authError.message?.includes('email_not_confirmed') ||
+          authError.message?.includes('confirm') ||
+          authError.code === 'email_not_confirmed') {
+        const error = new Error('Please verify your email address before logging in. Check your inbox for a verification email from Supabase, then try logging in again.');
         error.code = 'email_not_confirmed';
         error.originalError = authError;
         throw error;

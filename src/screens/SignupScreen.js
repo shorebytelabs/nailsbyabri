@@ -47,6 +47,38 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
       return;
     }
     
+    // Validate and sanitize inputs
+    const sanitizedName = name.trim();
+    const sanitizedEmail = email.trim().toLowerCase();
+    const sanitizedPassword = password.trim();
+
+    if (!sanitizedName) {
+      setError('Please enter your name.');
+      return;
+    }
+
+    if (!sanitizedEmail) {
+      setEmailError('Please enter your email address.');
+      return;
+    }
+
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(sanitizedEmail)) {
+      setEmailError('Please enter a valid email address.');
+      return;
+    }
+
+    if (!sanitizedPassword) {
+      setError('Please enter a password.');
+      return;
+    }
+
+    if (sanitizedPassword.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+    
     // Validate age group - must be 13 or older
     // All our age groups start at 13+, so if ageGroup is set, it's valid
     if (!ageGroup) {
@@ -66,14 +98,23 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
 
     try {
       const response = await signup({
-        name,
-        email,
-        password,
+        name: sanitizedName,
+        email: sanitizedEmail,
+        password: sanitizedPassword,
         ageGroup,
         consentAccepted: true, // Pass consent acceptance to signup service
       });
-      setSuccessPayload(response);
-      setSuccessVisible(true);
+      
+      // Check if email confirmation is required
+      if (response.emailConfirmationRequired) {
+        // Show email verification message and redirect to login
+        setSuccessPayload(response);
+        setSuccessVisible(true);
+      } else {
+        // Legacy flow (shouldn't happen with new flow)
+        setSuccessPayload(response);
+        setSuccessVisible(true);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to complete signup, please try again.';
       if (message.toLowerCase().includes('account already exists')) {
@@ -292,16 +333,21 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
               },
             ]}
           >
-            <Text style={[styles.successTitle, { color: colors.success || '#4B7A57' }]}>Account created</Text>
-            <Text style={[styles.successMessage, { color: withOpacity(primaryFontColor, 0.85) }]}>Your account has been created successfully. You can now start placing orders.</Text>
+            <Text style={[styles.successTitle, { color: colors.success || '#4B7A57' }]}>Account Created!</Text>
+            <Text style={[styles.successMessage, { color: withOpacity(primaryFontColor, 0.85) }]}>
+              We've sent a verification email to {successPayload?.user?.email || 'your email address'}.
+              {'\n\n'}
+              Please check your inbox and click the verification link from Supabase to activate your account.
+              {'\n\n'}
+              Once verified, you can log in to start placing orders.
+            </Text>
             <PrimaryButton
-              label="Continue"
+              label="Go to Login"
               onPress={() => {
                 setSuccessVisible(false);
-                if (successPayload) {
-                  onSignupSuccess(successPayload);
-                  setSuccessPayload(null);
-                }
+                setSuccessPayload(null);
+                // Redirect to login screen
+                onSwitchToLogin();
               }}
             />
           </View>

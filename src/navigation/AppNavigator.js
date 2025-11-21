@@ -37,6 +37,17 @@ function SignupScreenContainer({ navigation }) {
     <SignupScreen
       navigation={navigation}
       onSignupSuccess={async (response) => {
+        // If email confirmation is required, do NOT log the user in
+        // SignupScreen will already redirect to login screen
+        // Just ensure we're on the login screen (don't call handleSignupSuccess)
+        if (response.emailConfirmationRequired) {
+          // User should already be redirected to login by SignupScreen
+          // Just ensure we're on login screen (don't set user in state)
+          navigation.replace('Login');
+          return;
+        }
+        
+        // Legacy flow (for backwards compatibility, though shouldn't be used with new flow)
         await handleSignupSuccess(response);
         if (response.consentRequired) {
           navigation.replace('Consent');
@@ -57,10 +68,19 @@ function LoginScreenContainer({ navigation, route }) {
     handleConsentPendingLogin,
     clearAuthRedirect,
     setState,
+    clearStatusMessage,
   } = useAppState();
 
   const authMessage = state.authMessage || route?.params?.loginMessage;
   const redirectTarget = state.authRedirect;
+
+  // Clear statusMessage when Login screen is active to prevent duplicate error messages
+  // The Login screen already shows inline error messages
+  useEffect(() => {
+    if (state.statusMessage) {
+      clearStatusMessage();
+    }
+  }, [state.statusMessage, clearStatusMessage]);
 
   return (
     <LoginScreen
@@ -268,7 +288,7 @@ function StatusOverlay() {
   );
 }
 
-function BannerToast() {
+function BannerToast({ navigationRef }) {
   const { state, clearStatusMessage } = useAppState();
   const { theme } = useTheme();
   const colors = theme?.colors || {};
@@ -278,6 +298,19 @@ function BannerToast() {
   const accentColor = colors.accent || '#6F171F';
 
   if (!state.statusMessage) {
+    return null;
+  }
+
+  // Don't show banner toast on Login screen - the screen already shows inline error messages
+  // This prevents duplicate error messages when login fails
+  // Also hide if the message is login-related (contains "login" or "auth")
+  const currentRoute = navigationRef?.current?.getCurrentRoute();
+  const isLoginScreen = currentRoute?.name === 'Login' || 
+                        currentRoute?.name === 'LoginScreen';
+  const isLoginRelatedError = state.statusMessage?.toLowerCase().includes('login') ||
+                              state.statusMessage?.toLowerCase().includes('[auth]');
+  
+  if (isLoginScreen || (isLoginScreen && isLoginRelatedError)) {
     return null;
   }
 
@@ -330,6 +363,7 @@ function AppNavigator() {
         Login: 'login',
         Signup: 'signup',
         ForgotPassword: 'forgot-password',
+        EmailVerified: 'email-verified',
         MainTabs: {
           screens: {
             Home: 'home',
@@ -352,12 +386,13 @@ function AppNavigator() {
         console.log('[AppNavigator] Deep link received:', url);
       }
 
-      // Check if it's a password reset link
+      // Check if it's a password reset link or email verification link
       // Supabase sends links in formats:
       // 1. Direct deep link: nailsbyabri://reset-password#access_token=...&type=recovery
       // 2. Supabase verify URL: https://project.supabase.co/auth/v1/verify?token=...&type=recovery&redirect_to=...
-      // We need to handle the verify URL even if redirect_to is wrong (like localhost:3000)
-      if (url && (url.includes('reset-password') || url.includes('/auth/v1/verify'))) {
+      // 3. Email verification: https://project.supabase.co/auth/v1/verify?token=...&type=signup&redirect_to=...
+      // We need to handle the verify URL even if redirect_to is wrong (like localhost:3000 or invalid domain)
+      if (url && (url.includes('reset-password') || url.includes('email-verified') || url.includes('/auth/v1/verify'))) {
         // If it's a Supabase verify URL, we need to extract the redirect_to parameter
         // and handle the token exchange
         if (url.includes('/auth/v1/verify')) {
@@ -367,6 +402,61 @@ function AppNavigator() {
             const type = urlObj.searchParams.get('type');
             const redirectTo = urlObj.searchParams.get('redirect_to');
 
+            // Handle email verification (signup)
+            if (type === 'signup' && token) {
+              if (__DEV__) {
+                console.log('[AppNavigator] Handling email verification (signup)');
+                console.log('[AppNavigator] Token:', token.substring(0, 20) + '...');
+                console.log('[AppNavigator] Redirect to:', redirectTo);
+              }
+              
+              // For email verification, Supabase processes the token server-side when the link is clicked
+              // We need to verify the token using verifyOtp, but note that signup tokens work differently
+              // Try verifyOtp first, and if it fails, the email might still be verified server-side
+              try {
+                const { data: sessionData, error: sessionError } = await supabase.auth.verifyOtp({
+                  token_hash: token,
+                  type: 'signup',
+                });
+
+                if (sessionError) {
+                  if (__DEV__) {
+                    console.warn('[AppNavigator] verifyOtp failed, but email may still be verified server-side:', sessionError.message);
+                  }
+                  // Supabase may have already verified the email server-side when the link was clicked
+                  // Navigate to login so user can try logging in
+                  navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+                  return;
+                }
+
+                if (sessionData?.session) {
+                  if (__DEV__) {
+                    console.log('[AppNavigator] ✅ Email verified successfully with session');
+                  }
+                  // Email is verified, but we don't want to auto-login
+                  // Clear the session and navigate to login screen so user can log in manually
+                  await supabase.auth.signOut();
+                  navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+                  return;
+                } else {
+                  // Token was valid but no session - email is verified, user should log in manually
+                  if (__DEV__) {
+                    console.log('[AppNavigator] ✅ Email verified (no session) - user should log in manually');
+                  }
+                  navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+                  return;
+                }
+              } catch (err) {
+                if (__DEV__) {
+                  console.error('[AppNavigator] Error in email verification flow:', err);
+                }
+                // Even if verification fails, navigate to login - email might be verified server-side
+                navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+                return;
+              }
+            }
+
+            // Handle password reset (recovery)
             if (type === 'recovery' && token) {
               if (__DEV__) {
                 console.log('[AppNavigator] Handling Supabase verify URL with token');
@@ -673,7 +763,7 @@ function AppNavigator() {
           }}
         />
       </Stack.Navigator>
-      <BannerToast />
+      <BannerToast navigationRef={navigationRef} />
       <StatusOverlay />
     </NavigationContainer>
   );
