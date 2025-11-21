@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import shapeCatalog from '../../shared/catalog/shapes.json';
 import * as authService from './authService';
 import { getConsentLogs } from './consentLogService';
+import * as addressService from './addressService';
 
 // Legacy backend URL - only used for shapes catalog now
 // Auth and orders have been migrated to Supabase
@@ -121,5 +122,26 @@ export async function updateOrder(orderId, payload) {
 // Migrated to Supabase
 export async function deleteOrder(orderId) {
   return orderService.deleteOrder(orderId);
+}
+
+// Address Service Exports
+export async function getSavedAddresses() {
+  return addressService.getSavedAddresses();
+}
+
+export async function addSavedAddress(address) {
+  return addressService.addSavedAddress(address);
+}
+
+export async function updateSavedAddress(addressId, updates) {
+  return addressService.updateSavedAddress(addressId, updates);
+}
+
+export async function deleteSavedAddress(addressId) {
+  return addressService.deleteSavedAddress(addressId);
+}
+
+export async function setDefaultAddress(addressId) {
+  return addressService.setDefaultAddress(addressId);
 }
 

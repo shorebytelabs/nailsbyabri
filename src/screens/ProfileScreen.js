@@ -20,6 +20,7 @@ import TermsScreen from './TermsScreen';
 import PrivacyScreen from './PrivacyScreen';
 import AccountDetailsScreen from './AccountDetailsScreen';
 import NailSizesScreen from './NailSizesScreen';
+import ShippingAddressScreen from './ShippingAddressScreen';
 
 function ProfileScreen() {
   const navigation = useNavigation();
@@ -35,7 +36,7 @@ function ProfileScreen() {
 
   const user = state.currentUser;
 
-  const [activeView, setActiveView] = useState('main'); // 'main', 'changePassword', 'terms', 'privacy', 'account', 'nailSizes'
+  const [activeView, setActiveView] = useState('main'); // 'main', 'changePassword', 'terms', 'privacy', 'account', 'nailSizes', 'shippingAddress'
   const [confirmation, setConfirmation] = useState(null);
 
 
@@ -121,6 +122,20 @@ function ProfileScreen() {
     );
   }
 
+  // If activeView is 'shippingAddress', show the Shipping Address panel
+  if (activeView === 'shippingAddress') {
+    return (
+      <ShippingAddressScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
+          },
+        }}
+      />
+    );
+  }
+
   const memberSince = formatDate(user.memberSince || user.createdAt);
 
   const handleChangePassword = () => {
@@ -130,10 +145,7 @@ function ProfileScreen() {
 
   const handleShippingAddress = () => {
     logEvent('profile_manage_shipping');
-    Alert.alert(
-      'Shipping Address',
-      'Shipping address management will be available soon. Email us at NailsByAbriannaC@gmail.com with any updates.',
-    );
+    setActiveView('shippingAddress');
   };
 
   const handleContact = async () => {

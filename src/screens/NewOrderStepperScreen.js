@@ -115,6 +115,7 @@ function createDefaultDeliveryDetails() {
     method: 'pickup',
     speed: 'standard',
     address: {
+      label: '',
       name: '',
       line1: '',
       line2: '',
@@ -374,6 +375,7 @@ function NewOrderStepperScreen({ route }) {
     deliveryDetails: createDefaultDeliveryDetails(),
     promoCode: '',
     customerSizes: null, // Store customerSizes at order level for easy access
+    saveAddress: false, // Store whether user wants to save the address
   });
   const [editingSetId, setEditingSetId] = useState(null);
   const [stepErrors, setStepErrors] = useState({
@@ -633,6 +635,7 @@ function NewOrderStepperScreen({ route }) {
     }
 
     const normalizedAddress = {
+      label: '',
       name: '',
       line1: '',
       line2: '',
@@ -739,6 +742,7 @@ function NewOrderStepperScreen({ route }) {
       },
       promoCode: resumeDraft.promoCode || '',
       customerSizes: resumeDraft.customerSizes || null, // Store customerSizes for easy access
+      saveAddress: resumeDraft.saveAddress || false, // Restore save address checkbox state
     });
 
     const resolvedStepKey = (() => {
@@ -1045,6 +1049,37 @@ function NewOrderStepperScreen({ route }) {
     console.log('[OrderDraft] Persist payload', payload);
     const response = await createOrUpdateOrder(payload);
     setDraftOrderId(response.order.id);
+    
+    // If user wants to save the address, save it to their profile
+    if (orderDraft.saveAddress && payload.fulfillment?.address) {
+      const address = payload.fulfillment.address;
+      // Check if address is complete
+      if (address.name && address.line1 && address.city && address.state && address.postalCode) {
+        try {
+          const { addSavedAddress, getSavedAddresses } = await import('../services/addressService');
+          // Get current saved addresses to determine default label if needed
+          const currentAddresses = await getSavedAddresses();
+          const addressLabel = address.label || `Address ${(currentAddresses?.length || 0) + 1}`;
+          await addSavedAddress({
+            label: addressLabel,
+            name: address.name,
+            line1: address.line1,
+            line2: address.line2 || null,
+            city: address.city,
+            state: address.state,
+            postalCode: address.postalCode,
+            isDefault: false, // Don't set as default automatically
+          });
+          if (__DEV__) {
+            console.log('[NewOrderStepper] Address saved to profile with label:', addressLabel);
+          }
+        } catch (error) {
+          console.error('[NewOrderStepper] Error saving address:', error);
+          // Don't block draft save if address save fails
+        }
+      }
+    }
+    
     handleDraftSaved(response.order, {
       currentStepKey: stepKey,
       currentSetId: setId,
@@ -1163,6 +1198,37 @@ function NewOrderStepperScreen({ route }) {
       const payload = buildOrderPayload(orderStatus);
       const response = await createOrUpdateOrder(payload);
       setDraftOrderId(response.order.id);
+      
+      // If user wants to save the address, save it to their profile
+      if (orderDraft.saveAddress && payload.fulfillment?.address) {
+        const address = payload.fulfillment.address;
+        // Check if address is complete
+        if (address.name && address.line1 && address.city && address.state && address.postalCode) {
+          try {
+            const { addSavedAddress, getSavedAddresses } = await import('../services/addressService');
+            // Get current saved addresses to determine default label if needed
+            const currentAddresses = await getSavedAddresses();
+            const addressLabel = address.label || `Address ${(currentAddresses?.length || 0) + 1}`;
+            await addSavedAddress({
+              label: addressLabel,
+              name: address.name,
+              line1: address.line1,
+              line2: address.line2 || null,
+              city: address.city,
+              state: address.state,
+              postalCode: address.postalCode,
+              isDefault: false, // Don't set as default automatically
+            });
+            if (__DEV__) {
+              console.log('[NewOrderStepper] Address saved to profile on order submission with label:', addressLabel);
+            }
+          } catch (error) {
+            console.error('[NewOrderStepper] Error saving address on submission:', error);
+            // Don't block order submission if address save fails
+          }
+        }
+      }
+      
       handleOrderComplete(response.order, 'default');
       logEvent('complete_order', { order_id: response.order.id, variant: 'default', status: orderStatus });
       
@@ -2183,6 +2249,13 @@ function NewOrderStepperScreen({ route }) {
                       ...address,
                     },
                   },
+                }))
+              }
+              saveAddress={orderDraft.saveAddress}
+              onSaveAddressChange={(value) =>
+                setOrderDraft((prev) => ({
+                  ...prev,
+                  saveAddress: value,
                 }))
               }
             />
@@ -3903,14 +3976,125 @@ function SizingStep({
   );
 }
 
-function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, onChangeAddress }) {
+function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, onChangeAddress, saveAddress, onSaveAddressChange }) {
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState('add_new'); // 'add_new' or address ID
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
+
   const {
     primaryFont = '#220707',
     secondaryFont = '#5C5F5D',
     accent = '#6F171F',
     border = '#D9C8A9',
     surface = '#FFFFFF',
+    surfaceMuted = '#F6EFE8',
   } = colors || {};
+
+  // Load saved addresses when component mounts or when address is required
+  useEffect(() => {
+    if (fulfillment.method === 'delivery' || fulfillment.method === 'shipping') {
+      loadSavedAddresses();
+    }
+  }, [fulfillment.method]);
+
+  // Initialize selection - always default to "Add New" on first load
+  // Only change if user has explicitly selected a saved address
+  useEffect(() => {
+    // On initial load (when savedAddresses first populate), default to "Add New"
+    if (savedAddresses.length > 0 && selectedAddressId === null) {
+      setSelectedAddressId('add_new');
+      setShowDropdown(false);
+    } else if (savedAddresses.length === 0) {
+      setSelectedAddressId('add_new');
+      setShowDropdown(false);
+    }
+    // If user has selected an address, keep that selection (don't reset on method/timing change)
+  }, [savedAddresses.length]);
+
+  // When address is manually changed, check if it matches a saved address
+  useEffect(() => {
+    if (fulfillment.address?.name && fulfillment.address?.line1 && savedAddresses.length > 0) {
+      const matchingAddress = savedAddresses.find(addr => 
+        addr.name === fulfillment.address.name &&
+        addr.line1 === fulfillment.address.line1 &&
+        addr.city === fulfillment.address.city &&
+        addr.state === fulfillment.address.state &&
+        addr.postalCode === fulfillment.address.postalCode
+      );
+      // Only update if we find a match and it's different from current selection
+      if (matchingAddress && selectedAddressId !== matchingAddress.id) {
+        setSelectedAddressId(matchingAddress.id);
+      }
+    }
+  }, [fulfillment.address?.name, fulfillment.address?.line1, fulfillment.address?.city, fulfillment.address?.state, fulfillment.address?.postalCode, savedAddresses]);
+
+  const loadSavedAddresses = async () => {
+    try {
+      setLoadingAddresses(true);
+      const { getSavedAddresses } = await import('../services/addressService');
+      const addresses = await getSavedAddresses();
+      setSavedAddresses(addresses || []);
+    } catch (error) {
+      console.error('[FulfillmentStep] Error loading saved addresses:', error);
+      // Don't show error - just continue without saved addresses
+    } finally {
+      setLoadingAddresses(false);
+    }
+  };
+
+  const handleSelectAddress = (address, shouldUpdateForm = true) => {
+      if (!address || address === 'add_new') {
+        setSelectedAddressId('add_new');
+        setShowDropdown(false);
+        if (shouldUpdateForm) {
+          // Start with empty label - user will see placeholder hint
+          onChangeAddress({
+            label: '',
+            name: '',
+            line1: '',
+            line2: '',
+            city: '',
+            state: '',
+            postalCode: '',
+          });
+        }
+        return;
+      }
+
+    setSelectedAddressId(address.id);
+    setShowDropdown(false);
+    if (shouldUpdateForm) {
+      onChangeAddress({
+        label: address.label || 'Home',
+        name: address.name || '',
+        line1: address.line1 || '',
+        line2: address.line2 || '',
+        city: address.city || '',
+        state: address.state || '',
+        postalCode: address.postalCode || '',
+      });
+    }
+  };
+
+  const selectedAddress = selectedAddressId === 'add_new' 
+    ? null 
+    : savedAddresses.find(addr => addr.id === selectedAddressId);
+  
+  const isAddNewSelected = selectedAddressId === 'add_new' || !selectedAddress;
+  // Show save option when "Add New" is selected and user is entering a new address
+  const showSaveOption = isAddNewSelected && (
+    !fulfillment.address?.name || 
+    !fulfillment.address?.line1 ||
+    // Check if current address doesn't match any saved address
+    !savedAddresses.some(addr => 
+      addr.name === fulfillment.address?.name &&
+      addr.line1 === fulfillment.address?.line1 &&
+      addr.city === fulfillment.address?.city &&
+      addr.state === fulfillment.address?.state &&
+      addr.postalCode === fulfillment.address?.postalCode
+    )
+  );
 
   return (
     <View style={styles.fulfillmentContainer}>
@@ -4026,87 +4210,335 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
           >
             Delivery address
           </Text>
-          <TextInput
-            value={fulfillment.address.name}
-            onChangeText={(value) => onChangeAddress({ name: value })}
-            placeholder="Full name"
-            placeholderTextColor={secondaryFont}
-            style={[
-              styles.addressInput,
-              {
-                borderColor: border,
-                color: primaryFont,
-              },
-            ]}
-          />
-          <TextInput
-            value={fulfillment.address.line1}
-            onChangeText={(value) => onChangeAddress({ line1: value })}
-            placeholder="Address line 1"
-            placeholderTextColor={secondaryFont}
-            style={[
-              styles.addressInput,
-              {
-                borderColor: border,
-                color: primaryFont,
-              },
-            ]}
-          />
-          <TextInput
-            value={fulfillment.address.line2}
-            onChangeText={(value) => onChangeAddress({ line2: value })}
-            placeholder="Address line 2 (optional)"
-            placeholderTextColor={secondaryFont}
-            style={[
-              styles.addressInput,
-              {
-                borderColor: border,
-                color: primaryFont,
-              },
-            ]}
-          />
-          <View style={styles.addressRow}>
-            <TextInput
-              value={fulfillment.address.city}
-              onChangeText={(value) => onChangeAddress({ city: value })}
-              placeholder="City"
-              placeholderTextColor={secondaryFont}
+
+          {/* Address Dropdown */}
+          <View style={styles.addressDropdownContainer}>
+            <TouchableOpacity
+              onPress={() => setShowDropdown(!showDropdown)}
               style={[
-                styles.addressInputHalf,
+                styles.addressDropdown,
                 {
                   borderColor: border,
-                  color: primaryFont,
+                  backgroundColor: surface,
                 },
               ]}
-            />
-            <TextInput
-              value={fulfillment.address.state}
-              onChangeText={(value) => onChangeAddress({ state: value })}
-              placeholder="State"
-              placeholderTextColor={secondaryFont}
-              autoCapitalize="characters"
-              style={[
-                styles.addressInputQuarter,
+            >
+              <View style={styles.addressDropdownContent}>
+                {selectedAddress ? (
+                  <>
+                    <View style={styles.addressDropdownHeader}>
+                      <Text style={[styles.addressDropdownLabel, { color: accent }]}>
+                        {selectedAddress.label || 'Home'}
+                      </Text>
+                      {selectedAddress.isDefault && (
+                        <View style={[styles.defaultBadgeSmall, { backgroundColor: accent }]}>
+                          <Text style={[styles.defaultBadgeTextSmall, { color: surface }]}>Default</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={[styles.addressDropdownPreview, { color: secondaryFont }]} numberOfLines={1}>
+                      {selectedAddress.name}, {selectedAddress.line1}, {selectedAddress.city}, {selectedAddress.state}
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={[styles.addressDropdownLabel, { color: primaryFont }]}>
+                    Add New
+                  </Text>
+                )}
+              </View>
+              <Icon 
+                name="chevronRight" 
+                color={primaryFont} 
+                size={20} 
+                style={[styles.addressDropdownIcon, { transform: [{ rotate: showDropdown ? '90deg' : '0deg' }] }]}
+              />
+            </TouchableOpacity>
+
+            {/* Dropdown Options */}
+            {showDropdown && (
+              <View style={[
+                styles.addressDropdownOptions,
                 {
                   borderColor: border,
-                  color: primaryFont,
+                  backgroundColor: surface,
                 },
-              ]}
-            />
-            <TextInput
-              value={fulfillment.address.postalCode}
-              onChangeText={(value) => onChangeAddress({ postalCode: value })}
-              placeholder="Postcode"
-              placeholderTextColor={secondaryFont}
-              style={[
-                styles.addressInputQuarter,
-                {
-                  borderColor: border,
-                  color: primaryFont,
-                },
-              ]}
-            />
+              ]}>
+                <ScrollView style={styles.addressDropdownScroll} nestedScrollEnabled>
+                  <TouchableOpacity
+                    onPress={() => handleSelectAddress('add_new')}
+                    style={[
+                      styles.addressDropdownOption,
+                      {
+                        backgroundColor: isAddNewSelected ? withOpacity(accent, 0.08) : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.addressDropdownOptionText, { color: isAddNewSelected ? accent : primaryFont }]}>
+                      Add New
+                    </Text>
+                    {isAddNewSelected && <Icon name="check" color={accent} size={18} />}
+                  </TouchableOpacity>
+                  {savedAddresses.map((address) => {
+                    const isSelected = selectedAddressId === address.id;
+                    return (
+                      <TouchableOpacity
+                        key={address.id}
+                        onPress={() => handleSelectAddress(address)}
+                        style={[
+                          styles.addressDropdownOption,
+                          {
+                            backgroundColor: isSelected ? withOpacity(accent, 0.08) : 'transparent',
+                          },
+                        ]}
+                      >
+                        <View style={styles.addressDropdownOptionContent}>
+                          <View style={styles.addressDropdownOptionHeader}>
+                            <Text style={[styles.addressDropdownOptionLabel, { color: accent }]}>
+                              {address.label || 'Home'}
+                            </Text>
+                            {address.isDefault && (
+                              <View style={[styles.defaultBadgeSmall, { backgroundColor: accent }]}>
+                                <Text style={[styles.defaultBadgeTextSmall, { color: surface }]}>Default</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={[styles.addressDropdownOptionPreview, { color: secondaryFont }]} numberOfLines={2}>
+                            {address.name}, {address.line1}
+                          </Text>
+                        </View>
+                        {isSelected && <Icon name="check" color={accent} size={18} />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
           </View>
+
+          {/* Show address details - either pre-filled from selected address or empty form */}
+          {selectedAddress ? (
+            /* Show pre-filled address details (read-only style but still editable) */
+            <View style={styles.addressDetailsContainer}>
+              <TextInput
+                value={fulfillment.address.name}
+                onChangeText={(value) => onChangeAddress({ name: value })}
+                placeholder="Full name"
+                placeholderTextColor={secondaryFont}
+                style={[
+                  styles.addressInput,
+                  {
+                    borderColor: border,
+                    color: primaryFont,
+                    backgroundColor: surfaceMuted,
+                  },
+                ]}
+              />
+              <TextInput
+                value={fulfillment.address.line1}
+                onChangeText={(value) => onChangeAddress({ line1: value })}
+                placeholder="Address line 1"
+                placeholderTextColor={secondaryFont}
+                style={[
+                  styles.addressInput,
+                  {
+                    borderColor: border,
+                    color: primaryFont,
+                    backgroundColor: surfaceMuted,
+                  },
+                ]}
+              />
+              {fulfillment.address.line2 ? (
+                <TextInput
+                  value={fulfillment.address.line2}
+                  onChangeText={(value) => onChangeAddress({ line2: value })}
+                  placeholder="Address line 2 (optional)"
+                  placeholderTextColor={secondaryFont}
+                  style={[
+                    styles.addressInput,
+                    {
+                      borderColor: border,
+                      color: primaryFont,
+                      backgroundColor: surfaceMuted,
+                    },
+                  ]}
+                />
+              ) : null}
+              <View style={styles.addressRow}>
+                <TextInput
+                  value={fulfillment.address.city}
+                  onChangeText={(value) => onChangeAddress({ city: value })}
+                  placeholder="City"
+                  placeholderTextColor={secondaryFont}
+                  style={[
+                    styles.addressInputHalf,
+                    {
+                      borderColor: border,
+                      color: primaryFont,
+                      backgroundColor: surfaceMuted,
+                    },
+                  ]}
+                />
+                <TextInput
+                  value={fulfillment.address.state}
+                  onChangeText={(value) => onChangeAddress({ state: value })}
+                  placeholder="State"
+                  placeholderTextColor={secondaryFont}
+                  autoCapitalize="characters"
+                  maxLength={2}
+                  style={[
+                    styles.addressInputQuarter,
+                    {
+                      borderColor: border,
+                      color: primaryFont,
+                      backgroundColor: surfaceMuted,
+                    },
+                  ]}
+                />
+                <TextInput
+                  value={fulfillment.address.postalCode}
+                  onChangeText={(value) => onChangeAddress({ postalCode: value })}
+                  placeholder="Postcode"
+                  placeholderTextColor={secondaryFont}
+                  style={[
+                    styles.addressInputQuarter,
+                    {
+                      borderColor: border,
+                      color: primaryFont,
+                      backgroundColor: surfaceMuted,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          ) : (
+            /* Show empty address form for "Add New" */
+            <View style={styles.addressDetailsContainer}>
+              <TextInput
+                value={fulfillment.address.label || ''}
+                onChangeText={(value) => onChangeAddress({ label: value })}
+                placeholder="Label (e.g., Home, Work)"
+                placeholderTextColor={secondaryFont}
+                style={[
+                  styles.addressInput,
+                  {
+                    borderColor: border,
+                    color: primaryFont,
+                  },
+                ]}
+              />
+              <TextInput
+                value={fulfillment.address.name}
+                onChangeText={(value) => onChangeAddress({ name: value })}
+                placeholder="Full name"
+                placeholderTextColor={secondaryFont}
+                style={[
+                  styles.addressInput,
+                  {
+                    borderColor: border,
+                    color: primaryFont,
+                  },
+                ]}
+              />
+              <TextInput
+                value={fulfillment.address.line1}
+                onChangeText={(value) => onChangeAddress({ line1: value })}
+                placeholder="Address line 1"
+                placeholderTextColor={secondaryFont}
+                style={[
+                  styles.addressInput,
+                  {
+                    borderColor: border,
+                    color: primaryFont,
+                  },
+                ]}
+              />
+              <TextInput
+                value={fulfillment.address.line2}
+                onChangeText={(value) => onChangeAddress({ line2: value })}
+                placeholder="Address line 2 (optional)"
+                placeholderTextColor={secondaryFont}
+                style={[
+                  styles.addressInput,
+                  {
+                    borderColor: border,
+                    color: primaryFont,
+                  },
+                ]}
+              />
+              <View style={styles.addressRow}>
+                <View style={styles.addressInputThird}>
+                  <TextInput
+                    value={fulfillment.address.city}
+                    onChangeText={(value) => onChangeAddress({ city: value })}
+                    placeholder="City"
+                    placeholderTextColor={secondaryFont}
+                    style={[
+                      styles.addressInput,
+                      {
+                        borderColor: border,
+                        color: primaryFont,
+                      },
+                    ]}
+                  />
+                </View>
+                <View style={styles.addressInputThird}>
+                  <TextInput
+                    value={fulfillment.address.state}
+                    onChangeText={(value) => onChangeAddress({ state: value })}
+                    placeholder="State"
+                    placeholderTextColor={secondaryFont}
+                    autoCapitalize="characters"
+                    maxLength={2}
+                    style={[
+                      styles.addressInput,
+                      {
+                        borderColor: border,
+                        color: primaryFont,
+                      },
+                    ]}
+                  />
+                </View>
+                <View style={styles.addressInputThird}>
+                  <TextInput
+                    value={fulfillment.address.postalCode}
+                    onChangeText={(value) => onChangeAddress({ postalCode: value })}
+                    placeholder="Postcode"
+                    placeholderTextColor={secondaryFont}
+                    style={[
+                      styles.addressInput,
+                      {
+                        borderColor: border,
+                        color: primaryFont,
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+
+              {/* Show "Save this address" option when adding new address */}
+              {showSaveOption && (
+                <View style={styles.saveAddressRow}>
+                  <View style={styles.saveAddressCheckbox}>
+                    <TouchableOpacity
+                      onPress={() => onSaveAddressChange?.(!saveAddress)}
+                      style={[
+                        styles.checkbox,
+                        {
+                          borderColor: saveAddress ? accent : border,
+                          backgroundColor: saveAddress ? accent : 'transparent',
+                        },
+                      ]}
+                    >
+                      {saveAddress && <Icon name="check" color={surface} size={14} />}
+                    </TouchableOpacity>
+                    <Text style={[styles.saveAddressLabel, { color: primaryFont }]}>
+                      Save this address for future orders
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -5410,6 +5842,197 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     fontSize: 14,
+  },
+  addressInputThird: {
+    flex: 1,
+  },
+  addressFormHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  addAddressButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  addAddressButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  addressSelector: {
+    gap: 12,
+    marginBottom: 12,
+  },
+  addressOption: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  addressOptionContent: {
+    flex: 1,
+    gap: 4,
+  },
+  addressOptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  addressOptionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  defaultBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  defaultBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  addressOptionLine: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  backToSavedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  backToSavedText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  addressDropdownContainer: {
+    marginBottom: 12,
+    position: 'relative',
+    zIndex: 1,
+  },
+  addressDropdown: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  addressDropdownContent: {
+    flex: 1,
+    marginRight: 8,
+  },
+  addressDropdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  addressDropdownLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  addressDropdownPreview: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  addressDropdownIcon: {
+    marginLeft: 8,
+  },
+  addressDropdownOptions: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    maxHeight: 300,
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 5,
+    zIndex: 10,
+  },
+  addressDropdownScroll: {
+    maxHeight: 300,
+  },
+  addressDropdownOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  addressDropdownOptionContent: {
+    flex: 1,
+    marginRight: 8,
+  },
+  addressDropdownOptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  addressDropdownOptionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  addressDropdownOptionPreview: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  addressDropdownOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  defaultBadgeSmall: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  defaultBadgeTextSmall: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  addressDetailsContainer: {
+    gap: 12,
+  },
+  saveAddressRow: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.08)',
+  },
+  saveAddressCheckbox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveAddressLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
   },
   reviewContainer: {
     gap: 18,
