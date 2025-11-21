@@ -51,6 +51,8 @@ function NailSizesScreen({ navigation }) {
   const accent = colors.accent || '#6F171F';
   const secondaryFont = colors.secondaryFont || '#5C5F5D';
   const successColor = colors.success || '#4B7A57';
+  const borderColor = colors.border || withOpacity('#000000', 0.08);
+  const surface = colors.surface || '#FFFFFF';
 
   useEffect(() => {
     setNailSizesDraft(normalizeNailSizes(state.preferences?.nailSizes));
@@ -183,83 +185,99 @@ function NailSizesScreen({ navigation }) {
     }
   };
 
-  const renderSizeProfileCard = ({ profile, isDefault, onChangeLabel, onChangeSize, onRemove }) => (
-    <View
-      key={profile.id}
-      style={[
-        styles.sizeProfileCard,
-        {
-          borderColor: withOpacity(colors.divider || '#E6DCD0', 0.8),
-          backgroundColor: colors.surface || '#FFFFFF',
-        },
-      ]}
-    >
-      <View style={styles.sizeProfileHeader}>
-        <View style={styles.sizeProfileHeaderText}>
-          <Text style={styles.sizeProfileTitle}>
-            {isDefault ? 'Default profile' : 'Additional profile'}
-          </Text>
-        </View>
-        {!isDefault && (
-          <TouchableOpacity
-            onPress={onRemove}
-            accessibilityRole="button"
-            style={styles.sizeRemoveButton}
-          >
-            <Icon name="trash" color={withOpacity(colors.primaryFont || '#220707', 0.6)} size={16} />
-            <Text
-              style={[
-                styles.sizeRemoveText,
-                { color: withOpacity(colors.primaryFont || '#220707', 0.6) },
-              ]}
-            >
-              Remove
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+  const renderSizeProfileCard = ({ profile, isDefault, onChangeLabel, onChangeSize, onRemove }) => {
+    const accent = colors.accent || '#6F171F';
+    const borderColor = colors.border || withOpacity('#000000', 0.08);
+    const surface = colors.surface || '#FFFFFF';
+    const primaryFont = colors.primaryFont || '#220707';
+    const secondaryFont = colors.secondaryFont || '#5C5F5D';
+    const errorColor = colors.error || '#B33A3A';
 
-      <TextInput
+    return (
+      <View
+        key={profile.id}
         style={[
-          styles.sizeProfileNameInput,
+          styles.sizeProfileCard,
           {
-            borderColor: colors.divider || '#E6DCD0',
-            color: colors.primaryFont || '#220707',
-            backgroundColor: colors.surfaceMuted || withOpacity(colors.accent || '#6F171F', 0.05),
+            borderColor: isDefault ? accent : borderColor,
+            backgroundColor: isDefault ? withOpacity(accent, 0.05) : surface,
           },
         ]}
-        value={profile.label}
-        onChangeText={onChangeLabel}
-        placeholder={isDefault ? 'My default sizes' : 'Profile name'}
-        placeholderTextColor={withOpacity(colors.secondaryFont || '#5C5F5D', 0.6)}
-      />
-
-      <View style={styles.sizeGrid}>
-        {FINGER_DISPLAY.map(({ key, label }) => (
-          <View key={`${profile.id}_${key}`} style={styles.sizeCell}>
-            <Text style={[styles.sizeLabel, { color: colors.secondaryFont || '#5C5F5D' }]}>
-              {label}
+      >
+        <View style={styles.sizeProfileHeader}>
+          <View style={styles.sizeProfileHeaderLeft}>
+            <Text style={[styles.sizeProfileLabel, { color: accent }]}>
+              {profile.label || (isDefault ? 'My default sizes' : 'Profile name')}
             </Text>
-            <TextInput
-              style={[
-                styles.sizeInput,
-                {
-                  borderColor: colors.divider || '#E6DCD0',
-                  color: colors.primaryFont || '#220707',
-                  backgroundColor: colors.surface || '#FFFFFF',
-                },
-              ]}
-              value={profile.sizes?.[key] || ''}
-              onChangeText={(value) => onChangeSize(key, value)}
-              placeholder="e.g. 3"
-              placeholderTextColor={withOpacity(colors.secondaryFont || '#5C5F5D', 0.5)}
-              keyboardType="number-pad"
-            />
+            {isDefault && (
+              <View style={[styles.defaultBadge, { backgroundColor: accent }]}>
+                <Text style={[styles.defaultBadgeText, { color: surface }]}>Default</Text>
+              </View>
+            )}
           </View>
-        ))}
+          <View style={styles.sizeProfileActions}>
+            {!isDefault && (
+              <TouchableOpacity
+                onPress={onRemove}
+                style={styles.actionButton}
+                accessibilityLabel="Delete profile"
+              >
+                <Icon name="trash" color={errorColor} size={18} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        <TextInput
+          style={[
+            styles.sizeProfileNameInput,
+            {
+              borderColor: withOpacity(borderColor, 0.5),
+              color: primaryFont,
+              backgroundColor: surface,
+            },
+          ]}
+          value={profile.label}
+          onChangeText={onChangeLabel}
+          placeholder={isDefault ? 'My default sizes' : 'Profile name'}
+          placeholderTextColor={withOpacity(secondaryFont, 0.5)}
+        />
+
+        <View style={styles.sizeContainer}>
+          <View style={styles.sizeLabelsRow}>
+            {FINGER_DISPLAY.map(({ key, label }) => (
+              <View key={`${profile.id}_${key}_label`} style={styles.sizeLabelCell}>
+                <Text style={[styles.sizeLabel, { color: primaryFont }]}>
+                  {label}
+                </Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.sizeInputsRow}>
+            {FINGER_DISPLAY.map(({ key, label }) => (
+              <View key={`${profile.id}_${key}_input`} style={styles.sizeInputCell}>
+                <TextInput
+                  style={[
+                    styles.sizeInput,
+                    {
+                      borderColor: withOpacity(borderColor, 0.5),
+                      color: primaryFont,
+                      backgroundColor: surface,
+                    },
+                  ]}
+                  value={profile.sizes?.[key] || ''}
+                  onChangeText={(value) => onChangeSize(key, value)}
+                  placeholder="e.g. 3"
+                  placeholderTextColor={withOpacity(secondaryFont, 0.5)}
+                  keyboardType="number-pad"
+                />
+              </View>
+            ))}
+          </View>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <ScreenContainer scroll={false} style={styles.container}>
@@ -270,7 +288,7 @@ function NailSizesScreen({ navigation }) {
           accessibilityRole="button"
           accessibilityLabel="Go back to Profile"
         >
-          <Icon name="chevronRight" color={primaryFont} style={styles.backIcon} size={24} />
+          <Icon name="chevronRight" color={primaryFont} style={styles.backIcon} size={20} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: primaryFont }]}>Nail Sizes</Text>
         <View style={styles.placeholder} />
@@ -282,58 +300,46 @@ function NailSizesScreen({ navigation }) {
         showsVerticalScrollIndicator={true}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.subtitle, { color: secondaryFont }]}>
-          Manage your nail sizes and create additional profiles for different sets.
-        </Text>
+        <View style={styles.headerSection}>
+          <Text style={[styles.subtitle, { color: secondaryFont }]}>
+            Manage your nail sizes and create additional profiles for different sets.
+          </Text>
+        </View>
 
         <View style={styles.sizesSection}>
-          <View style={styles.sizeSectionHeader}>
-            <Text style={[styles.sectionTitle, { color: primaryFont }]}>Default profile</Text>
-          </View>
-          {renderSizeProfileCard({
-            profile: nailSizesDraft.defaultProfile,
-            isDefault: true,
-            onChangeLabel: handleDefaultProfileLabelChange,
-            onChangeSize: handleDefaultSizeChange,
-          })}
-
-          <View style={styles.sizeSectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: primaryFont }]}>Additional profiles</Text>
-            <Text style={[styles.sizeSectionHint, { color: secondaryFont }]}>
-              Save additional nail sizes.
-            </Text>
-          </View>
-          {nailSizesDraft.profiles.length
-            ? nailSizesDraft.profiles.map((profile) =>
-                renderSizeProfileCard({
-                  profile,
-                  isDefault: false,
-                  onChangeLabel: (value) => handleProfileNameChange(profile.id, value),
-                  onChangeSize: (finger, value) =>
-                    handleProfileSizeChange(profile.id, finger, value),
-                  onRemove: () => handleRemoveSizeProfile(profile.id),
-                }),
-              )
-            : null}
-
-          <TouchableOpacity
-            style={[
-              styles.addSizeButton,
-              { borderColor: withOpacity(colors.accent || '#6F171F', 0.3) },
-            ]}
-            onPress={handleAddSizeProfile}
-            accessibilityRole="button"
-          >
-            <Icon name="plus" color={colors.accent} size={16} />
-            <Text
+          <View style={styles.addButtonBottomContainer}>
+            <TouchableOpacity
+              onPress={handleAddSizeProfile}
               style={[
-                styles.addSizeButtonText,
-                { color: colors.accent },
+                styles.addButtonTop,
+                {
+                  borderColor: withOpacity(accent, 0.35),
+                  backgroundColor: withOpacity(accent, 0.08),
+                },
               ]}
             >
-              Add size profile
-            </Text>
-          </TouchableOpacity>
+              <Icon name="plus" color={accent} size={16} />
+              <Text style={[styles.addButtonTopText, { color: accent }]}>Add Size Profile</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.profileList}>
+            {renderSizeProfileCard({
+              profile: nailSizesDraft.defaultProfile,
+              isDefault: true,
+              onChangeLabel: handleDefaultProfileLabelChange,
+              onChangeSize: handleDefaultSizeChange,
+            })}
+            {nailSizesDraft.profiles.map((profile) =>
+              renderSizeProfileCard({
+                profile,
+                isDefault: false,
+                onChangeLabel: (value) => handleProfileNameChange(profile.id, value),
+                onChangeSize: (finger, value) =>
+                  handleProfileSizeChange(profile.id, finger, value),
+                onRemove: () => handleRemoveSizeProfile(profile.id),
+              }),
+            )}
+          </View>
 
           {confirmation ? (
             <Text style={[styles.successText, { color: successColor }]}>{confirmation}</Text>
@@ -376,8 +382,6 @@ const createStyles = (colors) => StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    flex: 1,
-    textAlign: 'center',
   },
   placeholder: {
     width: 40,
@@ -386,88 +390,114 @@ const createStyles = (colors) => StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: 16,
+    paddingBottom: 32,
+  },
+  headerSection: {
+    marginBottom: 24,
   },
   subtitle: {
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 24,
+    marginBottom: 12,
   },
   sizesSection: {
-    gap: 20,
+    gap: 0,
   },
-  sizeSectionHeader: {
-    marginBottom: 8,
+  addButtonBottomContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  sizeSectionHeaderRow: {
-    marginTop: 24,
-    marginBottom: 12,
-    gap: 4,
+  addButtonTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
-  sectionTitle: {
-    fontSize: 18,
+  addButtonTopText: {
+    fontSize: 13,
     fontWeight: '700',
   },
-  sizeSectionHint: {
-    fontSize: 13,
-    lineHeight: 18,
+  profileList: {
+    gap: 12,
+    marginBottom: 24,
   },
   sizeProfileCard: {
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    borderWidth: 1,
     padding: 16,
-    gap: 16,
+    marginBottom: 12,
   },
   sizeProfileHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  sizeProfileHeaderText: {
-    flex: 1,
-  },
-  sizeProfileTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primaryFont || '#220707',
-  },
-  sizeRemoveButton: {
+  sizeProfileHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    padding: 4,
+    gap: 8,
+    flex: 1,
   },
-  sizeRemoveText: {
+  sizeProfileLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  defaultBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  defaultBadgeText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  sizeProfileActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    padding: 8,
   },
   sizeProfileNameInput: {
     borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderWidth: 1,
+    padding: 12,
     fontSize: 14,
+    marginBottom: 16,
   },
-  sizeGrid: {
+  sizeContainer: {
+    gap: 8,
+  },
+  sizeLabelsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 12,
   },
-  sizeCell: {
+  sizeLabelCell: {
     flex: 1,
-    minWidth: '30%',
-    gap: 6,
   },
   sizeLabel: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  sizeInputsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  sizeInputCell: {
+    flex: 1,
   },
   sizeInput: {
     borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderWidth: 1,
+    padding: 12,
     fontSize: 14,
     textAlign: 'center',
   },
@@ -478,12 +508,13 @@ const createStyles = (colors) => StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
     borderRadius: 8,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderStyle: 'dashed',
+    marginTop: 12,
   },
   addSizeButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
   },
   successText: {
     fontSize: 14,
