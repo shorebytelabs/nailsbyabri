@@ -2,48 +2,24 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Linking,
-  Modal,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  TextInput,
   View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import Icon from '../icons/Icon';
 import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
 import { logEvent } from '../utils/analytics';
 import { withOpacity } from '../utils/color';
-import {
-  normalizeNailSizes as normalizeStoredNailSizes,
-  createEmptySizeValues,
-} from '../storage/preferences';
-import { deleteNailSizeProfile } from '../services/supabaseService';
 import ChangePasswordScreen from './ChangePasswordScreen';
-
-const FINGER_DISPLAY = [
-  { key: 'thumb', label: 'Thumb' },
-  { key: 'index', label: 'Index' },
-  { key: 'middle', label: 'Middle' },
-  { key: 'ring', label: 'Ring' },
-  { key: 'pinky', label: 'Pinky' },
-];
-
-const buildEmptyNailSizes = () => ({
-  defaultProfile: {
-    id: 'default',
-    label: 'My default sizes',
-    sizes: createEmptySizeValues(),
-  },
-  profiles: [],
-});
-
-const normalizeNailSizes = (value) =>
-  value ? normalizeStoredNailSizes(value) : buildEmptyNailSizes();
+import TermsScreen from './TermsScreen';
+import PrivacyScreen from './PrivacyScreen';
+import AccountDetailsScreen from './AccountDetailsScreen';
+import NailSizesScreen from './NailSizesScreen';
 
 function ProfileScreen() {
   const navigation = useNavigation();
@@ -59,33 +35,9 @@ function ProfileScreen() {
 
   const user = state.currentUser;
 
-  const [accountDraft, setAccountDraft] = useState(() => ({
-    name: user?.name || '',
-    email: user?.email || '',
-  }));
-  const [nailSizesExpanded, setNailSizesExpanded] = useState(false);
-  const [detailsExpanded, setDetailsExpanded] = useState(false);
-  const [accountModalVisible, setAccountModalVisible] = useState(false);
-  const [activeView, setActiveView] = useState('main'); // 'main' or 'changePassword'
-  const [savingSizes, setSavingSizes] = useState(false);
+  const [activeView, setActiveView] = useState('main'); // 'main', 'changePassword', 'terms', 'privacy', 'account', 'nailSizes'
   const [confirmation, setConfirmation] = useState(null);
-  const [nailSizesDraft, setNailSizesDraft] = useState(() =>
-    normalizeNailSizes(state.preferences?.nailSizes),
-  );
 
-  useEffect(() => {
-    setNailSizesDraft(normalizeNailSizes(state.preferences?.nailSizes));
-  }, [state.preferences?.nailSizes]);
-
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-    setAccountDraft({
-      name: user.name || '',
-      email: user.email || '',
-    });
-  }, [user]);
 
   useEffect(() => {
     if (!confirmation) {
@@ -113,127 +65,68 @@ function ProfileScreen() {
     );
   }
 
+  // If activeView is 'terms', show the Terms & Conditions panel
+  if (activeView === 'terms') {
+    return (
+      <TermsScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
+          },
+        }}
+      />
+    );
+  }
+
+  // If activeView is 'privacy', show the Privacy Policy panel
+  if (activeView === 'privacy') {
+    return (
+      <PrivacyScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
+          },
+        }}
+      />
+    );
+  }
+
+  // If activeView is 'account', show the Account Details panel
+  if (activeView === 'account') {
+    return (
+      <AccountDetailsScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
+          },
+        }}
+      />
+    );
+  }
+
+  // If activeView is 'nailSizes', show the Nail Sizes panel
+  if (activeView === 'nailSizes') {
+    return (
+      <NailSizesScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
+          },
+        }}
+      />
+    );
+  }
+
   const memberSince = formatDate(user.memberSince || user.createdAt);
-
-  const handleDefaultProfileLabelChange = (value) => {
-    setNailSizesDraft((prev) => ({
-      ...prev,
-      defaultProfile: {
-        ...prev.defaultProfile,
-        label: value,
-      },
-    }));
-  };
-
-  const handleDefaultSizeChange = (finger, value) => {
-    setNailSizesDraft((prev) => ({
-      ...prev,
-      defaultProfile: {
-        ...prev.defaultProfile,
-        sizes: {
-          ...prev.defaultProfile.sizes,
-          [finger]: value,
-        },
-      },
-    }));
-  };
-
-  const handleProfileNameChange = (profileId, value) => {
-    setNailSizesDraft((prev) => ({
-      ...prev,
-      profiles: prev.profiles.map((profile) =>
-        profile.id === profileId
-          ? {
-              ...profile,
-              label: value,
-            }
-          : profile,
-      ),
-    }));
-  };
-
-  const handleProfileSizeChange = (profileId, finger, value) => {
-    setNailSizesDraft((prev) => ({
-      ...prev,
-      profiles: prev.profiles.map((profile) =>
-        profile.id === profileId
-          ? {
-              ...profile,
-              sizes: {
-                ...profile.sizes,
-                [finger]: value,
-              },
-            }
-          : profile,
-      ),
-    }));
-  };
-
-  const handleAddSizeProfile = () => {
-    setNailSizesExpanded(true);
-    const newProfile = {
-      id: `profile_${Date.now()}`,
-      label: `Additional profile ${nailSizesDraft.profiles.length + 1}`,
-      sizes: createEmptySizeValues(),
-    };
-    setNailSizesDraft((prev) => ({
-      ...prev,
-      profiles: [...prev.profiles, newProfile],
-    }));
-    logEvent('profile_add_size_profile');
-  };
-
-  const handleRemoveSizeProfile = async (profileId) => {
-    // Don't delete if it's the default profile or a temporary ID
-    if (profileId === 'default' || profileId.startsWith('profile_') || profileId.startsWith('temp_')) {
-      setNailSizesDraft((prev) => ({
-        ...prev,
-        profiles: prev.profiles.filter((profile) => profile.id !== profileId),
-      }));
-      logEvent('profile_remove_size_profile', { profile_id: profileId });
-      return;
-    }
-
-    // Delete from Supabase if it's a real profile
-    try {
-      await deleteNailSizeProfile(user.id, profileId);
-      setNailSizesDraft((prev) => ({
-        ...prev,
-        profiles: prev.profiles.filter((profile) => profile.id !== profileId),
-      }));
-      logEvent('profile_remove_size_profile', { profile_id: profileId });
-    } catch (error) {
-      console.error('Failed to delete nail size profile:', error);
-      // Still remove from UI even if Supabase delete fails
-      setNailSizesDraft((prev) => ({
-        ...prev,
-        profiles: prev.profiles.filter((profile) => profile.id !== profileId),
-      }));
-    }
-  };
-
-  const handleSaveNailSizes = async () => {
-    setSavingSizes(true);
-    try {
-      const sanitized = normalizeNailSizes(nailSizesDraft);
-      const nextPreferences = {
-        ...state.preferences,
-        nailSizes: sanitized,
-      };
-      await handleUpdatePreferences(nextPreferences);
-      setConfirmation('Nail sizes saved');
-      logEvent('profile_save_nail_sizes');
-    } finally {
-      setSavingSizes(false);
-    }
-  };
-
 
   const handleChangePassword = () => {
     logEvent('profile_change_password');
     setActiveView('changePassword');
   };
-
 
   const handleShippingAddress = () => {
     logEvent('profile_manage_shipping');
@@ -246,23 +139,6 @@ function ProfileScreen() {
   const handleContact = async () => {
     logEvent('profile_contact_support');
     Alert.alert('Contact Support', 'Please email NailsByAbriannaC@gmail.com for assistance.');
-  };
-
-  const handleSaveAccountDetails = () => {
-    logEvent('profile_edit_details_save', {
-      name: accountDraft.name,
-      email: accountDraft.email,
-    });
-    setState((prev) => ({
-      ...prev,
-      currentUser: {
-        ...prev.currentUser,
-        name: accountDraft.name,
-        email: accountDraft.email,
-      },
-    }));
-    setAccountModalVisible(false);
-    setConfirmation('Account details updated');
   };
 
   const manageRows = [
@@ -285,18 +161,20 @@ function ProfileScreen() {
       title: 'Nail Sizes',
       description: 'Manage your nail sizes',
       icon: 'sliders',
-      expandable: true,
-      expanded: nailSizesExpanded,
-      onPress: () => setNailSizesExpanded((prev) => !prev),
+      onPress: () => {
+        logEvent('profile_view_nail_sizes');
+        setActiveView('nailSizes');
+      },
     },
     {
       key: 'account',
       title: 'Account Details',
       description: 'Email and age group',
       icon: 'info',
-      expandable: true,
-      expanded: detailsExpanded,
-      onPress: () => setDetailsExpanded((prev) => !prev),
+      onPress: () => {
+        logEvent('profile_view_account_details');
+        setActiveView('account');
+      },
     },
     {
       key: 'contact',
@@ -312,7 +190,7 @@ function ProfileScreen() {
       icon: 'fileText',
       onPress: () => {
         logEvent('profile_view_terms');
-        navigation.navigate('Terms');
+        setActiveView('terms');
       },
     },
     {
@@ -322,7 +200,7 @@ function ProfileScreen() {
       icon: 'shield',
       onPress: () => {
         logEvent('profile_view_privacy');
-        navigation.navigate('Privacy');
+        setActiveView('privacy');
       },
     },
   ];
@@ -370,7 +248,7 @@ function ProfileScreen() {
             label="Edit Details"
             onPress={() => {
               logEvent('profile_edit_details_open');
-              setAccountModalVisible(true);
+              setActiveView('account');
             }}
             style={styles.editButton}
             accessibilityLabel="Edit your profile details"
@@ -409,92 +287,10 @@ function ProfileScreen() {
                     <Text style={styles.rowDescription}>{item.description}</Text>
                   ) : null}
                 </View>
-                <View
-                  style={[
-                    styles.rowAccessory,
-                    item.expandable && item.expanded && styles.rowAccessoryExpanded,
-                  ]}
-                >
+                <View style={styles.rowAccessory}>
                   <Icon name="chevronRight" color={colors.secondaryFont} />
                 </View>
               </TouchableOpacity>
-              {item.expandable && item.expanded ? (
-                <View style={styles.rowExpansion}>
-                  {item.key === 'nailSizes' ? (
-                    <View style={styles.nailSizesSection}>
-                      <View style={styles.sizeSectionHeader}>
-                        <Text style={styles.sectionTitle}>Default nail sizes</Text>
-                      </View>
-                      {renderSizeProfileCard({
-                        profile: nailSizesDraft.defaultProfile,
-                        colors,
-                        styles,
-                        isDefault: true,
-                        onChangeLabel: handleDefaultProfileLabelChange,
-                        onChangeSize: handleDefaultSizeChange,
-                      })}
-
-                      <View style={styles.sizeSectionHeaderRow}>
-                        <Text style={styles.sectionTitle}>Additional profiles</Text>
-                        <Text style={styles.sizeSectionHint}>
-                          Save additional nail sizes.
-                        </Text>
-                      </View>
-                      {nailSizesDraft.profiles.length
-                        ? nailSizesDraft.profiles.map((profile) =>
-                            renderSizeProfileCard({
-                              profile,
-                              colors,
-                              styles,
-                              isDefault: false,
-                              onChangeLabel: (value) => handleProfileNameChange(profile.id, value),
-                              onChangeSize: (finger, value) =>
-                                handleProfileSizeChange(profile.id, finger, value),
-                              onRemove: () => handleRemoveSizeProfile(profile.id),
-                            }),
-                          )
-                        : null}
-
-                      <TouchableOpacity
-                        style={[
-                          styles.addSizeButton,
-                          { borderColor: withOpacity(colors.accent || '#6F171F', 0.3) },
-                        ]}
-                        onPress={handleAddSizeProfile}
-                        accessibilityRole="button"
-                      >
-                        <Icon name="plus" color={colors.accent} size={16} />
-                        <Text
-                          style={[
-                            styles.addSizeButtonText,
-                            { color: colors.accent },
-                          ]}
-                        >
-                          Add size profile
-                        </Text>
-                      </TouchableOpacity>
-
-                      <PrimaryButton
-                        label={savingSizes ? 'Saving…' : 'Save Nail Sizes'}
-                        onPress={handleSaveNailSizes}
-                        loading={savingSizes}
-                        accessibilityLabel="Save nail size profiles"
-                      />
-                    </View>
-                  ) : null}
-
-                  {item.key === 'account' ? (
-                    <View style={styles.detailList}>
-                      <DetailRow label="Email" value={user.email} />
-                      <DetailRow
-                        label="Age group"
-                        value={user.age_group || '—'}
-                        isLast
-                      />
-                    </View>
-                  ) : null}
-                </View>
-              ) : null}
             </View>
           ))}
         </View>
@@ -522,163 +318,6 @@ function ProfileScreen() {
           </Text>
         </View>
       ) : null}
-
-      <Modal
-        visible={accountModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setAccountModalVisible(false)}
-      >
-        <View
-          style={[
-            styles.modalBackdrop,
-            { backgroundColor: withOpacity(colors.shadow || '#000000', 0.35) },
-          ]}
-        >
-          <View
-            style={[
-              styles.modalCard,
-              {
-                backgroundColor: colors.surface || '#FFFFFF',
-                borderColor: withOpacity(colors.divider || '#E6DCD0', 0.6),
-              },
-            ]}
-          >
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Details</Text>
-              <Text style={styles.modalSubtitle}>
-                Update how your name and email appear across the app.
-              </Text>
-            </View>
-            <FormField
-              label="Full name"
-              value={accountDraft.name}
-              onChangeText={(value) =>
-                setAccountDraft((prev) => ({
-                  ...prev,
-                  name: value,
-                }))
-              }
-            />
-            <FormField
-              label="Email"
-              value={accountDraft.email}
-              onChangeText={(value) =>
-                setAccountDraft((prev) => ({
-                  ...prev,
-                  email: value,
-                }))
-              }
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <View style={styles.modalActions}>
-              <PrimaryButton
-                label="Save Changes"
-                onPress={handleSaveAccountDetails}
-                accessibilityLabel="Save account details"
-              />
-              <TouchableOpacity
-                onPress={() => setAccountModalVisible(false)}
-                accessibilityRole="button"
-                accessibilityLabel="Cancel editing account details"
-                style={styles.modalSecondaryButton}
-              >
-                <Text style={styles.modalSecondaryText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-    </View>
-  );
-}
-
-function renderSizeProfileCard({
-  profile,
-  colors,
-  styles,
-  isDefault,
-  onChangeLabel,
-  onChangeSize,
-  onRemove,
-}) {
-  return (
-    <View
-      key={profile.id}
-      style={[
-        styles.sizeProfileCard,
-        {
-          borderColor: withOpacity(colors.divider || '#E6DCD0', 0.8),
-          backgroundColor: colors.surface || '#FFFFFF',
-        },
-      ]}
-    >
-      <View style={styles.sizeProfileHeader}>
-        <View style={styles.sizeProfileHeaderText}>
-          <Text style={styles.sizeProfileTitle}>
-            {isDefault ? 'Default profile' : 'Additional profile'}
-          </Text>
-        </View>
-        {!isDefault && (
-          <TouchableOpacity
-            onPress={onRemove}
-            accessibilityRole='button'
-            style={styles.sizeRemoveButton}
-          >
-            <Icon name="trash" color={withOpacity(colors.primaryFont || '#220707', 0.6)} size={16} />
-            <Text
-              style={[
-                styles.sizeRemoveText,
-                { color: withOpacity(colors.primaryFont || '#220707', 0.6) },
-              ]}
-            >
-              Remove
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <TextInput
-        style={[
-          styles.sizeProfileNameInput,
-          {
-            borderColor: colors.divider || '#E6DCD0',
-            color: colors.primaryFont || '#220707',
-            backgroundColor: colors.surfaceMuted || withOpacity(colors.accent || '#6F171F', 0.05),
-          },
-        ]}
-        value={profile.label}
-        onChangeText={onChangeLabel}
-        placeholder={isDefault ? 'My default sizes' : 'Profile name'}
-        placeholderTextColor={withOpacity(colors.secondaryFont || '#5C5F5D', 0.6)}
-      />
-
-      <View style={styles.sizeGrid}>
-        {FINGER_DISPLAY.map(({ key, label }) => (
-          <View key={`${profile.id}_${key}`} style={styles.sizeCell}>
-            <Text style={[styles.sizeLabel, { color: colors.secondaryFont || '#5C5F5D' }]}>
-              {label}
-            </Text>
-            <TextInput
-              style={[
-                styles.sizeInput,
-                {
-                  borderColor: colors.divider || '#E6DCD0',
-                  color: colors.primaryFont || '#220707',
-                  backgroundColor: colors.surface || '#FFFFFF',
-                },
-              ]}
-              value={profile.sizes?.[key] || ''}
-              onChangeText={(value) => onChangeSize(key, value)}
-              placeholder="e.g. 3"
-              placeholderTextColor={withOpacity(colors.secondaryFont || '#5C5F5D', 0.5)}
-              keyboardType="number-pad"
-            />
-          </View>
-        ))}
-      </View>
     </View>
   );
 }
