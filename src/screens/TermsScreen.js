@@ -72,7 +72,19 @@ function TermsScreen({ navigation }) {
 
         <Text style={[styles.sectionTitle, { color: primaryFont }]}>7. Digital Content and User Submissions</Text>
         <Text style={[styles.bodyText, { color: primaryFont }]}>
-          You may upload images, design references, or other content ("User Content") to the App. By uploading User Content, you grant Nails by Abri a non-exclusive, royalty-free, worldwide license to use, display, and reproduce your User Content solely for the purpose of fulfilling your order and improving our services. You represent that you own or have the right to use any User Content you upload.
+          <Text style={{ fontWeight: '600' }}>Ownership of User Content:</Text> You retain all ownership rights to any images, design references, or other content ("User Content") you upload to the App. Nails by Abri does not claim ownership of your User Content.
+        </Text>
+        <Text style={[styles.bodyText, { color: primaryFont }]}>
+          <Text style={{ fontWeight: '600' }}>License to Use:</Text> By uploading User Content, you grant Nails by Abri a non-exclusive, royalty-free, worldwide, perpetual license to store, use, display, and reproduce your User Content solely for the purpose of fulfilling your order, improving our services, and maintaining order records. This license allows us to store your User Content in our systems and use it to create and deliver your custom nail art products.
+        </Text>
+        <Text style={[styles.bodyText, { color: primaryFont }]}>
+          <Text style={{ fontWeight: '600' }}>Your Representations and Warranties:</Text> You represent and warrant that: (a) you own or have the legal right, license, or permission to use, upload, and grant the license described above for all User Content you upload; (b) your User Content does not violate any third-party rights, including copyright, trademark, privacy, or publicity rights; (c) your User Content does not contain images of celebrities, public figures, or other individuals without their express consent; and (d) your User Content does not infringe upon the intellectual property rights of any third party.
+        </Text>
+        <Text style={[styles.bodyText, { color: primaryFont }]}>
+          <Text style={{ fontWeight: '600' }}>Prohibited Content:</Text> You agree not to upload User Content that violates any laws, infringes on any intellectual property rights, contains images of celebrities or public figures without authorization, or violates any third-party rights. Nails by Abri reserves the right to remove any User Content that violates these Terms or that we determine, in our sole discretion, may expose us to liability.
+        </Text>
+        <Text style={[styles.bodyText, { color: primaryFont }]}>
+          <Text style={{ fontWeight: '600' }}>Indemnification for User Content:</Text> You agree to defend, indemnify, and hold harmless Nails by Abri from and against any claims, damages, losses, liabilities, and expenses (including attorney's fees) arising out of or related to your User Content, including claims of copyright infringement, trademark infringement, right of publicity violations, or any other third-party rights violations.
         </Text>
 
         <Text style={[styles.sectionTitle, { color: primaryFont }]}>8. Intellectual Property</Text>
@@ -92,7 +104,16 @@ function TermsScreen({ navigation }) {
 
         <Text style={[styles.sectionTitle, { color: primaryFont }]}>11. Limitation of Liability</Text>
         <Text style={[styles.bodyText, { color: primaryFont }]}>
-          TO THE MAXIMUM EXTENT PERMITTED BY LAW, NAILS BY ABRI SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS OR REVENUES, WHETHER INCURRED DIRECTLY OR INDIRECTLY, OR ANY LOSS OF DATA, USE, GOODWILL, OR OTHER INTANGIBLE LOSSES RESULTING FROM YOUR USE OF THE APP.
+          <Text style={{ fontWeight: '600' }}>EXCLUSION OF INDIRECT DAMAGES:</Text> TO THE MAXIMUM EXTENT PERMITTED BY LAW, NAILS BY ABRI SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS, LOSS OF REVENUES, LOSS OF DATA, LOSS OF USE, LOSS OF BUSINESS OPPORTUNITY, LOSS OF GOODWILL, OR OTHER INTANGIBLE LOSSES, REGARDLESS OF WHETHER SUCH DAMAGES WERE FORESEEABLE OR WHETHER NAILS BY ABRI HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+        </Text>
+        <Text style={[styles.bodyText, { color: primaryFont }]}>
+          <Text style={{ fontWeight: '600' }}>LIMITATION OF TOTAL LIABILITY:</Text> TO THE MAXIMUM EXTENT PERMITTED BY LAW, NAILS BY ABRI'S TOTAL LIABILITY TO YOU FOR ALL CLAIMS ARISING OUT OF OR RELATING TO YOUR USE OF THE APP OR THESE TERMS, WHETHER IN CONTRACT, TORT (INCLUDING NEGLIGENCE), STRICT LIABILITY, OR ANY OTHER LEGAL THEORY, SHALL NOT EXCEED THE AMOUNT YOU PAID TO NAILS BY ABRI IN THE TWELVE (12) MONTHS PRIOR TO THE EVENT GIVING RISE TO THE LIABILITY, OR ONE HUNDRED DOLLARS ($100), WHICHEVER IS GREATER.
+        </Text>
+        <Text style={[styles.bodyText, { color: primaryFont }]}>
+          <Text style={{ fontWeight: '600' }}>NO RESPONSIBILITY FOR INDIRECT CONSEQUENCES:</Text> NAILS BY ABRI SHALL NOT BE RESPONSIBLE OR LIABLE FOR ANY INDIRECT DAMAGES, INCLUDING BUT NOT LIMITED TO LOST REVENUE, LOST PROFITS, LOSS OF OPPORTUNITY, OR DAMAGES ARISING FROM YOUR INABILITY TO USE THE APP OR SERVICES, EVEN IF SUCH DAMAGES ARE A RESULT OF NAILS BY ABRI'S NEGLIGENCE OR OTHERWISE.
+        </Text>
+        <Text style={[styles.bodyText, { color: primaryFont }]}>
+          SOME JURISDICTIONS DO NOT ALLOW THE EXCLUSION OR LIMITATION of INCIDENTAL OR CONSEQUENTIAL DAMAGES, SO THE ABOVE LIMITATIONS OR EXCLUSIONS MAY NOT APPLY TO YOU. IN SUCH JURISDICTIONS, NAILS BY ABRI'S LIABILITY SHALL BE LIMITED TO THE MAXIMUM EXTENT PERMITTED BY LAW.
         </Text>
 
         <Text style={[styles.sectionTitle, { color: primaryFont }]}>12. Indemnification</Text>
@@ -105,14 +126,35 @@ function TermsScreen({ navigation }) {
           We may terminate or suspend your account and access to the App immediately, without prior notice or liability, for any reason, including if you breach these Terms. Upon termination, your right to use the App will immediately cease.
         </Text>
 
-        <Text style={[styles.sectionTitle, { color: primaryFont }]}>14. Dispute Resolution</Text>
+        <Text style={[styles.sectionTitle, { color: primaryFont }]}>14. Dispute Resolution and Arbitration</Text>
         <Text style={[styles.bodyText, { color: primaryFont }]}>
-          Any disputes arising out of or relating to these Terms or the App shall be resolved through binding arbitration in accordance with the rules of the American Arbitration Association. The arbitration shall take place in California, United States. You waive any right to a jury trial or to participate in a class-action lawsuit.
+          <Text style={{ fontWeight: '600' }}>Agreement to Arbitrate:</Text> You and Nails by Abri agree that any dispute, controversy, or claim arising out of or relating to these Terms, the App, or your use of the App, including any disputes regarding the validity, interpretation, or breach of these Terms, shall be resolved exclusively through binding arbitration, rather than in court, except as provided below.
+        </Text>
+        <Text style={[styles.bodyText, { color: primaryFont }]}>
+          <Text style={{ fontWeight: '600' }}>Arbitration Rules and Location:</Text> Any arbitration shall be conducted in accordance with the Commercial Arbitration Rules of the American Arbitration Association ("AAA") then in effect. The arbitration shall take place in Los Angeles County, California, United States, or at such other location as mutually agreed upon by the parties. The arbitration shall be conducted by a single arbitrator appointed in accordance with AAA rules.
+        </Text>
+        <Text style={[styles.bodyText, { color: primaryFont }]}>
+          <Text style={{ fontWeight: '600' }}>Waiver of Jury Trial and Class Action:</Text> You hereby waive any right to a jury trial and agree that all disputes shall be resolved on an individual basis. You further agree that you will not participate in, initiate, or be a party to any class action, collective action, or other representative proceeding against Nails by Abri. Any dispute must be brought in your individual capacity, and not as a plaintiff or class member in any purported class, collective, or representative proceeding.
+        </Text>
+        <Text style={[styles.bodyText, { color: primaryFont }]}>
+          <Text style={{ fontWeight: '600' }}>Exceptions to Arbitration:</Text> Notwithstanding the foregoing, either party may seek injunctive relief or other equitable remedies in a court of competent jurisdiction to protect intellectual property rights or to prevent irreparable harm, and either party may bring claims in small claims court if such claims qualify and remain within that court's jurisdiction.
+        </Text>
+        <Text style={[styles.bodyText, { color: primaryFont }]}>
+          <Text style={{ fontWeight: '600' }}>Arbitration Costs:</Text> Each party shall bear its own costs and expenses in connection with the arbitration, including attorneys' fees, unless otherwise required by law or as determined by the arbitrator.
+        </Text>
+        <Text style={[styles.bodyText, { color: primaryFont }]}>
+          IF YOU DO NOT AGREE TO THIS ARBITRATION PROVISION, YOU MUST NOT USE THE APP AND SHOULD IMMEDIATELY TERMINATE YOUR ACCOUNT.
         </Text>
 
-        <Text style={[styles.sectionTitle, { color: primaryFont }]}>15. Governing Law</Text>
+        <Text style={[styles.sectionTitle, { color: primaryFont }]}>15. Governing Law and Jurisdiction</Text>
         <Text style={[styles.bodyText, { color: primaryFont }]}>
-          These Terms shall be governed by and construed in accordance with the laws of the State of California, United States, without regard to its conflict of law provisions.
+          <Text style={{ fontWeight: '600' }}>Governing Law:</Text> These Terms shall be governed by and construed in accordance with the laws of the State of California, United States, without regard to its conflict of law principles or provisions. This choice of law applies regardless of your location or the location from which you access or use the App.
+        </Text>
+        <Text style={[styles.bodyText, { color: primaryFont }]}>
+          <Text style={{ fontWeight: '600' }}>Jurisdiction for Legal Proceedings:</Text> Except as otherwise provided in Section 14 (Dispute Resolution and Arbitration), any legal action or proceeding arising out of or relating to these Terms or the App shall be brought exclusively in the federal or state courts located in Los Angeles County, California, United States. You hereby consent to the personal jurisdiction of such courts and waive any objection to the laying of venue in such courts, including any objection based on inconvenient forum.
+        </Text>
+        <Text style={[styles.bodyText, { color: primaryFont }]}>
+          <Text style={{ fontWeight: '600' }}>No Other Jurisdictions:</Text> You agree that you will not bring any legal action or proceeding against Nails by Abri in any jurisdiction other than California, United States, except as otherwise required by law or as provided in Section 14 (Dispute Resolution and Arbitration).
         </Text>
 
         <Text style={[styles.sectionTitle, { color: primaryFont }]}>16. Changes to Terms</Text>
