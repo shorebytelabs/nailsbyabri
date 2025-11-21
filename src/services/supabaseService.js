@@ -210,11 +210,21 @@ export async function upsertProfile(profileData) {
       full_name: profileData.full_name,
     };
 
+    // Include consent fields if provided (don't skip null - only skip undefined)
+    if (profileData.terms_accepted_at !== undefined) {
+      payload.terms_accepted_at = profileData.terms_accepted_at;
+    }
+    if (profileData.privacy_accepted_at !== undefined) {
+      payload.privacy_accepted_at = profileData.privacy_accepted_at;
+    }
+
     if (__DEV__) {
       console.log('[supabase] Upserting profile:', {
         id: payload.id,
         email: payload.email,
         full_name: payload.full_name,
+        ...(payload.terms_accepted_at && { terms_accepted_at: payload.terms_accepted_at }),
+        ...(payload.privacy_accepted_at && { privacy_accepted_at: payload.privacy_accepted_at }),
       });
       console.log('[supabase] Full Supabase URL:', (await import('../lib/supabaseClient')).supabase?.supabaseUrl || 'unknown');
     }

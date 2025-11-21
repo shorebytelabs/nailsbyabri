@@ -67,6 +67,18 @@ function ConsentModal({
         updateData.privacy_accepted_at = now;
       }
 
+      // Verify we have an active session before attempting update
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (!session || sessionError) {
+        throw new Error('No active session. Please log in and try again.');
+      }
+
+      // Verify the user ID matches the session
+      if (session.user.id !== user.id) {
+        throw new Error('User ID mismatch. Please log out and log back in.');
+      }
+
       // Update profile with consent timestamps
       const { error: updateError } = await supabase
         .from('profiles')
@@ -74,6 +86,9 @@ function ConsentModal({
         .eq('id', user.id);
 
       if (updateError) {
+        if (updateError.code === '42501') {
+          throw new Error('Permission denied. The database policy is blocking this update. Please contact support.');
+        }
         throw updateError;
       }
 

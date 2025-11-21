@@ -72,23 +72,41 @@ export async function signup({ email, password, name, ageGroup, consentAccepted 
     // Create profile in Supabase with consent timestamps
     // Note: The trigger should create the profile automatically, but we'll also try
     // to upsert it to ensure it has the correct data (especially full_name and consent from signup)
+    
+    // Wait a brief moment for the trigger to create the profile first
+    // This gives the trigger function time to run before we try to update
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     try {
-      // Update profile with consent timestamps
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: userId,
-          email,
-          full_name: name,
-          terms_accepted_at: now,
-          privacy_accepted_at: now,
-        }, {
-          onConflict: 'id',
-        });
+      // First, try using upsertProfile which has better session handling
+      // This ensures we're using the authenticated user's session
+      await upsertProfile({
+        id: userId,
+        email,
+        full_name: name,
+        terms_accepted_at: now,
+        privacy_accepted_at: now,
+      });
+      
+      if (__DEV__) {
+        console.log('[auth] ✅ Profile created/updated with consent timestamps via upsertProfile');
+      }
+    } catch (profileError) {
+      // If upsertProfile fails, try direct update as fallback
+      if (__DEV__) {
+        console.warn('[auth] ⚠️  upsertProfile failed, trying direct update:', profileError.message);
+      }
+      
+      try {
+        // Verify session before attempting direct update
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (!session || sessionError) {
+          throw new Error('No active session for profile update');
+        }
 
-      if (updateError) {
-        // If upsert fails, try updating the profile directly
-        const { error: directUpdateError } = await supabase
+        // Try direct update with consent timestamps
+        const { error: updateError } = await supabase
           .from('profiles')
           .update({
             full_name: name,
@@ -97,22 +115,53 @@ export async function signup({ email, password, name, ageGroup, consentAccepted 
           })
           .eq('id', userId);
 
-        if (directUpdateError) {
-          throw directUpdateError;
+        if (updateError) {
+          // Check if it's an RLS error (42501)
+          if (updateError.code === '42501') {
+            if (__DEV__) {
+              console.error('[auth] ❌ RLS policy blocking profile update - this should not happen!');
+              console.error('[auth] Error details:', {
+                code: updateError.code,
+                message: updateError.message,
+                userId,
+                sessionUserId: session.user.id,
+              });
+            }
+            // Don't silently fail - this is a critical error for consent
+            // Throw it so it can be handled properly
+            throw new Error(`Row-level security policy blocked profile update. Please ensure RLS policies allow users to update their own profile. Error: ${updateError.message}`);
+          }
+          throw updateError;
         }
+        
+        if (__DEV__) {
+          console.log('[auth] ✅ Profile updated with consent timestamps via direct update');
+        }
+      } catch (directUpdateError) {
+        // If direct update also fails, check if it's RLS-related
+        const isRLSError = directUpdateError.code === '42501' || 
+                          directUpdateError.message?.includes('row-level security') ||
+                          directUpdateError.message?.includes('RLS');
+        
+        if (isRLSError) {
+          // RLS error is critical - log it prominently and don't silently continue
+          if (__DEV__) {
+            console.error('[auth] ❌❌❌ CRITICAL: RLS policy is blocking consent timestamp save!');
+            console.error('[auth] This means consent will not be saved and user will see consent modal on next login.');
+            console.error('[auth] Please run the RLS fix SQL script: docs/supabase-fix-profile-signup-rls.sql');
+            console.error('[auth] Error:', directUpdateError.message);
+          }
+          // Still don't block signup, but log it as critical so it's noticed
+          // The user will be prompted to accept consent again on next login
+        } else {
+          // Other errors are non-critical - trigger might handle it
+          if (__DEV__) {
+            console.warn('[auth] ⚠️  Failed to create/update profile (non-critical):', directUpdateError.message);
+            console.warn('[auth] Profile might have been created by trigger, or will be created on next login');
+          }
+        }
+        // Continue signup even if profile update fails - user can accept consent on next login
       }
-      
-      if (__DEV__) {
-        console.log('[auth] ✅ Profile created/updated with consent timestamps');
-      }
-    } catch (profileError) {
-      // If profile creation fails, log it but don't block signup
-      // The trigger might have already created it, or it can be created later
-      if (__DEV__) {
-        console.warn('[auth] ⚠️  Failed to create/update profile (non-critical):', profileError.message);
-        console.warn('[auth] Profile might have been created by trigger, or will be created on next login');
-      }
-      // Continue even if profile creation fails - it can be retried
     }
 
     // Fetch profile to get role (might have been set by trigger)
@@ -469,6 +518,64 @@ export async function resendConfirmationEmail(email) {
     }
   } catch (error) {
     console.error('[auth] Failed to resend confirmation email:', error);
+    throw error;
+  }
+}
+
+/**
+ * Change user password
+ * @param {Object} payload - Password change data
+ * @param {string} payload.currentPassword - Current password for verification
+ * @param {string} payload.newPassword - New password
+ * @returns {Promise<void>}
+ */
+export async function changePassword({ currentPassword, newPassword }) {
+  try {
+    if (__DEV__) {
+      console.log('[auth] Changing password for user');
+    }
+
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      throw new Error('User not authenticated');
+    }
+
+    // Get current email
+    const email = user.email;
+    if (!email) {
+      throw new Error('User email not found');
+    }
+
+    // Verify current password by attempting to sign in
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email,
+      password: currentPassword,
+    });
+
+    if (verifyError) {
+      if (verifyError.message?.includes('Invalid login credentials') || verifyError.message?.includes('Invalid')) {
+        throw new Error('Current password is incorrect');
+      }
+      throw verifyError;
+    }
+
+    // If verification succeeded, update to new password
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    if (__DEV__) {
+      console.log('[auth] ✅ Password changed successfully');
+    }
+  } catch (error) {
+    if (__DEV__) {
+      console.error('[auth] ❌ Password change failed:', error.message);
+    }
     throw error;
   }
 }

@@ -57,6 +57,14 @@ export async function submitConsent(payload) {
   });
 }
 
+// Migrated to Supabase Auth
+export async function changePassword(payload) {
+  return authService.changePassword({
+    currentPassword: payload.currentPassword,
+    newPassword: payload.newPassword,
+  });
+}
+
 // Migrated to Supabase
 export async function fetchConsentLogs(userId) {
   if (!userId) {
