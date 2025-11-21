@@ -57,55 +57,85 @@ export async function signup({ email, password, name, ageGroup, consentAccepted 
     const userId = authData.user.id;
     const now = new Date().toISOString();
 
-    // Ensure the session is set in the Supabase client before creating profile
-    // The session from signUp might not be immediately available
+    // IMPORTANT: Ensure the session is properly set in the Supabase client
+    // The session from signUp should be available, but we need to verify it's set
+    // Supabase automatically persists sessions to AsyncStorage, but we need to ensure
+    // the session from signUp is properly set before any RLS-protected operations
     if (authData.session) {
-      const { supabase } = await import('../lib/supabaseClient');
       // Set the session explicitly to ensure it's available for RLS checks
-      await supabase.auth.setSession(authData.session);
-      
-      if (__DEV__) {
-        console.log('[auth] Session set in Supabase client, user ID:', userId);
-      }
-    }
-
-    // Create profile in Supabase with consent timestamps
-    // Note: The trigger should create the profile automatically, but we'll also try
-    // to upsert it to ensure it has the correct data (especially full_name and consent from signup)
-    
-    // Wait a brief moment for the trigger to create the profile first
-    // This gives the trigger function time to run before we try to update
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    try {
-      // First, try using upsertProfile which has better session handling
-      // This ensures we're using the authenticated user's session
-      await upsertProfile({
-        id: userId,
-        email,
-        full_name: name,
-        terms_accepted_at: now,
-        privacy_accepted_at: now,
+      // This also persists it to AsyncStorage automatically
+      const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+        access_token: authData.session.access_token,
+        refresh_token: authData.session.refresh_token,
       });
       
-      if (__DEV__) {
-        console.log('[auth] ✅ Profile created/updated with consent timestamps via upsertProfile');
-      }
-    } catch (profileError) {
-      // If upsertProfile fails, try direct update as fallback
-      if (__DEV__) {
-        console.warn('[auth] ⚠️  upsertProfile failed, trying direct update:', profileError.message);
-      }
-      
-      try {
-        // Verify session before attempting direct update
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (!session || sessionError) {
-          throw new Error('No active session for profile update');
+      if (sessionError) {
+        if (__DEV__) {
+          console.error('[auth] ❌ Error setting session:', sessionError.message);
+          console.error('[auth] Session error details:', {
+            code: sessionError.code,
+            message: sessionError.message,
+            userId,
+          });
         }
+        // Don't throw - try to continue, session might still work
+      } else {
+        // Wait a moment for the session to be fully persisted to AsyncStorage
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Verify session is actually set and available
+        const { data: { session: verifiedSession }, error: verifyError } = await supabase.auth.getSession();
+        if (verifiedSession) {
+          if (__DEV__) {
+            console.log('[auth] ✅ Session set and verified, user ID:', verifiedSession.user.id);
+          }
+        } else {
+          if (__DEV__) {
+            console.error('[auth] ❌ Session was set but getSession returned null');
+            if (verifyError) {
+              console.error('[auth] Session verify error:', verifyError.message);
+            }
+          }
+          // This is a problem - session isn't available, which means RLS will block operations
+          // Log it prominently but don't throw - profile will be handled on login
+        }
+      }
+    } else {
+      if (__DEV__) {
+        console.warn('[auth] ⚠️  No session in signUp response');
+        console.warn('[auth] This might mean email confirmation is required');
+        console.warn('[auth] Profile creation will be handled on first login');
+      }
+      // If there's no session, we can't create/update the profile now
+      // The trigger should create it, and it will be updated on first login
+    }
 
-        // Try direct update with consent timestamps
+    // Wait for the trigger to create the profile (if it hasn't already)
+    // The trigger should create the profile automatically when auth.users is created
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Try to update the profile with consent timestamps and full_name
+    // The trigger should have created the profile, so this should be an UPDATE, not INSERT
+    try {
+      // First, verify we have a session
+      const { data: { session }, error: sessionCheckError } = await supabase.auth.getSession();
+      
+      if (!session) {
+        if (__DEV__) {
+          console.warn('[auth] ⚠️  No active session - profile will be updated on first login');
+          console.warn('[auth] The trigger should have created the profile, but consent timestamps will be set on login');
+        }
+        // Don't throw - let signup succeed, profile will be updated on login
+      } else if (session.user.id !== userId) {
+        if (__DEV__) {
+          console.error('[auth] ❌ Session user ID mismatch:', {
+            sessionUserId: session.user.id,
+            expectedUserId: userId,
+          });
+        }
+        throw new Error('Session user ID mismatch');
+      } else {
+        // We have a valid session - try to update the profile
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
@@ -116,52 +146,45 @@ export async function signup({ email, password, name, ageGroup, consentAccepted 
           .eq('id', userId);
 
         if (updateError) {
-          // Check if it's an RLS error (42501)
-          if (updateError.code === '42501') {
+          // If profile doesn't exist (trigger hasn't run yet), that's OK
+          // It will be created on login or by the trigger
+          if (updateError.code === 'PGRST116' || updateError.message?.includes('No rows')) {
             if (__DEV__) {
-              console.error('[auth] ❌ RLS policy blocking profile update - this should not happen!');
+              console.log('[auth] ℹ️  Profile not found - trigger will create it on next auth event or on login');
+            }
+          } else if (updateError.code === '42501') {
+            // RLS error - log prominently
+            if (__DEV__) {
+              console.error('[auth] ❌❌❌ CRITICAL: RLS policy is blocking profile update!');
               console.error('[auth] Error details:', {
                 code: updateError.code,
                 message: updateError.message,
                 userId,
                 sessionUserId: session.user.id,
               });
+              console.error('[auth] Please verify RLS policies allow users to update their own profile');
             }
-            // Don't silently fail - this is a critical error for consent
-            // Throw it so it can be handled properly
-            throw new Error(`Row-level security policy blocked profile update. Please ensure RLS policies allow users to update their own profile. Error: ${updateError.message}`);
+            // Don't block signup, but log it as critical
+          } else {
+            // Other error - log but don't block signup
+            if (__DEV__) {
+              console.warn('[auth] ⚠️  Failed to update profile:', updateError.message);
+            }
           }
-          throw updateError;
-        }
-        
-        if (__DEV__) {
-          console.log('[auth] ✅ Profile updated with consent timestamps via direct update');
-        }
-      } catch (directUpdateError) {
-        // If direct update also fails, check if it's RLS-related
-        const isRLSError = directUpdateError.code === '42501' || 
-                          directUpdateError.message?.includes('row-level security') ||
-                          directUpdateError.message?.includes('RLS');
-        
-        if (isRLSError) {
-          // RLS error is critical - log it prominently and don't silently continue
-          if (__DEV__) {
-            console.error('[auth] ❌❌❌ CRITICAL: RLS policy is blocking consent timestamp save!');
-            console.error('[auth] This means consent will not be saved and user will see consent modal on next login.');
-            console.error('[auth] Please run the RLS fix SQL script: docs/supabase-fix-profile-signup-rls.sql');
-            console.error('[auth] Error:', directUpdateError.message);
-          }
-          // Still don't block signup, but log it as critical so it's noticed
-          // The user will be prompted to accept consent again on next login
         } else {
-          // Other errors are non-critical - trigger might handle it
           if (__DEV__) {
-            console.warn('[auth] ⚠️  Failed to create/update profile (non-critical):', directUpdateError.message);
-            console.warn('[auth] Profile might have been created by trigger, or will be created on next login');
+            console.log('[auth] ✅ Profile updated with consent timestamps');
           }
         }
-        // Continue signup even if profile update fails - user can accept consent on next login
       }
+    } catch (profileError) {
+      // If update fails, don't block signup - profile will be updated on login
+      if (__DEV__) {
+        console.warn('[auth] ⚠️  Profile update failed (non-critical):', profileError.message);
+        console.warn('[auth] Profile will be created/updated on first login');
+        console.warn('[auth] The user will be prompted to accept consent again on next login if consent timestamps are missing');
+      }
+      // Continue signup even if profile update fails - user can accept consent on next login
     }
 
     // Fetch profile to get role (might have been set by trigger)

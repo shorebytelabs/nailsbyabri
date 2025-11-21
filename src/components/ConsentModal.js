@@ -146,11 +146,15 @@ function ConsentModal({
               </View>
             )}
 
-            <View style={styles.consentContainer}>
+            <View style={[styles.consentContainer, { backgroundColor: withOpacity(colors.secondaryBackground || '#E7D8CA', 0.3), borderColor: accent }]}>
+              <Text style={[styles.instructionText, { color: accent }]}>
+                Tap to check the box and accept:
+              </Text>
+              
               <TouchableOpacity
-                style={styles.checkboxRow}
+                style={[styles.checkboxRow, { backgroundColor: surface, borderRadius: 12, padding: 16 }]}
                 onPress={() => setConsentAccepted(!consentAccepted)}
-                activeOpacity={0.7}
+                activeOpacity={0.8}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: consentAccepted }}
                 accessibilityLabel="I agree to the Terms & Conditions and Privacy Policy"
@@ -160,12 +164,13 @@ function ConsentModal({
                     styles.checkbox,
                     {
                       backgroundColor: consentAccepted ? accent : surface,
-                      borderColor: consentAccepted ? accent : borderColor,
+                      borderColor: accent,
+                      borderWidth: consentAccepted ? 0 : 3,
                     },
                   ]}
                 >
                   {consentAccepted && (
-                    <Icon name="check" color="#FFFFFF" size={16} />
+                    <Icon name="check" color="#FFFFFF" size={26} />
                   )}
                 </View>
                 <View style={styles.consentTextContainer}>
@@ -233,8 +238,9 @@ const createStyles = (colors) => StyleSheet.create({
   },
   container: {
     width: '100%',
-    maxWidth: 420,
-    maxHeight: '80%',
+    maxWidth: 500,
+    minHeight: 480,
+    maxHeight: '90%',
     borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
@@ -257,45 +263,64 @@ const createStyles = (colors) => StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingBottom: 16,
+    paddingBottom: 20,
+    minHeight: 320,
   },
   message: {
-    fontSize: 14,
-    lineHeight: 22,
-    marginBottom: 20,
+    fontSize: 15,
+    lineHeight: 24,
+    marginBottom: 24,
+    fontWeight: '500',
   },
   missingInfo: {
-    marginBottom: 20,
-    padding: 12,
+    marginBottom: 24,
+    padding: 16,
     backgroundColor: withOpacity(colors.secondaryBackground || '#E7D8CA', 0.3),
-    borderRadius: 8,
+    borderRadius: 12,
   },
   missingTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     marginBottom: 8,
   },
   missingItem: {
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 14,
+    lineHeight: 22,
     marginLeft: 8,
   },
-  consentContainer: {
+  instructionText: {
+    fontSize: 16,
+    fontWeight: '700',
     marginBottom: 16,
+    textAlign: 'center',
+  },
+  consentContainer: {
+    marginBottom: 24,
+    marginTop: 8,
+    padding: 24,
+    borderRadius: 16,
+    borderWidth: 3,
+    minHeight: 140,
   },
   checkboxRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
+    alignItems: 'center',
+    width: '100%',
   },
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
-    borderWidth: 2,
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    flexShrink: 0,
   },
   consentTextContainer: {
     flex: 1,
@@ -303,9 +328,10 @@ const createStyles = (colors) => StyleSheet.create({
   consentText: {
     fontSize: 14,
     lineHeight: 22,
+    fontWeight: '500',
   },
   consentLink: {
-    fontWeight: '600',
+    fontWeight: '700',
     textDecorationLine: 'underline',
   },
   error: {

@@ -284,33 +284,14 @@ export async function upsertProfile(profileData) {
     }
     
     // Use upsert - it will INSERT if doesn't exist, UPDATE if it does
-    // Handle conflicts on both 'id' and 'email' since email also has a unique constraint
-    // First, try to find existing profile by email (in case email matches but id doesn't)
-    let existingProfileByEmail = null;
-    if (payload.email) {
-      const { data: emailProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', payload.email)
-        .maybeSingle();
-      existingProfileByEmail = emailProfile;
-    }
-    
-    // If profile exists by email but id is different, use the existing id
-    if (existingProfileByEmail && existingProfileByEmail.id !== payload.id) {
-      if (__DEV__) {
-        console.warn('[supabase] ⚠️  Profile exists with different ID for email:', payload.email);
-        console.warn('[supabase] Using existing profile ID:', existingProfileByEmail.id);
-      }
-      payload.id = existingProfileByEmail.id;
-    }
-    
+    // IMPORTANT: Always use the authenticated user's ID (from session) to prevent overwriting wrong profiles
+    // The payload.id should already match authenticatedUserId after the check above
+    // Never change payload.id based on email lookup - this can cause profile corruption
     const { data, error, status, statusText } = await supabase
       .from('profiles')
       .upsert(payload, {
-        onConflict: 'id', // Primary key conflict
-        // Note: If email conflict still occurs, it means there's a profile with same email but different id
-        // In that case, we'll handle it as an update on the existing profile
+        onConflict: 'id', // Primary key conflict - use ID only
+        // If email conflict occurs, it means there's a data integrity issue that needs manual fixing
       })
       .select()
       .single();

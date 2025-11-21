@@ -258,22 +258,40 @@ export function AppStateProvider({ children }) {
           ordersLoaded: false,
         }));
         
-        // Sync profile to Supabase
+        // Sync profile to Supabase (only if we have a session)
+        // The profile should already be created by the trigger, but we can update it with name
+        // Note: During signup, the session might not be immediately available, so we'll skip this
+        // The profile will be fully populated on first login
         try {
-          const result = await upsertProfile({
-            id: adminUser.id,
-            email: adminUser.email,
-            full_name: adminUser.name,
-          });
-          if (__DEV__) {
-            if (result?._simulator_skip) {
-              console.log('[supabase] ⏭️  Profile sync skipped (iOS simulator QUIC limitation - profile saved locally)');
-            } else {
-              console.log('[supabase] ✅ Profile synced to Supabase after signup');
+          // Check if we have a session before trying to upsert
+          const { supabase } = await import('../lib/supabaseClient');
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session) {
+            const result = await upsertProfile({
+              id: adminUser.id,
+              email: adminUser.email,
+              full_name: adminUser.name,
+            });
+            if (__DEV__) {
+              if (result?._simulator_skip) {
+                console.log('[supabase] ⏭️  Profile sync skipped (iOS simulator QUIC limitation - profile saved locally)');
+              } else {
+                console.log('[supabase] ✅ Profile synced to Supabase after signup');
+              }
+            }
+          } else {
+            if (__DEV__) {
+              console.log('[supabase] ℹ️  No session available after signup - profile sync skipped');
+              console.log('[supabase] Profile will be fully populated on first login');
             }
           }
         } catch (error) {
-          console.warn('[supabase] ⚠️  Failed to sync profile to Supabase (non-critical):', error.message);
+          // Non-critical - profile will be handled on first login
+          if (__DEV__) {
+            console.warn('[supabase] ⚠️  Failed to sync profile to Supabase (non-critical):', error.message);
+            console.warn('[supabase] Profile will be fully populated on first login');
+          }
         }
         
         // Load orders for all users (admin and regular)
@@ -396,7 +414,21 @@ export function AppStateProvider({ children }) {
     [state.currentUser],
   );
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
+    // IMPORTANT: Clear Supabase session before clearing local state
+    // This prevents session conflicts when switching users
+    try {
+      const { signOut } = await import('../services/authService');
+      await signOut();
+      if (__DEV__) {
+        console.log('[AppContext] ✅ Supabase session cleared on logout');
+      }
+    } catch (error) {
+      console.error('[AppContext] ⚠️  Error signing out from Supabase:', error);
+      // Continue with logout even if signOut fails
+    }
+    
+    // Clear local state after Supabase session is cleared
     setState({
       ...initialState,
       statusMessage: null,
