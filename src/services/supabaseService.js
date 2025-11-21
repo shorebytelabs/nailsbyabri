@@ -572,34 +572,62 @@ export async function upsertNailSizeProfile(userId, profileData) {
 
     // Don't manually set updated_at - trigger handles it
 
-    let query;
+    let data, error;
+    
     if (profileData.id && profileData.id !== 'default') {
-      // Update existing (skip if id is 'default' - that's a special case)
+      // Try to update existing (skip if id is 'default' - that's a special case)
       if (__DEV__) {
         console.log('[supabase] Updating nail size profile:', profileData.id);
       }
-      query = supabase
+      // Use .select() without .single() to avoid PGRST116 error if profile doesn't exist
+      const updateResult = await supabase
         .from('nail_size_profiles')
         .update(payload)
         .eq('id', profileData.id)
         .eq('user_id', userId)
-        .select()
-        .single();
+        .select();
+      
+      data = updateResult.data;
+      error = updateResult.error;
+      
+      // If update returned 0 rows (profile doesn't exist), create it instead
+      if (!error && (!data || data.length === 0)) {
+        if (__DEV__) {
+          console.log('[supabase] Profile not found, creating new profile instead');
+        }
+        const insertResult = await supabase
+          .from('nail_size_profiles')
+          .insert(payload)
+          .select()
+          .single();
+        data = insertResult.data;
+        error = insertResult.error;
+      } else if (data && data.length > 0) {
+        // Update successful, return the first (and only) row
+        data = data[0];
+      }
     } else {
       // Create new
       if (__DEV__) {
         console.log('[supabase] Creating new nail size profile');
       }
-      query = supabase
+      const insertResult = await supabase
         .from('nail_size_profiles')
         .insert(payload)
         .select()
         .single();
+      data = insertResult.data;
+      error = insertResult.error;
     }
 
-    const { data, error } = await query;
-
     if (error) {
+      // Handle PGRST116 specifically - profile doesn't exist
+      if (error.code === 'PGRST116') {
+        if (__DEV__) {
+          console.log('[supabase] Profile not found (PGRST116), treating as non-existent');
+        }
+        return null;
+      }
       console.error('[supabase] Error upserting nail size profile:', error);
       console.error('[supabase] Error code:', error.code);
       console.error('[supabase] Error message:', error.message);
@@ -607,7 +635,7 @@ export async function upsertNailSizeProfile(userId, profileData) {
       throw error;
     }
 
-    if (__DEV__) {
+    if (__DEV__ && data) {
       console.log('[supabase] ✅ Nail size profile upserted successfully:', data.id);
     }
 

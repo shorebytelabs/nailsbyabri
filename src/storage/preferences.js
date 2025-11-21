@@ -127,36 +127,97 @@ export async function savePreferences(userId, preferences) {
     const existingProfiles = await getNailSizeProfiles(userId);
     const existingDefault = existingProfiles.find((p) => p.is_default);
 
+    // Track saved profile IDs to prevent duplicates and identify orphans
+    const savedProfileIds = new Set();
+
+    // First, save all additional profiles (including the old default if it's in the profiles list)
+    if (Array.isArray(normalized.profiles)) {
+      for (const profile of normalized.profiles) {
+        try {
+          // Skip temporary IDs - they'll be created as new profiles
+          if (profile.id && !profile.id.startsWith('profile_') && !profile.id.startsWith('temp_')) {
+            // Update existing profile (or create if it doesn't exist)
+            const result = await upsertNailSizeProfile(userId, {
+              id: profile.id,
+              label: profile.label || 'Untitled Profile',
+              is_default: false, // All profiles in this list are non-default
+              sizes: profile.sizes || createEmptySizeValues(),
+            });
+            if (result?.id) {
+              savedProfileIds.add(result.id);
+            }
+          } else {
+            // Create new profile for temporary IDs
+            const result = await upsertNailSizeProfile(userId, {
+              id: undefined,
+              label: profile.label || 'Untitled Profile',
+              is_default: false,
+              sizes: profile.sizes || createEmptySizeValues(),
+            });
+            if (result?.id) {
+              savedProfileIds.add(result.id);
+            }
+          }
+        } catch (profileError) {
+          // If a single profile fails to save, log it but continue with others
+          console.warn('[preferences] Failed to save profile:', profile.id, profileError.message);
+          // Don't add to savedProfileIds so it can be cleaned up later if needed
+        }
+      }
+    }
+
+    // Now save the default profile
+    // Try to find which profile in the database matches the new default by comparing label and sizes
+    // If we can't find a match, use the existing default's ID (if it exists)
+    let defaultProfileId = existingDefault?.id;
+    
+    // Try to find the profile that matches the new default by label and sizes
+    if (normalized.defaultProfile) {
+      const matchingProfile = existingProfiles.find(p => {
+        const labelMatch = p.label === (normalized.defaultProfile.label || 'My default sizes');
+        const sizesMatch = JSON.stringify(p.sizes) === JSON.stringify(normalized.defaultProfile.sizes || createEmptySizeValues());
+        return labelMatch && sizesMatch;
+      });
+      
+      if (matchingProfile) {
+        defaultProfileId = matchingProfile.id;
+      }
+    }
+
     // Save default profile
     if (normalized.defaultProfile) {
-      await upsertNailSizeProfile(userId, {
-        // Use the existing default profile's ID if it exists, otherwise create new
-        id: existingDefault?.id || (normalized.defaultProfile.id !== 'default' ? normalized.defaultProfile.id : undefined),
+      const result = await upsertNailSizeProfile(userId, {
+        id: defaultProfileId,
         label: normalized.defaultProfile.label || 'My default sizes',
         is_default: true,
         sizes: normalized.defaultProfile.sizes || createEmptySizeValues(),
       });
+      if (result?.id) {
+        savedProfileIds.add(result.id);
+      }
     }
 
-    // Save additional profiles
-    if (Array.isArray(normalized.profiles)) {
-      for (const profile of normalized.profiles) {
-        // Skip temporary IDs - they'll be created as new profiles
-        if (profile.id && !profile.id.startsWith('profile_') && !profile.id.startsWith('temp_')) {
-          await upsertNailSizeProfile(userId, {
-            id: profile.id,
-            label: profile.label || 'Untitled Profile',
-            is_default: false,
-            sizes: profile.sizes || createEmptySizeValues(),
-          });
-        } else {
-          // Create new profile for temporary IDs
-          await upsertNailSizeProfile(userId, {
-            id: undefined,
-            label: profile.label || 'Untitled Profile',
-            is_default: false,
-            sizes: profile.sizes || createEmptySizeValues(),
-          });
+    // Also track the old default profile ID if it's different from the new default
+    // This ensures it doesn't get deleted as orphaned
+    if (existingDefault?.id && existingDefault.id !== defaultProfileId) {
+      savedProfileIds.add(existingDefault.id);
+    }
+
+    // Delete profiles that are no longer in the draft (orphaned profiles)
+    const profilesToDelete = existingProfiles.filter(
+      p => !p.is_default && !savedProfileIds.has(p.id)
+    );
+    
+    if (profilesToDelete.length > 0) {
+      const { deleteNailSizeProfile } = await import('../services/supabaseService');
+      for (const profileToDelete of profilesToDelete) {
+        try {
+          await deleteNailSizeProfile(userId, profileToDelete.id);
+          if (__DEV__) {
+            console.log('[preferences] Deleted orphaned profile:', profileToDelete.id);
+          }
+        } catch (error) {
+          console.warn('[preferences] Failed to delete orphaned profile:', error);
         }
       }
     }
