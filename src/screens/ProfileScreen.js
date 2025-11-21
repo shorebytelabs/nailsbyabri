@@ -256,15 +256,6 @@ function ProfileScreen() {
               </Text>
             </View>
           </View>
-          <PrimaryButton
-            label="Edit Details"
-            onPress={() => {
-              logEvent('profile_edit_details_open');
-              setActiveView('account');
-            }}
-            style={styles.editButton}
-            accessibilityLabel="Edit your profile details"
-          />
         </View>
 
         <View style={styles.listCard}>
@@ -421,10 +412,6 @@ function createStyles(colors) {
     accountMetaText: {
       fontSize: 12,
       color: secondaryFont,
-    },
-    editButton: {
-      alignSelf: 'flex-start',
-      marginTop: 4,
     },
     listCard: {
       borderRadius: 20,
