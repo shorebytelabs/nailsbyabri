@@ -11,6 +11,7 @@ import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import ConsentScreen from '../screens/ConsentScreen';
 import TermsScreen from '../screens/TermsScreen';
 import PrivacyScreen from '../screens/PrivacyScreen';
+import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import OrderConfirmationScreen from '../screens/OrderConfirmationScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import OrderBuilderScreen from '../screens/OrderBuilderScreen';

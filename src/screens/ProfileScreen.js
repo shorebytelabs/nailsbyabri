@@ -18,12 +18,12 @@ import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
 import { logEvent } from '../utils/analytics';
 import { withOpacity } from '../utils/color';
-import { changePassword } from '../services/api';
 import {
   normalizeNailSizes as normalizeStoredNailSizes,
   createEmptySizeValues,
 } from '../storage/preferences';
 import { deleteNailSizeProfile } from '../services/supabaseService';
+import ChangePasswordScreen from './ChangePasswordScreen';
 
 const FINGER_DISPLAY = [
   { key: 'thumb', label: 'Thumb' },
@@ -66,14 +66,7 @@ function ProfileScreen() {
   const [nailSizesExpanded, setNailSizesExpanded] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [accountModalVisible, setAccountModalVisible] = useState(false);
-  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
-  const [passwordError, setPasswordError] = useState(null);
-  const [changingPassword, setChangingPassword] = useState(false);
+  const [activeView, setActiveView] = useState('main'); // 'main' or 'changePassword'
   const [savingSizes, setSavingSizes] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
   const [nailSizesDraft, setNailSizesDraft] = useState(() =>
@@ -104,6 +97,20 @@ function ProfileScreen() {
 
   if (!user) {
     return null;
+  }
+
+  // If activeView is 'changePassword', show the Change Password panel
+  if (activeView === 'changePassword') {
+    return (
+      <ChangePasswordScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
+          },
+        }}
+      />
+    );
   }
 
   const memberSince = formatDate(user.memberSince || user.createdAt);
@@ -224,68 +231,9 @@ function ProfileScreen() {
 
   const handleChangePassword = () => {
     logEvent('profile_change_password');
-    setPasswordForm({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    });
-    setPasswordError(null);
-    setPasswordModalVisible(true);
+    setActiveView('changePassword');
   };
 
-  const handlePasswordChange = async () => {
-    setPasswordError(null);
-
-    // Validation
-    if (!passwordForm.currentPassword.trim()) {
-      setPasswordError('Please enter your current password');
-      return;
-    }
-
-    if (!passwordForm.newPassword.trim()) {
-      setPasswordError('Please enter a new password');
-      return;
-    }
-
-    if (passwordForm.newPassword.length < 6) {
-      setPasswordError('New password must be at least 6 characters long');
-      return;
-    }
-
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setPasswordError('New passwords do not match');
-      return;
-    }
-
-    if (passwordForm.currentPassword === passwordForm.newPassword) {
-      setPasswordError('New password must be different from current password');
-      return;
-    }
-
-    setChangingPassword(true);
-
-    try {
-      await changePassword({
-        currentPassword: passwordForm.currentPassword,
-        newPassword: passwordForm.newPassword,
-      });
-
-      // Success
-      setPasswordModalVisible(false);
-      setPasswordForm({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      });
-      setConfirmation('Password changed successfully');
-      logEvent('profile_password_changed');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to change password. Please try again.';
-      setPasswordError(message);
-    } finally {
-      setChangingPassword(false);
-    }
-  };
 
   const handleShippingAddress = () => {
     logEvent('profile_manage_shipping');
@@ -643,112 +591,6 @@ function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* Change Password Modal */}
-      <Modal
-        visible={passwordModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setPasswordModalVisible(false)}
-      >
-        <View
-          style={[
-            styles.modalBackdrop,
-            { backgroundColor: withOpacity(colors.shadow || '#000000', 0.35) },
-          ]}
-        >
-          <View
-            style={[
-              styles.modalCard,
-              {
-                backgroundColor: colors.surface || '#FFFFFF',
-                borderColor: withOpacity(colors.divider || '#E6DCD0', 0.6),
-              },
-            ]}
-          >
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Change Password</Text>
-              <Text style={styles.modalSubtitle}>
-                Enter your current password and choose a new password.
-              </Text>
-            </View>
-            <ScrollView
-              style={styles.modalScrollView}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
-              <FormField
-                label="Current Password"
-                value={passwordForm.currentPassword}
-                onChangeText={(value) => {
-                  setPasswordForm((prev) => ({ ...prev, currentPassword: value }));
-                  if (passwordError) setPasswordError(null);
-                }}
-                placeholder="Enter your current password"
-                secureTextEntry
-                autoCapitalize="none"
-              />
-              <FormField
-                label="New Password"
-                value={passwordForm.newPassword}
-                onChangeText={(value) => {
-                  setPasswordForm((prev) => ({ ...prev, newPassword: value }));
-                  if (passwordError) setPasswordError(null);
-                }}
-                placeholder="Enter new password (min. 6 characters)"
-                secureTextEntry
-                autoCapitalize="none"
-              />
-              <FormField
-                label="Confirm New Password"
-                value={passwordForm.confirmPassword}
-                onChangeText={(value) => {
-                  setPasswordForm((prev) => ({ ...prev, confirmPassword: value }));
-                  if (passwordError) setPasswordError(null);
-                }}
-                placeholder="Re-enter new password"
-                secureTextEntry
-                autoCapitalize="none"
-              />
-              {passwordError ? (
-                <Text style={[styles.errorText, { color: colors.error || '#B33A3A' }]}>
-                  {passwordError}
-                </Text>
-              ) : null}
-            </ScrollView>
-            <View style={styles.modalActions}>
-              <PrimaryButton
-                label="Change Password"
-                onPress={handlePasswordChange}
-                loading={changingPassword}
-                disabled={
-                  changingPassword ||
-                  !passwordForm.currentPassword.trim() ||
-                  !passwordForm.newPassword.trim() ||
-                  !passwordForm.confirmPassword.trim()
-                }
-                accessibilityLabel="Change password"
-              />
-              <TouchableOpacity
-                onPress={() => {
-                  setPasswordModalVisible(false);
-                  setPasswordForm({
-                    currentPassword: '',
-                    newPassword: '',
-                    confirmPassword: '',
-                  });
-                  setPasswordError(null);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel="Cancel changing password"
-                style={styles.modalSecondaryButton}
-                disabled={changingPassword}
-              >
-                <Text style={styles.modalSecondaryText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
