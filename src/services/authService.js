@@ -14,7 +14,7 @@ import { upsertProfile, getProfile } from './supabaseService';
  * @param {string} payload.ageGroup - Age group (13-17, 18-24, etc.)
  * @returns {Promise<Object>} User and session data
  */
-export async function signup({ email, password, name, ageGroup }) {
+export async function signup({ email, password, name, ageGroup, consentAccepted = false }) {
   try {
     if (__DEV__) {
       console.log('[auth] Signing up user:', { email, name, ageGroup });
@@ -24,6 +24,11 @@ export async function signup({ email, password, name, ageGroup }) {
     const validAgeGroups = ['13-17', '18-24', '25-34', '35-44', '45-54', '55+'];
     if (!validAgeGroups.includes(ageGroup)) {
       throw new Error('Invalid age group. You must be 13 years or older.');
+    }
+
+    // Validate consent acceptance
+    if (!consentAccepted) {
+      throw new Error('You must accept the Terms & Conditions and Privacy Policy to create an account.');
     }
 
     // Sign up with Supabase Auth
@@ -64,38 +69,58 @@ export async function signup({ email, password, name, ageGroup }) {
       }
     }
 
-    // Create profile in Supabase
+    // Create profile in Supabase with consent timestamps
     // Note: The trigger should create the profile automatically, but we'll also try
-    // to upsert it to ensure it has the correct data (especially full_name from signup)
+    // to upsert it to ensure it has the correct data (especially full_name and consent from signup)
     try {
-      await upsertProfile({
-        id: userId,
-        email,
-        full_name: name,
-      });
+      // Update profile with consent timestamps
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: userId,
+          email,
+          full_name: name,
+          terms_accepted_at: now,
+          privacy_accepted_at: now,
+        }, {
+          onConflict: 'id',
+        });
+
+      if (updateError) {
+        // If upsert fails, try updating the profile directly
+        const { error: directUpdateError } = await supabase
+          .from('profiles')
+          .update({
+            full_name: name,
+            terms_accepted_at: now,
+            privacy_accepted_at: now,
+          })
+          .eq('id', userId);
+
+        if (directUpdateError) {
+          throw directUpdateError;
+        }
+      }
       
       if (__DEV__) {
-        console.log('[auth] ✅ Profile created/updated successfully');
+        console.log('[auth] ✅ Profile created/updated with consent timestamps');
       }
     } catch (profileError) {
       // If profile creation fails, log it but don't block signup
       // The trigger might have already created it, or it can be created later
       if (__DEV__) {
-        console.warn('[auth] ⚠️  Failed to create profile (non-critical):', profileError.message);
+        console.warn('[auth] ⚠️  Failed to create/update profile (non-critical):', profileError.message);
         console.warn('[auth] Profile might have been created by trigger, or will be created on next login');
       }
       // Continue even if profile creation fails - it can be retried
     }
-
-    // Note: Consent logs are no longer created automatically
-    // The consent flow has been removed - all users 13+ can sign up directly
 
     // Fetch profile to get role (might have been set by trigger)
     let profile = null;
     try {
       profile = await getProfile(userId);
       
-      // Update last_login timestamp on signup (first login)
+      // Update last_login timestamp on signup (first login) if not already set
       try {
         await supabase
           .from('profiles')
@@ -267,11 +292,30 @@ export async function login({ email, password }) {
       console.warn('[auth] ⚠️  Failed to fetch consent log (non-critical):', consentError.message);
     }
 
-    // Check if consent is pending
+    // Check if consent is pending (for old parental consent flow)
     if (pendingConsent) {
       const error = new Error('Parental consent is still pending');
       error.details = {
         pendingConsent: true,
+        user: {
+          id: userId,
+          email,
+          name: userMetadata.full_name || profile?.full_name || email,
+        },
+      };
+      throw error;
+    }
+
+    // Check if legal consent (Terms & Conditions and Privacy Policy) is missing
+    const missingTermsConsent = !profile?.terms_accepted_at;
+    const missingPrivacyConsent = !profile?.privacy_accepted_at;
+
+    if (missingTermsConsent || missingPrivacyConsent) {
+      const error = new Error('Legal consent is required');
+      error.details = {
+        missingLegalConsent: true,
+        missingTerms: missingTermsConsent,
+        missingPrivacy: missingPrivacyConsent,
         user: {
           id: userId,
           email,

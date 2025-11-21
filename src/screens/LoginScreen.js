@@ -3,6 +3,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View 
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
+import ConsentModal from '../components/ConsentModal';
 import Icon from '../icons/Icon';
 import { login } from '../services/api';
 import { useTheme } from '../theme';
@@ -17,11 +18,16 @@ function LoginScreen({
   onSwitchToSignup,
   onForgotPassword,
   onCancel = () => {},
+  navigation,
 }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [consentModalVisible, setConsentModalVisible] = useState(false);
+  const [consentUser, setConsentUser] = useState(null);
+  const [missingTerms, setMissingTerms] = useState(false);
+  const [missingPrivacy, setMissingPrivacy] = useState(false);
   const { theme } = useTheme();
   const colors = theme?.colors || {};
   const primaryFontColor = colors.primaryFont || '#220707';
@@ -40,8 +46,19 @@ function LoginScreen({
       const response = await login({ email, password });
       onLoginSuccess(response);
     } catch (err) {
+      // Handle old parental consent flow
       if (err instanceof Error && err.details && err.details.pendingConsent && err.details.user) {
         onConsentPending({ user: err.details.user, message: err.message });
+        setLoading(false);
+        return;
+      }
+
+      // Handle missing legal consent (Terms & Conditions / Privacy Policy)
+      if (err instanceof Error && err.details && err.details.missingLegalConsent && err.details.user) {
+        setConsentUser(err.details.user);
+        setMissingTerms(err.details.missingTerms || false);
+        setMissingPrivacy(err.details.missingPrivacy || false);
+        setConsentModalVisible(true);
         setLoading(false);
         return;
       }
@@ -180,6 +197,44 @@ function LoginScreen({
           </View>
         </View>
       </ScrollView>
+
+      {/* Legal Consent Modal */}
+      <ConsentModal
+        visible={consentModalVisible}
+        user={consentUser}
+        missingTerms={missingTerms}
+        missingPrivacy={missingPrivacy}
+        onConsentAccepted={async () => {
+          // After consent is accepted, retry login
+          setConsentModalVisible(false);
+          setConsentUser(null);
+          setMissingTerms(false);
+          setMissingPrivacy(false);
+          
+          // Retry login
+          setLoading(true);
+          setError(null);
+          try {
+            const response = await login({ email, password });
+            onLoginSuccess(response);
+          } catch (err) {
+            const message = err instanceof Error ? err.message : 'Unable to log in.';
+            setError(message);
+          } finally {
+            setLoading(false);
+          }
+        }}
+        onViewTerms={() => {
+          if (navigation) {
+            navigation.navigate('Terms');
+          }
+        }}
+        onViewPrivacy={() => {
+          if (navigation) {
+            navigation.navigate('Privacy');
+          }
+        }}
+      />
     </ScreenContainer>
   );
 }

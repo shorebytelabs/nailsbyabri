@@ -9,6 +9,8 @@ import LoginScreen from '../screens/LoginScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import ConsentScreen from '../screens/ConsentScreen';
+import TermsScreen from '../screens/TermsScreen';
+import PrivacyScreen from '../screens/PrivacyScreen';
 import OrderConfirmationScreen from '../screens/OrderConfirmationScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import OrderBuilderScreen from '../screens/OrderBuilderScreen';
@@ -32,6 +34,7 @@ function SignupScreenContainer({ navigation }) {
 
   return (
     <SignupScreen
+      navigation={navigation}
       onSignupSuccess={async (response) => {
         await handleSignupSuccess(response);
         if (response.consentRequired) {
@@ -60,6 +63,7 @@ function LoginScreenContainer({ navigation, route }) {
 
   return (
     <LoginScreen
+      navigation={navigation}
       authMessage={authMessage}
       onLoginSuccess={(payload) => {
         handleLoginSuccess(payload);
@@ -649,6 +653,22 @@ function AppNavigator() {
             presentation: 'card',
             headerShown: false, // We have our own header in UserDetailScreen
             animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="Terms"
+          component={TermsScreen}
+          options={{
+            presentation: 'card',
+            headerShown: false, // We have our own header in TermsScreen
+          }}
+        />
+        <Stack.Screen
+          name="Privacy"
+          component={PrivacyScreen}
+          options={{
+            presentation: 'card',
+            headerShown: false, // We have our own header in PrivacyScreen
           }}
         />
       </Stack.Navigator>

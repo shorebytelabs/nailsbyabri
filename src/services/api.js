@@ -37,6 +37,7 @@ export async function signup(payload) {
     password: payload.password,
     name: payload.name,
     ageGroup: payload.ageGroup,
+    consentAccepted: payload.consentAccepted || false,
   });
 }
 

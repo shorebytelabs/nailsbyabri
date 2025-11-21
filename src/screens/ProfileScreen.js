@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import Icon from '../icons/Icon';
@@ -44,6 +45,7 @@ const normalizeNailSizes = (value) =>
   value ? normalizeStoredNailSizes(value) : buildEmptyNailSizes();
 
 function ProfileScreen() {
+  const navigation = useNavigation();
   const { theme } = useTheme();
   const {
     state,
@@ -288,6 +290,26 @@ function ProfileScreen() {
       description: 'Email support with questions',
       icon: 'mail',
       onPress: handleContact,
+    },
+    {
+      key: 'terms',
+      title: 'Terms & Conditions',
+      description: 'View our terms and conditions',
+      icon: 'fileText',
+      onPress: () => {
+        logEvent('profile_view_terms');
+        navigation.navigate('Terms');
+      },
+    },
+    {
+      key: 'privacy',
+      title: 'Privacy Policy',
+      description: 'View our privacy policy',
+      icon: 'shield',
+      onPress: () => {
+        logEvent('profile_view_privacy');
+        navigation.navigate('Privacy');
+      },
     },
   ];
 

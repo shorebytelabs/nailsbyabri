@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View, Linking } from 'react-native';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
@@ -19,11 +19,12 @@ const AGE_GROUPS = [
   { value: '55+', label: '55+ years' },
 ];
 
-function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} }) {
+function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, navigation }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [ageGroup, setAgeGroup] = useState('');
+  const [consentAccepted, setConsentAccepted] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -52,6 +53,12 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} })
       setError('Please select your age group.');
       return;
     }
+
+    // Validate consent acceptance
+    if (!consentAccepted) {
+      setError('Please accept the Terms & Conditions and Privacy Policy to continue.');
+      return;
+    }
     
     setLoading(true);
     setError(null);
@@ -63,6 +70,7 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} })
         email,
         password,
         ageGroup,
+        consentAccepted: true, // Pass consent acceptance to signup service
       });
       setSuccessPayload(response);
       setSuccessVisible(true);
@@ -79,7 +87,7 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} })
   };
 
   const isSubmitDisabled =
-    !name.trim() || !email.trim() || !password.trim() || !ageGroup;
+    !name.trim() || !email.trim() || !password.trim() || !ageGroup || !consentAccepted;
 
   return (
     <ScreenContainer scroll={false} style={styles.screen}>
@@ -192,6 +200,64 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {} })
                 <Text style={[styles.helperText, { color: withOpacity(primaryFontColor, 0.65) }]}>
                   You must be 13 years or older to create an account.
                 </Text>
+              </View>
+
+              {/* Legal Consent Checkbox */}
+              <View style={styles.consentContainer}>
+                <TouchableOpacity
+                  style={styles.checkboxRow}
+                  onPress={() => setConsentAccepted(!consentAccepted)}
+                  activeOpacity={0.7}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: consentAccepted }}
+                  accessibilityLabel="I agree to the Terms & Conditions and Privacy Policy"
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      {
+                        backgroundColor: consentAccepted ? accentColor : surfaceColor,
+                        borderColor: consentAccepted ? accentColor : borderColor,
+                      },
+                    ]}
+                  >
+                    {consentAccepted && (
+                      <Icon name="check" color="#FFFFFF" size={14} />
+                    )}
+                  </View>
+                  <View style={styles.consentTextContainer}>
+                    <Text style={[styles.consentText, { color: primaryFontColor }]}>
+                      I agree to the{' '}
+                      <Text
+                        style={[styles.consentLink, { color: accentColor }]}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          if (navigation) {
+                            navigation.navigate('Terms');
+                          }
+                        }}
+                        accessibilityRole="link"
+                        accessibilityLabel="View Terms & Conditions"
+                      >
+                        Terms & Conditions
+                      </Text>
+                      {' '}and{' '}
+                      <Text
+                        style={[styles.consentLink, { color: accentColor }]}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          if (navigation) {
+                            navigation.navigate('Privacy');
+                          }
+                        }}
+                        accessibilityRole="link"
+                        accessibilityLabel="View Privacy Policy"
+                      >
+                        Privacy Policy
+                      </Text>
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -370,6 +436,35 @@ const styles = StyleSheet.create({
   ageGroupOptionText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  consentContainer: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  consentTextContainer: {
+    flex: 1,
+  },
+  consentText: {
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  consentLink: {
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   error: {
     marginTop: -4,
