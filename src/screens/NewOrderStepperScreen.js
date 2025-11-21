@@ -3978,7 +3978,7 @@ function SizingStep({
 
 function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, onChangeAddress, saveAddress, onSaveAddressChange }) {
   const [savedAddresses, setSavedAddresses] = useState([]);
-  const [selectedAddressId, setSelectedAddressId] = useState('add_new'); // 'add_new' or address ID
+  const [selectedAddressId, setSelectedAddressId] = useState(null); // null = not initialized, 'add_new' or address ID
   const [showDropdown, setShowDropdown] = useState(false);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const hasInitializedRef = useRef(false);
@@ -3997,20 +3997,17 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
     if (fulfillment.method === 'delivery' || fulfillment.method === 'shipping') {
       // Reset initialization flag and selection when method changes so we can re-initialize
       hasInitializedRef.current = false;
-      setSelectedAddressId('add_new');
+      setSelectedAddressId(null);
       loadSavedAddresses();
     }
   }, [fulfillment.method]);
 
-  // Initialize selection - check for default address first, otherwise default to "Add New"
+  // Fallback initialization if addresses were already loaded before component mounted
   useEffect(() => {
-    // Only initialize once when addresses are first loaded
-    if (!hasInitializedRef.current && savedAddresses.length > 0) {
+    if (!hasInitializedRef.current && savedAddresses.length > 0 && selectedAddressId === null) {
       hasInitializedRef.current = true;
-      // Check for a default address
       const defaultAddress = savedAddresses.find(addr => addr.isDefault);
       if (defaultAddress) {
-        // Select the default address and pre-fill the form
         setSelectedAddressId(defaultAddress.id);
         onChangeAddress({
           label: defaultAddress.label || 'Home',
@@ -4021,17 +4018,14 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
           state: defaultAddress.state || '',
           postalCode: defaultAddress.postalCode || '',
         });
+      } else {
+        setSelectedAddressId('add_new');
       }
-      // If no default address, keep "Add New" selected (already set as default)
-      setShowDropdown(false);
-    } else if (!hasInitializedRef.current && savedAddresses.length === 0) {
-      // No saved addresses, ensure "Add New" is selected
+    } else if (!hasInitializedRef.current && savedAddresses.length === 0 && selectedAddressId === null) {
       hasInitializedRef.current = true;
       setSelectedAddressId('add_new');
-      setShowDropdown(false);
     }
-    // If user has selected an address, keep that selection (don't reset on method/timing change)
-  }, [savedAddresses.length]);
+  }, [savedAddresses.length, selectedAddressId]);
 
   // When address is manually changed, check if it matches a saved address
   useEffect(() => {
@@ -4056,9 +4050,35 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
       const { getSavedAddresses } = await import('../services/addressService');
       const addresses = await getSavedAddresses();
       setSavedAddresses(addresses || []);
+      
+      // Immediately check for default address and initialize selection
+      if (!hasInitializedRef.current) {
+        hasInitializedRef.current = true;
+        const defaultAddress = (addresses || []).find(addr => addr.isDefault);
+        if (defaultAddress) {
+          // Select the default address and pre-fill the form
+          setSelectedAddressId(defaultAddress.id);
+          onChangeAddress({
+            label: defaultAddress.label || 'Home',
+            name: defaultAddress.name || '',
+            line1: defaultAddress.line1 || '',
+            line2: defaultAddress.line2 || '',
+            city: defaultAddress.city || '',
+            state: defaultAddress.state || '',
+            postalCode: defaultAddress.postalCode || '',
+          });
+        } else {
+          // No default address, default to "Add New"
+          setSelectedAddressId('add_new');
+        }
+      }
     } catch (error) {
       console.error('[FulfillmentStep] Error loading saved addresses:', error);
       // Don't show error - just continue without saved addresses
+      if (!hasInitializedRef.current) {
+        hasInitializedRef.current = true;
+        setSelectedAddressId('add_new');
+      }
     } finally {
       setLoadingAddresses(false);
     }
@@ -4098,11 +4118,11 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
     }
   };
 
-  const selectedAddress = selectedAddressId === 'add_new' 
+  const selectedAddress = selectedAddressId === null || selectedAddressId === 'add_new'
     ? null 
     : savedAddresses.find(addr => addr.id === selectedAddressId);
   
-  const isAddNewSelected = selectedAddressId === 'add_new' || !selectedAddress;
+  const isAddNewSelected = selectedAddressId === null || selectedAddressId === 'add_new' || !selectedAddress;
   // Show save option when "Add New" is selected and user is entering a new address
   const showSaveOption = isAddNewSelected && (
     !fulfillment.address?.name || 
@@ -4233,6 +4253,7 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
           </Text>
 
           {/* Address Dropdown */}
+          {selectedAddressId !== null && (
           <View style={styles.addressDropdownContainer}>
             <TouchableOpacity
               onPress={() => setShowDropdown(!showDropdown)}
@@ -4335,6 +4356,7 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
               </View>
             )}
           </View>
+          )}
 
           {/* Show address details - either pre-filled from selected address or empty form */}
           {selectedAddress ? (
