@@ -437,7 +437,7 @@ function createStyles(colors) {
       borderRadius: 16,
       padding: 16,
       gap: 8,
-      backgroundColor: colors.surfaceMuted || withOpacity(colors.accent || '#6F171F', 0.06),
+      backgroundColor: withOpacity(colors.surface, 0.6),//colors.surfaceMuted || withOpacity(colors.accent || '#6F171F', 0.06),
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.divider || '#E6DCD0',
     },

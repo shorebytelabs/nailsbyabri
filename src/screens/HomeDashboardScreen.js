@@ -158,7 +158,7 @@ function HomeDashboardScreen() {
               // backgroundColor: withOpacity(accentColor, 0.1),
               
               // OPTION 3B: Light cream/beige tint (ACTIVE) - similar to Option 3 but different color
-              backgroundColor: withOpacity(colors.secondaryBackground || '#E7D8CA', 0.3),
+              backgroundColor: withOpacity(colors.secondaryBackground || '#E7D8CA', 0.5),//.3
               
               // OPTION 4: White/light surface (uncomment to try)
               // backgroundColor: colors.surface,

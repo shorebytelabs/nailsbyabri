@@ -3,7 +3,7 @@
   "name": "Warm Charcoal",
   "colors": {
     "primaryBackground": "#505A6B",
-    "secondaryBackground": "#606A7A",
+    "secondaryBackground": "#707B8B",//"#606A7A",
     "surface": "#707B8B",
     "surfaceMuted": "#E3E5E9",
     "primaryFont": "#FFFFFF",

@@ -4029,6 +4029,7 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
     border = '#D9C8A9',
     surface = '#FFFFFF',
     surfaceMuted = '#F6EFE8',
+    onSurface = primaryFont,
   } = colors || {};
 
   // Load saved addresses when component mounts or when address is required
@@ -4406,13 +4407,13 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
                 value={fulfillment.address.name}
                 onChangeText={(value) => onChangeAddress({ name: value })}
                 placeholder="Full name"
-                placeholderTextColor={secondaryFont}
+                placeholderTextColor={withOpacity(secondaryFont, 0.6)}
                 style={[
                   styles.addressInput,
                   {
                     borderColor: border,
-                    color: primaryFont,
-                    backgroundColor: surfaceMuted,
+                    color: onSurface,
+                    backgroundColor: surface,
                   },
                 ]}
               />
@@ -4420,13 +4421,13 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
                 value={fulfillment.address.line1}
                 onChangeText={(value) => onChangeAddress({ line1: value })}
                 placeholder="Address line 1"
-                placeholderTextColor={secondaryFont}
+                placeholderTextColor={withOpacity(secondaryFont, 0.6)}
                 style={[
                   styles.addressInput,
                   {
                     borderColor: border,
-                    color: primaryFont,
-                    backgroundColor: surfaceMuted,
+                    color: onSurface,
+                    backgroundColor: surface,
                   },
                 ]}
               />
@@ -4435,13 +4436,13 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
                   value={fulfillment.address.line2}
                   onChangeText={(value) => onChangeAddress({ line2: value })}
                   placeholder="Address line 2 (optional)"
-                  placeholderTextColor={secondaryFont}
+                  placeholderTextColor={withOpacity(secondaryFont, 0.6)}
                   style={[
                     styles.addressInput,
                     {
                       borderColor: border,
-                      color: primaryFont,
-                      backgroundColor: surfaceMuted,
+                      color: onSurface,
+                      backgroundColor: surface,
                     },
                   ]}
                 />
@@ -4451,13 +4452,13 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
                   value={fulfillment.address.city}
                   onChangeText={(value) => onChangeAddress({ city: value })}
                   placeholder="City"
-                  placeholderTextColor={secondaryFont}
+                  placeholderTextColor={withOpacity(secondaryFont, 0.6)}
                   style={[
                     styles.addressInputHalf,
                     {
                       borderColor: border,
-                      color: primaryFont,
-                      backgroundColor: surfaceMuted,
+                      color: onSurface,
+                      backgroundColor: surface,
                     },
                   ]}
                 />
@@ -4465,15 +4466,15 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
                   value={fulfillment.address.state}
                   onChangeText={(value) => onChangeAddress({ state: value })}
                   placeholder="State"
-                  placeholderTextColor={secondaryFont}
+                  placeholderTextColor={withOpacity(secondaryFont, 0.6)}
                   autoCapitalize="characters"
                   maxLength={2}
                   style={[
                     styles.addressInputQuarter,
                     {
                       borderColor: border,
-                      color: primaryFont,
-                      backgroundColor: surfaceMuted,
+                      color: onSurface,
+                      backgroundColor: surface,
                     },
                   ]}
                 />
@@ -4481,13 +4482,13 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
                   value={fulfillment.address.postalCode}
                   onChangeText={(value) => onChangeAddress({ postalCode: value })}
                   placeholder="Postcode"
-                  placeholderTextColor={secondaryFont}
+                  placeholderTextColor={withOpacity(secondaryFont, 0.6)}
                   style={[
                     styles.addressInputQuarter,
                     {
                       borderColor: border,
-                      color: primaryFont,
-                      backgroundColor: surfaceMuted,
+                      color: onSurface,
+                      backgroundColor: surface,
                     },
                   ]}
                 />
@@ -4500,12 +4501,13 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
                 value={fulfillment.address.label || ''}
                 onChangeText={(value) => onChangeAddress({ label: value })}
                 placeholder="Label (e.g., Home, Work)"
-                placeholderTextColor={secondaryFont}
+                placeholderTextColor={withOpacity(secondaryFont, 0.6)}
                 style={[
                   styles.addressInput,
                   {
                     borderColor: border,
-                    color: primaryFont,
+                    color: onSurface,
+                    backgroundColor: surface,
                   },
                 ]}
               />
@@ -4513,12 +4515,13 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
                 value={fulfillment.address.name}
                 onChangeText={(value) => onChangeAddress({ name: value })}
                 placeholder="Full name"
-                placeholderTextColor={secondaryFont}
+                placeholderTextColor={withOpacity(secondaryFont, 0.6)}
                 style={[
                   styles.addressInput,
                   {
                     borderColor: border,
-                    color: primaryFont,
+                    color: onSurface,
+                    backgroundColor: surface,
                   },
                 ]}
               />
@@ -4526,12 +4529,13 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
                 value={fulfillment.address.line1}
                 onChangeText={(value) => onChangeAddress({ line1: value })}
                 placeholder="Address line 1"
-                placeholderTextColor={secondaryFont}
+                placeholderTextColor={withOpacity(secondaryFont, 0.6)}
                 style={[
                   styles.addressInput,
                   {
                     borderColor: border,
-                    color: primaryFont,
+                    color: onSurface,
+                    backgroundColor: surface,
                   },
                 ]}
               />
@@ -4539,12 +4543,13 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
                 value={fulfillment.address.line2}
                 onChangeText={(value) => onChangeAddress({ line2: value })}
                 placeholder="Address line 2 (optional)"
-                placeholderTextColor={secondaryFont}
+                placeholderTextColor={withOpacity(secondaryFont, 0.6)}
                 style={[
                   styles.addressInput,
                   {
                     borderColor: border,
-                    color: primaryFont,
+                    color: onSurface,
+                    backgroundColor: surface,
                   },
                 ]}
               />
@@ -4554,12 +4559,13 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
                     value={fulfillment.address.city}
                     onChangeText={(value) => onChangeAddress({ city: value })}
                     placeholder="City"
-                    placeholderTextColor={secondaryFont}
+                    placeholderTextColor={withOpacity(secondaryFont, 0.6)}
                     style={[
                       styles.addressInput,
                       {
                         borderColor: border,
-                        color: primaryFont,
+                        color: onSurface,
+                        backgroundColor: surface,
                       },
                     ]}
                   />
@@ -4569,14 +4575,15 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
                     value={fulfillment.address.state}
                     onChangeText={(value) => onChangeAddress({ state: value })}
                     placeholder="State"
-                    placeholderTextColor={secondaryFont}
+                    placeholderTextColor={withOpacity(secondaryFont, 0.6)}
                     autoCapitalize="characters"
                     maxLength={2}
                     style={[
                       styles.addressInput,
                       {
                         borderColor: border,
-                        color: primaryFont,
+                        color: onSurface,
+                        backgroundColor: surface,
                       },
                     ]}
                   />
@@ -4586,12 +4593,13 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
                     value={fulfillment.address.postalCode}
                     onChangeText={(value) => onChangeAddress({ postalCode: value })}
                     placeholder="Postcode"
-                    placeholderTextColor={secondaryFont}
+                    placeholderTextColor={withOpacity(secondaryFont, 0.6)}
                     style={[
                       styles.addressInput,
                       {
                         borderColor: border,
-                        color: primaryFont,
+                        color: onSurface,
+                        backgroundColor: surface,
                       },
                     ]}
                   />
