@@ -18,7 +18,13 @@ import Icon from '../icons/Icon';
 import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
 import { withOpacity } from '../utils/color';
-import { getActiveTheme, setActiveTheme } from '../services/appSettingsService';
+import { 
+  getActiveTheme, 
+  setActiveTheme,
+  getActiveAnimation,
+  setActiveAnimation 
+} from '../services/appSettingsService';
+import { animationRegistry } from '../animations';
 
 function ManageThemeScreen({ navigation }) {
   const { theme, availableThemes, setThemeById } = useTheme();
@@ -28,8 +34,10 @@ function ManageThemeScreen({ navigation }) {
   const currentUserId = state.currentUser?.id;
 
   const [activeThemeId, setActiveThemeId] = useState(null);
+  const [activeAnimationId, setActiveAnimationId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingAnimation, setSavingAnimation] = useState(false);
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -45,13 +53,17 @@ function ManageThemeScreen({ navigation }) {
   const loadActiveTheme = useCallback(async () => {
     try {
       setLoading(true);
-      const themeId = await getActiveTheme();
+      const [themeId, animationId] = await Promise.all([
+        getActiveTheme(),
+        getActiveAnimation(),
+      ]);
       setActiveThemeId(themeId);
+      setActiveAnimationId(animationId || 'none');
       // Update local theme to match global theme
       setThemeById(themeId);
     } catch (error) {
-      console.error('[ManageTheme] Error loading active theme:', error);
-      Alert.alert('Error', error.message || 'Failed to load theme information. Please try again.');
+      console.error('[ManageTheme] Error loading settings:', error);
+      Alert.alert('Error', error.message || 'Failed to load settings. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -81,6 +93,62 @@ function ManageThemeScreen({ navigation }) {
       Alert.alert('Error', error.message || 'Failed to update theme. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSelectAnimation = async (animationId) => {
+    if (animationId === activeAnimationId) {
+      return; // Already selected
+    }
+
+    try {
+      setSavingAnimation(true);
+      
+      if (!currentUserId) {
+        Alert.alert('Error', 'Admin user ID not found');
+        return;
+      }
+
+      await setActiveAnimation(animationId, currentUserId);
+      
+      // Normalize animationId: null or undefined becomes 'none'
+      const normalizedId = animationId || 'none';
+      
+      // Immediately update local state for the admin panel
+      setActiveAnimationId(normalizedId);
+      
+      // Force reload the animation in ThemeProvider by reloading it
+      // This ensures the global app state updates even if real-time subscription doesn't fire
+      try {
+        // Small delay to ensure database write is complete
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const updatedAnimationId = await getActiveAnimation();
+        if (__DEV__) {
+          console.log('[ManageTheme] Reloaded animation after update:', updatedAnimationId);
+        }
+        const finalId = updatedAnimationId || 'none';
+        setActiveAnimationId(finalId);
+        
+        // Also update the theme provider's state by triggering a reload
+        // The real-time subscription should handle this, but if it doesn't, 
+        // the user will need to refresh the app
+        if (__DEV__) {
+          console.log('[ManageTheme] Animation updated. If animation does not change, try refreshing the app.');
+        }
+      } catch (error) {
+        console.error('[ManageTheme] Error reloading animation:', error);
+      }
+      
+      const animationName = animationRegistry.find(a => a.id === normalizedId)?.name || normalizedId;
+      Alert.alert(
+        'Success', 
+        `Background animation updated to "${animationName}". ${normalizedId === 'none' ? 'The animation should disappear.' : 'All users will see the new animation.'}\n\nIf you don't see the change, try refreshing the app.`
+      );
+    } catch (error) {
+      console.error('[ManageTheme] Error setting animation:', error);
+      Alert.alert('Error', error.message || 'Failed to update animation. Please try again.');
+    } finally {
+      setSavingAnimation(false);
     }
   };
 
@@ -119,7 +187,9 @@ function ManageThemeScreen({ navigation }) {
       </View>
 
       <ScrollView style={styles.content}>
+        {/* Theme Selection Section */}
         <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: primaryFont }]}>Theme</Text>
           <Text style={[styles.description, { color: secondaryFont }]}>
             Select the active theme for the entire application. All users will see the selected theme.
           </Text>
@@ -182,6 +252,82 @@ function ManageThemeScreen({ navigation }) {
             })}
           </View>
         </View>
+
+        {/* Background Animation Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: primaryFont }]}>Background Animation</Text>
+          <Text style={[styles.description, { color: secondaryFont }]}>
+            Select a background animation to display across the app. Animations are independent of themes and can be enabled on any theme. Choose "None" to disable animations.
+          </Text>
+          
+          {activeAnimationId && (
+            <View style={styles.currentThemeContainer}>
+              <Text style={[styles.currentThemeLabel, { color: secondaryFont }]}>Current Animation:</Text>
+              <Text style={[styles.currentThemeName, { color: primaryFont }]}>
+                {animationRegistry.find(a => a.id === activeAnimationId)?.name || activeAnimationId}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.themesList}>
+            {animationRegistry.map((animationOption) => {
+              const isSelected = animationOption.id === activeAnimationId;
+              
+              return (
+                <TouchableOpacity
+                  key={animationOption.id}
+                  onPress={() => handleSelectAnimation(animationOption.id)}
+                  disabled={savingAnimation || isSelected}
+                  style={[
+                    styles.themeCard,
+                    {
+                      backgroundColor: surface,
+                      borderColor: isSelected ? accent : borderColor,
+                      borderWidth: isSelected ? 2 : 1,
+                      opacity: savingAnimation && !isSelected ? 0.6 : 1,
+                    },
+                  ]}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.themeCardContent}>
+                    <View style={styles.themeCardLeft}>
+                      <View 
+                        style={[
+                          styles.themePreview, 
+                          { 
+                            backgroundColor: animationOption.id === 'snow' 
+                              ? '#E8F0F5' 
+                              : animationOption.id === 'none'
+                              ? '#F5F5F5'
+                              : accent 
+                          }
+                        ]} 
+                      />
+                      <View style={styles.themeInfo}>
+                        <Text style={[styles.themeName, { color: primaryFont }]}>
+                          {animationOption.name}
+                        </Text>
+                        <Text style={[styles.themeId, { color: secondaryFont }]}>
+                          {animationOption.id === 'none' ? 'No animation' : animationOption.id}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.themeCardRight}>
+                      {isSelected ? (
+                        <View style={[styles.selectedBadge, { backgroundColor: withOpacity(accent, 0.1) }]}>
+                          <Icon name="check" color={accent} size={18} />
+                          <Text style={[styles.selectedText, { color: accent }]}>Active</Text>
+                        </View>
+                      ) : savingAnimation ? (
+                        <ActivityIndicator size="small" color={accent} />
+                      ) : null}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -223,11 +369,17 @@ const createStyles = (colors) =>
     },
     section: {
       padding: 16,
+      marginBottom: 24,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      marginBottom: 8,
     },
     description: {
       fontSize: 14,
       lineHeight: 20,
-      marginBottom: 24,
+      marginBottom: 16,
     },
     currentThemeContainer: {
       backgroundColor: colors.surface || '#FFFFFF',

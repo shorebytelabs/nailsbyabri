@@ -3,8 +3,13 @@ import { View, StyleSheet } from 'react-native';
 import classicChristmas from './classicChristmas.json';
 import modernMaroon from './modernMaroon.json';
 import snow from './snow.json';
-import { getActiveTheme, subscribeToActiveTheme } from '../services/appSettingsService';
-import SnowBackground from '../components/SnowBackground';
+import { 
+  getActiveTheme, 
+  subscribeToActiveTheme,
+  getActiveAnimation,
+  subscribeToActiveAnimation 
+} from '../services/appSettingsService';
+import BackgroundAnimation from '../components/BackgroundAnimation';
 
 const themeRegistry = [classicChristmas, modernMaroon, snow];
 const themeIndex = themeRegistry.reduce((acc, theme) => {
@@ -47,7 +52,9 @@ export function ThemeProvider({ initialThemeId = defaultTheme.id, children }) {
   const [themeId, setThemeId] = useState(
     themeIndex[initialThemeId] ? initialThemeId : defaultTheme.id,
   );
+  const [activeAnimationId, setActiveAnimationId] = useState(null);
   const [isLoadingGlobalTheme, setIsLoadingGlobalTheme] = useState(true);
+  const [isLoadingAnimation, setIsLoadingAnimation] = useState(true);
 
   // Load global theme on mount
   useEffect(() => {
@@ -75,9 +82,40 @@ export function ThemeProvider({ initialThemeId = defaultTheme.id, children }) {
 
     loadGlobalTheme();
 
+    // Load active animation on mount
+    const loadActiveAnimation = async () => {
+      try {
+        const animationId = await getActiveAnimation();
+        if (__DEV__) {
+          console.log('[ThemeProvider] Loaded active animation from database:', animationId);
+        }
+        if (mounted) {
+          // Normalize null/undefined to 'none'
+          const normalizedId = animationId || 'none';
+          if (__DEV__) {
+            console.log('[ThemeProvider] Setting activeAnimationId to:', normalizedId);
+          }
+          setActiveAnimationId(normalizedId);
+          setIsLoadingAnimation(false);
+        }
+      } catch (error) {
+        console.error('[ThemeProvider] Error loading active animation:', error);
+        if (mounted) {
+          if (__DEV__) {
+            console.log('[ThemeProvider] Error occurred, defaulting to "none"');
+          }
+          setActiveAnimationId('none');
+          setIsLoadingAnimation(false);
+        }
+      }
+    };
+
+    loadActiveAnimation();
+
     // Subscribe to real-time theme changes
+    let unsubscribeTheme = null;
     try {
-      unsubscribe = subscribeToActiveTheme((newThemeId) => {
+      unsubscribeTheme = subscribeToActiveTheme((newThemeId) => {
         if (__DEV__) {
           console.log('[ThemeProvider] Global theme changed:', newThemeId);
         }
@@ -89,10 +127,36 @@ export function ThemeProvider({ initialThemeId = defaultTheme.id, children }) {
       console.error('[ThemeProvider] Error subscribing to theme changes:', error);
     }
 
+    // Subscribe to real-time animation changes
+    let unsubscribeAnimation = null;
+    try {
+      unsubscribeAnimation = subscribeToActiveAnimation((newAnimationId) => {
+        if (__DEV__) {
+          console.log('[ThemeProvider] 🎨 Global animation changed via real-time:', newAnimationId);
+        }
+        if (mounted) {
+          // Normalize: null, undefined, or 'none' all become 'none'
+          let normalizedId = newAnimationId;
+          if (!normalizedId || normalizedId === 'none') {
+            normalizedId = 'none';
+          }
+          if (__DEV__) {
+            console.log('[ThemeProvider] 🎨 Setting activeAnimationId to:', normalizedId, '(from:', newAnimationId, ')');
+          }
+          setActiveAnimationId(normalizedId);
+        }
+      });
+    } catch (error) {
+      console.error('[ThemeProvider] Error subscribing to animation changes:', error);
+    }
+
     return () => {
       mounted = false;
-      if (unsubscribe) {
-        unsubscribe();
+      if (unsubscribeTheme) {
+        unsubscribeTheme();
+      }
+      if (unsubscribeAnimation) {
+        unsubscribeAnimation();
       }
     };
   }, []); // Only run on mount
@@ -118,18 +182,21 @@ export function ThemeProvider({ initialThemeId = defaultTheme.id, children }) {
     };
   }, [themeId]);
 
-  // Show snow animation only when snow theme is active
-  const showSnowAnimation = themeId === 'snow';
+  // Render active animation (independent of theme)
+  // Animation is configured separately from theme in admin panel
+  // Normalize to ensure 'none' is treated correctly
+  const normalizedAnimationId = activeAnimationId === 'none' || !activeAnimationId ? 'none' : activeAnimationId;
+  const shouldShowAnimation = normalizedAnimationId && normalizedAnimationId !== 'none';
 
-  if (__DEV__ && showSnowAnimation) {
-    console.log('[ThemeProvider] 🎄 Snow theme active - showing snow animation');
+  if (__DEV__) {
+    console.log('[ThemeProvider] 🎨 Active animation ID:', normalizedAnimationId, 'Should show:', shouldShowAnimation);
   }
 
   return (
     <ThemeContext.Provider value={value}>
       <View style={styles.container}>
         {children}
-        <SnowBackground visible={showSnowAnimation} />
+        <BackgroundAnimation activeAnimationId={normalizedAnimationId} />
       </View>
     </ThemeContext.Provider>
   );

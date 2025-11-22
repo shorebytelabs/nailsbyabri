@@ -189,3 +189,192 @@ export function subscribeToActiveTheme(callback) {
   };
 }
 
+/**
+ * Get the active animation ID
+ * @returns {Promise<string|null>} The active animation ID (e.g., 'snow', 'none') or null if not set
+ */
+export async function getActiveAnimation() {
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'active_animation')
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // Setting doesn't exist, return null (no animation)
+        if (__DEV__) {
+          console.log('[appSettings] Active animation setting not found, using none');
+        }
+        return null;
+      }
+      throw error;
+    }
+
+    // Parse JSONB value
+    let animationId;
+    if (typeof data.value === 'string') {
+      try {
+        const parsed = JSON.parse(data.value);
+        animationId = typeof parsed === 'string' ? parsed : data.value;
+      } catch {
+        animationId = data.value;
+      }
+    } else {
+      animationId = data.value;
+    }
+    
+    if (__DEV__) {
+      console.log('[appSettings] ✅ Active animation loaded:', animationId);
+    }
+    return animationId;
+  } catch (error) {
+    console.error('[appSettings] ❌ Error getting active animation:', error);
+    // Return null (no animation) on error
+    return null;
+  }
+}
+
+/**
+ * Set the active animation ID (admin only)
+ * @param {string|null} animationId - The animation ID to set as active (or null/'none' to disable)
+ * @param {string} adminUserId - The ID of the admin making the change
+ * @returns {Promise<void>}
+ */
+export async function setActiveAnimation(animationId, adminUserId) {
+  try {
+    // Normalize: null or 'none' means no animation
+    const normalizedId = !animationId || animationId === 'none' ? 'none' : animationId;
+    
+    if (__DEV__) {
+      console.log('[appSettings] Setting active animation to:', normalizedId, 'by admin:', adminUserId);
+    }
+
+    // Verify admin user exists and has admin role
+    const { data: adminProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, role, email')
+      .eq('id', adminUserId)
+      .single();
+
+    if (profileError || !adminProfile) {
+      console.error('[appSettings] ❌ Admin profile not found:', profileError);
+      throw new Error('Admin profile not found. Please ensure you are logged in as an admin.');
+    }
+
+    if (adminProfile.role !== 'admin') {
+      console.error('[appSettings] ❌ User is not an admin. Role:', adminProfile.role);
+      throw new Error('You do not have admin permissions to change the animation.');
+    }
+
+    if (__DEV__) {
+      console.log('[appSettings] ✅ Admin verified:', adminProfile.email, 'Role:', adminProfile.role);
+    }
+
+    // Try to update existing row
+    const { data: updateData, error: updateError } = await supabase
+      .from('app_settings')
+      .update({
+        value: normalizedId,
+        updated_by_admin_id: adminUserId,
+      })
+      .eq('key', 'active_animation')
+      .select();
+
+    // If there's an RLS error, provide more helpful message
+    if (updateError) {
+      if (updateError.code === '42501') {
+        console.error('[appSettings] ❌ RLS Policy Error - Admin role may not be recognized by RLS');
+        throw new Error('Row-level security policy blocked the update. Please verify your admin role in the database.');
+      }
+      console.error('[appSettings] ❌ Error updating active animation:', updateError);
+      throw updateError;
+    }
+
+    // If update succeeded but returned 0 rows, the row doesn't exist - try insert
+    if (!updateData || updateData.length === 0) {
+      if (__DEV__) {
+        console.log('[appSettings] No existing row found, attempting insert...');
+      }
+      
+      const { error: insertError } = await supabase
+        .from('app_settings')
+        .insert({
+          key: 'active_animation',
+          value: normalizedId,
+          updated_by_admin_id: adminUserId,
+        });
+
+      if (insertError) {
+        if (insertError.code === '42501') {
+          console.error('[appSettings] ❌ RLS Policy Error on INSERT');
+          throw new Error('Row-level security policy blocked the insert. Please verify your admin role in the database.');
+        }
+        console.error('[appSettings] ❌ Error inserting active animation:', insertError);
+        throw insertError;
+      }
+    } else if (__DEV__) {
+      // Log the actual value that was saved
+      console.log('[appSettings] ✅ Animation update confirmed. Saved value:', normalizedId);
+      console.log('[appSettings] Update response:', updateData);
+    }
+
+    if (__DEV__) {
+      console.log('[appSettings] ✅ Active animation updated successfully');
+    }
+  } catch (error) {
+    console.error('[appSettings] ❌ Failed to set active animation:', error);
+    throw error;
+  }
+}
+
+/**
+ * Subscribe to changes in active animation
+ * @param {Function} callback - Callback function that receives the new animation ID
+ * @returns {Function} Unsubscribe function
+ */
+export function subscribeToActiveAnimation(callback) {
+  const subscription = supabase
+    .channel('app_settings_animation_changes')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'app_settings',
+        filter: 'key=eq.active_animation',
+      },
+      (payload) => {
+        // Parse the animation ID from the JSONB value
+        let newAnimationId;
+        const value = payload.new?.value;
+        if (typeof value === 'string') {
+          try {
+            const parsed = JSON.parse(value);
+            newAnimationId = typeof parsed === 'string' ? parsed : value;
+          } catch {
+            newAnimationId = value;
+          }
+        } else {
+          newAnimationId = value;
+        }
+        
+        // Normalize null to 'none'
+        if (!newAnimationId || newAnimationId === 'none') {
+          newAnimationId = 'none';
+        }
+        
+        if (__DEV__) {
+          console.log('[appSettings] Animation changed via real-time:', newAnimationId);
+        }
+        callback(newAnimationId);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    subscription.unsubscribe();
+  };
+}
+
