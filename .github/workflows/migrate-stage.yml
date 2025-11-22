@@ -1,0 +1,27 @@
+name: Apply migrations to Stage
+
+on:
+  workflow_dispatch:     # run manually from GitHub UI
+  push:
+    branches:
+      - main
+
+jobs:
+  migrate-stage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Apply migrations to stage
+        env:
+          STAGE_DB: ${{ secrets.STAGE_DB }}   # set this in repo secrets (full conn string)
+        run: |
+          for f in supabase/migrations/*.sql; do
+            echo "Applying $f"
+            psql "$STAGE_DB" -f "$f"
+          done

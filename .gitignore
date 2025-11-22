@@ -79,3 +79,8 @@ backend/data/db.json
 .env.development
 .env.*
 DOCS/
+
+# Generated react-native-config files (contain secrets)
+ios/ReactNativeConfig.xcconfig
+ios/ReactNativeConfig/GeneratedDotEnv.m
+ios/build/GeneratedInfoPlistDotEnv.h

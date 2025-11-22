@@ -1,6 +1,7 @@
 project.ext.envConfigFiles = [
     dev: ".env.development",
     qa: ".env.qa",
+    stage: ".env.stage",
     production: ".env.production",
     staging: ".env.qa",
     default: ".env"

@@ -8,10 +8,14 @@
     "lint": "eslint .",
     "start": "react-native start",
     "start:dev": "ENVFILE=.env.development react-native start --reset-cache",
+    "start:stage": "ENVFILE=.env.stage react-native start --reset-cache",
     "android:dev": "ENVFILE=.env.development react-native run-android",
+    "android:stage": "ENVFILE=.env.stage react-native run-android",
     "ios:dev": "ENVFILE=.env.development react-native run-ios",
+    "ios:stage": "ENVFILE=.env.stage react-native run-ios",
     "test": "jest",
-    "server": "node backend/server.js"
+    "server": "node backend/server.js",
+    "server:stage": "ENV_FILE=.env.stage node backend/server.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.1.1",

@@ -20,6 +20,10 @@ if (__DEV__) {
   console.log('[env]   APP_ENV:', APP_ENV);
   console.log('[env]   SUPABASE_URL:', SUPABASE_URL ? `${SUPABASE_URL.substring(0, 30)}...` : 'NOT SET');
   console.log('[env]   SUPABASE_ANON_KEY:', SUPABASE_ANON_KEY ? `${SUPABASE_ANON_KEY.substring(0, 20)}...` : 'NOT SET');
+  // Show full URL for debugging (first 50 chars)
+  if (SUPABASE_URL) {
+    console.log('[env]   SUPABASE_URL (full):', SUPABASE_URL.substring(0, 50) + '...');
+  }
   
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     console.warn(
