@@ -2826,7 +2826,7 @@ function DesignStep({
               styles.designUploadPlaceholder,
               {
                 borderColor: withOpacity(border, 0.4),
-                backgroundColor: withOpacity(surfaceMuted, 0.75),
+                backgroundColor: withOpacity(surface, 0.6),//withOpacity(surfaceMuted, 0.75),
               },
             ]}
           >
@@ -2882,7 +2882,7 @@ function DesignStep({
             {
               color: primaryFont,
               borderColor: withOpacity(border, 0.75),
-              backgroundColor: withOpacity(surfaceMuted, 0.45),
+              backgroundColor: withOpacity(surface, 0.6),//withOpacity(surfaceMuted, 0.45),
             },
           ]}
         />
@@ -3925,9 +3925,11 @@ function SizingStep({
         style={[
           styles.sizingHelpCard,
           {
-            borderColor: withOpacity(border, 0.4),
-            backgroundColor: withOpacity(surfaceMuted, 0.75),
-            shadowColor: shadow,
+            // borderColor: withOpacity(border, 0.4),
+            // backgroundColor: withOpacity(surfaceMuted, 0.75),
+            // shadowColor: shadow,
+            borderColor: withOpacity(border, 0.5),
+            backgroundColor: withOpacity(surfaceMuted, 0.4),
           },
         ]}
       >
@@ -3946,9 +3948,10 @@ function SizingStep({
           }}
           trackColor={{
             true: withOpacity(accent, 0.4),
-            false: withOpacity(border, 0.5),
+            false: withOpacity(border, 0.6),
           }}
           thumbColor={requiresSizingHelp ? accent : surface}
+          ios_backgroundColor={withOpacity(border, 0.6)}
           accessibilityLabel="Need sizing help toggle"
           accessibilityHint="Toggle on if you need help determining your nail sizes"
         />
