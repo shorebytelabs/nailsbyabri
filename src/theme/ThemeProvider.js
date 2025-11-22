@@ -1,9 +1,12 @@
 import React, { createContext, useContext, useMemo, useState, useEffect } from 'react';
+import { View, StyleSheet } from 'react-native';
 import classicChristmas from './classicChristmas.json';
 import modernMaroon from './modernMaroon.json';
+import snow from './snow.json';
 import { getActiveTheme, subscribeToActiveTheme } from '../services/appSettingsService';
+import SnowBackground from '../components/SnowBackground';
 
-const themeRegistry = [classicChristmas, modernMaroon];
+const themeRegistry = [classicChristmas, modernMaroon, snow];
 const themeIndex = themeRegistry.reduce((acc, theme) => {
   acc[theme.id] = theme;
   return acc;
@@ -115,8 +118,28 @@ export function ThemeProvider({ initialThemeId = defaultTheme.id, children }) {
     };
   }, [themeId]);
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  // Show snow animation only when snow theme is active
+  const showSnowAnimation = themeId === 'snow';
+
+  if (__DEV__ && showSnowAnimation) {
+    console.log('[ThemeProvider] 🎄 Snow theme active - showing snow animation');
+  }
+
+  return (
+    <ThemeContext.Provider value={value}>
+      <View style={styles.container}>
+        {children}
+        <SnowBackground visible={showSnowAnimation} />
+      </View>
+    </ThemeContext.Provider>
+  );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
 
 export function useTheme() {
   return useContext(ThemeContext);

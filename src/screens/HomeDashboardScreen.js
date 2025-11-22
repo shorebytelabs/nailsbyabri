@@ -35,6 +35,7 @@ function HomeDashboardScreen() {
 
   const accentColor = colors.accent || '#6F171F';
   const accentContrastColor = colors.accentContrast || '#FFFFFF';
+  const onSurfaceColor = colors.onSurface || colors.primaryFont; // Use onSurface for text on surface backgrounds
 
   const activeOrders = useMemo(() => {
     const list = [];
@@ -270,7 +271,7 @@ function HomeDashboardScreen() {
                 <Text
                   style={[
                     styles.orderName,
-                    { color: colors.primaryFont },
+                    { color: onSurfaceColor },
                   ]}
                 >
                   No active orders
@@ -301,7 +302,7 @@ function HomeDashboardScreen() {
                 <Text
                   style={[
                     styles.orderName,
-                    { color: colors.primaryFont },
+                    { color: onSurfaceColor },
                   ]}
                 >
                   {order.name}
@@ -391,7 +392,7 @@ function HomeDashboardScreen() {
                 <Text
                   style={[
                     styles.tipTitle,
-                    { color: colors.primaryFont },
+                    { color: onSurfaceColor },
                   ]}
                   numberOfLines={1}
                 >

@@ -35,6 +35,7 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
   const { theme } = useTheme();
   const colors = theme?.colors || {};
   const primaryFontColor = colors.primaryFont || '#220707';
+  const onSurfaceColor = colors.onSurface || primaryFontColor; // Use onSurface for text on surface backgrounds
   const secondaryFontColor = colors.secondaryFont || '#5C5F5D';
   const secondaryBackgroundColor = colors.secondaryBackground || '#E7D8CA';
   const surfaceColor = colors.surface || '#FFFFFF';
@@ -176,8 +177,8 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
             ]}
           >
             <View style={styles.formIntro}>
-              <Text style={[styles.title, { color: primaryFontColor }]}>Create Your Account</Text>
-              <Text style={[styles.subtitle, { color: withOpacity(primaryFontColor, 0.75) }]}>Your perfect nails, your way.</Text>
+              <Text style={[styles.title, { color: onSurfaceColor }]}>Create Your Account</Text>
+              <Text style={[styles.subtitle, { color: withOpacity(onSurfaceColor, 0.75) }]}>Your perfect nails, your way.</Text>
             </View>
 
             <View style={styles.formSection}>
@@ -209,7 +210,7 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
                 secureTextEntry
               />
               <View style={styles.ageGroupContainer}>
-                <Text style={[styles.ageGroupLabel, { color: primaryFontColor }]}>Age Group</Text>
+                <Text style={[styles.ageGroupLabel, { color: onSurfaceColor }]}>Age Group</Text>
                 <View style={styles.ageGroupOptions}>
                   {AGE_GROUPS.map((group) => (
                     <TouchableOpacity

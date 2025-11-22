@@ -17,6 +17,7 @@ function FormField({
   const { theme } = useTheme();
   const colors = theme?.colors || {};
   const primaryFont = colors.primaryFont || '#220707';
+  const onSurface = colors.onSurface || primaryFont; // Use onSurface for text on surface backgrounds
   const secondaryFont = colors.secondaryFont || '#5C5F5D';
   const surface = colors.surface || '#FFFFFF';
   const border = colors.border || '#D9C8A9';
@@ -25,18 +26,18 @@ function FormField({
 
   return (
     <View style={styles.wrapper}>
-      <Text style={[styles.label, { color: primaryFont }]}>{label}</Text>
+      <Text style={[styles.label, { color: onSurface }]}>{label}</Text>
       <TextInput
         style={[
           styles.input,
           {
             borderColor: border,
-            color: primaryFont,
+            color: onSurface,
             backgroundColor: surface,
           },
           !editable && {
             backgroundColor: withOpacity(shadow, 0.05),
-            color: withOpacity(primaryFont, 0.6),
+            color: withOpacity(onSurface, 0.6),
           },
         ]}
         value={value}

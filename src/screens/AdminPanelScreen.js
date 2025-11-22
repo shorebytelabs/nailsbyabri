@@ -953,6 +953,7 @@ function AdminPanelScreen({ navigation }) {
   ];
 
   const primaryFont = colors.primaryFont || '#220707';
+  const onSurface = colors.onSurface || primaryFont; // Use onSurface for text on surface backgrounds
   const secondaryFont = colors.secondaryFont || '#5C5F5D';
   const surface = colors.surface || '#FFFFFF';
   const borderColor = colors.border || '#D9C8A9';

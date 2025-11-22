@@ -31,6 +31,7 @@ function LoginScreen({
   const { theme } = useTheme();
   const colors = theme?.colors || {};
   const primaryFontColor = colors.primaryFont || '#220707';
+  const onSurfaceColor = colors.onSurface || primaryFontColor; // Use onSurface for text on surface backgrounds
   const secondaryFontColor = colors.secondaryFont || '#5C5F5D';
   const secondaryBackgroundColor = colors.secondaryBackground || '#E7D8CA';
   const errorColor = colors.error || '#B33A3A';
@@ -127,7 +128,7 @@ function LoginScreen({
               <Text
                 style={[
                   styles.welcome,
-                  { color: primaryFontColor },
+                  { color: onSurfaceColor },
                 ]}
               >
                 Welcome!
@@ -136,7 +137,7 @@ function LoginScreen({
                 <Text
                   style={[
                     styles.authContext,
-                    { color: withOpacity(primaryFontColor, 0.75) },
+                    { color: withOpacity(onSurfaceColor, 0.75) },
                   ]}
                 >
                   {authMessage}

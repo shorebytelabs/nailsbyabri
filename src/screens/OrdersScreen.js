@@ -140,6 +140,7 @@ function OrdersScreen({ route }) {
   const primaryBackgroundColor = primaryBackground || '#F4EBE3';
   const surfaceColor = surface || '#FFFFFF';
   const primaryFontColor = primaryFont || '#220707';
+  const onSurfaceColor = colors.onSurface || primaryFontColor; // Use onSurface for text on surface backgrounds
   const secondaryFontColor = secondaryFont || '#5C5F5D';
   const borderColor = border || '#D9C8A9';
 

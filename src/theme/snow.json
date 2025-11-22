@@ -1,0 +1,27 @@
+{
+  "id": "snow",
+  "name": "Snow",
+  "colors": {
+    "primaryBackground": "#2C4A5C",
+    "secondaryBackground": "#3A5A6E",//"#5B8F9F",//"#3A5A6E",
+    "surface": "#F0F7FA",
+    "surfaceMuted": "#E8F0F5",
+    "primaryFont": "#FFFFFF", //"#FFFFFF", //"#000000",
+    "secondaryFont": "#000000", //"#D0D8E0",
+    "onSurface": "#0F2A3A",
+    "accent": "#6BB0D6",
+    "accentContrast": "#FFFFFF",
+    "hover": "#4A7A94",
+    "border": "#B8D0E0",
+    "divider": "#D0DDE8",
+    "success": "#5AB88A",
+    "error": "#D84A5A",
+    "warning": "#E89A5B",
+    "shadow": "#000000",
+    "swatchBase": "#E8F4F8",
+    "swatchTone1": "#D4E8F0",
+    "swatchTone2": "#C0DCE8",
+    "swatchTone3": "#ACD0E0"
+  }
+}
+
