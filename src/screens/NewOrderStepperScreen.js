@@ -3790,7 +3790,7 @@ function SizingStep({
                     styles.manualSizeInput,
                     {
                       borderColor: withOpacity(border, 0.6),
-                      backgroundColor: surfaceMuted,
+                      backgroundColor: withOpacity(surface, 0.6),//surfaceMuted,
                       color: primaryFont,
                     },
                   ]}
