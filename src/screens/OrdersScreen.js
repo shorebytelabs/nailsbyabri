@@ -130,11 +130,16 @@ function OrdersScreen({ route }) {
     primaryFont,
     secondaryFont,
     accent,
+    accentContrast,
     border,
     warning,
     success,
+    error,
+    shadow,
   } = colors;
   const warningColor = warning || '#FF9800';
+  const errorColor = error || '#B33A3A';
+  const successColor = success || '#4CAF50';
   const accentColor = accent || '#6F171F';
   const secondaryBackgroundColor = secondaryBackground || '#BF9B7A';
   const primaryBackgroundColor = primaryBackground || '#F4EBE3';
@@ -143,6 +148,8 @@ function OrdersScreen({ route }) {
   const onSurfaceColor = colors.onSurface || primaryFontColor; // Use onSurface for text on surface backgrounds
   const secondaryFontColor = secondaryFont || '#5C5F5D';
   const borderColor = border || '#D9C8A9';
+  const shadowColor = shadow || '#000000';
+  const accentContrastColor = accentContrast || '#FFFFFF';
 
   const isAdmin = Boolean(state.currentUser?.isAdmin);
   const [hasRequestedOrders, setHasRequestedOrders] = useState(false);
@@ -996,8 +1003,8 @@ function OrdersScreen({ route }) {
       statusBackground = withOpacity(secondaryBackgroundColor, 0.2);
     } else if (normalizedStatus === 'awaiting_submission' || normalizedStatus === 'awaitingsubmission') {
       statusLabel = ORDER_STATUS.AWAITING_SUBMISSION;
-      statusBackground = withOpacity(warning || '#FF9800', 0.12);
-      statusTextColor = warning || '#FF9800';
+      statusBackground = withOpacity(warningColor, 0.12);
+      statusTextColor = warningColor;
     } else if (normalizedStatus === 'submitted') {
       statusLabel = ORDER_STATUS.SUBMITTED;
       statusBackground = withOpacity(accentColor, 0.12);
@@ -1060,14 +1067,14 @@ function OrdersScreen({ route }) {
                 style={[
                   styles.deleteButton,
                   {
-                    backgroundColor: withOpacity('#B33A3A', 0.1),
-                    borderColor: withOpacity('#B33A3A', 0.3),
+                    backgroundColor: withOpacity(errorColor, 0.1),
+                    borderColor: withOpacity(errorColor, 0.3),
                   },
                 ]}
                 accessibilityLabel="Delete draft order"
                 accessibilityRole="button"
               >
-                <Icon name="trash" color="#B33A3A" size={18} />
+                <Icon name="trash" color={errorColor} size={18} />
               </TouchableOpacity>
             ) : null}
             <View
@@ -1098,11 +1105,11 @@ function OrdersScreen({ route }) {
                 // Default to warning (orange) if capacityInfo is null or if capacity is full/almost full
                 // Only use success (green) if capacity is available and not full
                 backgroundColor: !capacityInfo || capacityInfo?.isFull || capacityInfo?.isAlmostFull
-                  ? withOpacity(warning || '#FF9800', 0.08)
-                  : withOpacity(success || '#4CAF50', 0.08),
+                  ? withOpacity(warningColor, 0.08)
+                  : withOpacity(successColor, 0.08),
                 borderColor: !capacityInfo || capacityInfo?.isFull || capacityInfo?.isAlmostFull
-                  ? withOpacity(warning || '#FF9800', 0.3)
-                  : withOpacity(success || '#4CAF50', 0.3),
+                  ? withOpacity(warningColor, 0.3)
+                  : withOpacity(successColor, 0.3),
               },
             ]}
           >
@@ -1113,8 +1120,8 @@ function OrdersScreen({ route }) {
                   // Default to warning (orange) if capacityInfo is null or if capacity is full/almost full
                   // Only use success (green) if capacity is available and not full
                   color: !capacityInfo || capacityInfo?.isFull || capacityInfo?.isAlmostFull
-                    ? warning || '#FF9800'
-                    : success || '#4CAF50',
+                    ? warningColor
+                    : successColor,
                 },
               ]}
             >
@@ -2027,11 +2034,12 @@ function OrdersScreen({ route }) {
           style={[
             styles.toastContainer,
             {
-              backgroundColor: withOpacity(warningColor || '#FF9800', 0.95),
+              backgroundColor: withOpacity(warningColor, 0.95),
+              shadowColor: shadowColor,
             },
           ]}
         >
-          <Text style={[styles.toastText, { color: primaryBackground || '#FFFFFF', flex: 1 }]}>
+          <Text style={[styles.toastText, { color: accentContrastColor, flex: 1 }]}>
             {toastMessage}
           </Text>
           <TouchableOpacity
@@ -2039,7 +2047,7 @@ function OrdersScreen({ route }) {
             style={styles.toastCloseButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={[styles.toastCloseText, { color: primaryBackground || '#FFFFFF' }]}>
+            <Text style={[styles.toastCloseText, { color: accentContrastColor }]}>
               ×
             </Text>
           </TouchableOpacity>

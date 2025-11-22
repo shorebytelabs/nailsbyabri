@@ -2548,10 +2548,11 @@ function NewOrderStepperScreen({ route }) {
             styles.toastContainer,
             {
               backgroundColor: withOpacity(accent || '#6F171F', 0.95),
+              shadowColor: shadow || '#000000',
             },
           ]}
         >
-          <Text style={[styles.toastText, { color: primaryBackground || '#FFFFFF', flex: 1 }]}>
+          <Text style={[styles.toastText, { color: accentContrast || '#FFFFFF', flex: 1 }]}>
             {toastMessage}
           </Text>
           <TouchableOpacity
@@ -2559,7 +2560,7 @@ function NewOrderStepperScreen({ route }) {
             style={styles.toastCloseButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={[styles.toastCloseText, { color: primaryBackground || '#FFFFFF' }]}>
+            <Text style={[styles.toastCloseText, { color: accentContrast || '#FFFFFF' }]}>
               ×
             </Text>
           </TouchableOpacity>
@@ -5014,11 +5015,11 @@ function ReviewStep({
             styles.capacityMessage,
             {
               borderColor: capacityInfo.isFull
-                ? withOpacity(warningColor || '#FF9800', 0.4)
-                : withOpacity(warningColor || '#FF9800', 0.3),
+                ? withOpacity(warningColor, 0.4)
+                : withOpacity(warningColor, 0.3),
               backgroundColor: capacityInfo.isFull
-                ? withOpacity(warningColor || '#FF9800', 0.08)
-                : withOpacity(warningColor || '#FF9800', 0.06),
+                ? withOpacity(warningColor, 0.08)
+                : withOpacity(warningColor, 0.06),
             },
           ]}
         >
@@ -5027,7 +5028,7 @@ function ReviewStep({
               <Text
                 style={[
                   styles.capacityMessageTitle,
-                  { color: warningColor || '#FF9800' },
+                  { color: warningColor },
                 ]}
               >
                 This Week Is Full!
@@ -5057,7 +5058,7 @@ function ReviewStep({
               <Text
                 style={[
                   styles.capacityMessageTitle,
-                  { color: warningColor || '#FF9800' },
+                  { color: warningColor },
                 ]}
               >
                 Limited Availability
