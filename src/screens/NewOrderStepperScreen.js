@@ -532,9 +532,36 @@ function NewOrderStepperScreen({ route }) {
       try {
         setLoadingShapes(true);
         const catalog = await fetchShapes();
-        setShapes(catalog);
+        if (__DEV__) {
+          console.log('[NewOrderStepper] Loaded shapes:', catalog?.length || 0);
+        }
+        if (Array.isArray(catalog) && catalog.length > 0) {
+          setShapes(catalog);
+        } else {
+          console.warn('[NewOrderStepper] No shapes returned from fetchShapes, using fallback');
+          // Import the fallback catalog directly
+          const shapeCatalog = require('../../shared/catalog/shapes.json');
+          if (Array.isArray(shapeCatalog) && shapeCatalog.length > 0) {
+            setShapes(shapeCatalog);
+          } else {
+            console.error('[NewOrderStepper] Fallback catalog is also empty!');
+            setShapes([]);
+          }
+        }
       } catch (err) {
-        setShapes([]);
+        console.error('[NewOrderStepper] Error loading shapes:', err);
+        // Try to use fallback catalog directly
+        try {
+          const shapeCatalog = require('../../shared/catalog/shapes.json');
+          if (Array.isArray(shapeCatalog) && shapeCatalog.length > 0) {
+            setShapes(shapeCatalog);
+          } else {
+            setShapes([]);
+          }
+        } catch (fallbackErr) {
+          console.error('[NewOrderStepper] Failed to load fallback catalog:', fallbackErr);
+          setShapes([]);
+        }
       } finally {
         setLoadingShapes(false);
       }
@@ -2548,6 +2575,7 @@ function ShapeStep({ colors, shapes, selectedShapeId, onSelect, loading }) {
     border = '#D9C8A9',
     surface = '#FFFFFF',
     primaryFont = '#220707',
+    onSurface = primaryFont, // Use onSurface for text on surface backgrounds
     secondaryFont = '#5C5F5D',
   } = colors || {};
 
@@ -2555,6 +2583,16 @@ function ShapeStep({ colors, shapes, selectedShapeId, onSelect, loading }) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator color={accent} />
+      </View>
+    );
+  }
+
+  if (!shapes || shapes.length === 0) {
+    return (
+      <View style={styles.loader}>
+        <Text style={[{ color: onSurface, textAlign: 'center' }]}>
+          No shapes available. Please check your connection and try again.
+        </Text>
       </View>
     );
   }
@@ -2581,10 +2619,10 @@ function ShapeStep({ colors, shapes, selectedShapeId, onSelect, loading }) {
             <Text
               style={[
                 styles.shapeName,
-                { color: primaryFont },
+                { color: onSurface },
               ]}
             >
-              {shape.name}
+              {shape.name || 'Unnamed Shape'}
             </Text>
             <Text
               style={[
