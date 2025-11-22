@@ -1,0 +1,27 @@
+{
+  "id": "cozyCandlelight",
+  "name": "Cozy Candlelight",
+  "colors": {
+    "primaryBackground": "#F9F5F0",
+    "secondaryBackground": "#E6DCD0",
+    "surface": "#FFFFFF",
+    "surfaceMuted": "#FDF8F3",
+    "primaryFont": "#3A3A3A",
+    "secondaryFont": "#767154",
+    "onSurface": "#3A3A3A",
+    "accent": "#C99F73",
+    "accentContrast": "#FFFFFF",
+    "hover": "#E0C7A0",
+    "border": "#E8DCCF",
+    "divider": "#EFE6DC",
+    "success": "#4B7A57",
+    "error": "#B33A3A",
+    "warning": "#C27A3B",
+    "shadow": "#000000",
+    "swatchBase": "#E6DCD0",
+    "swatchTone1": "#EDE3D8",
+    "swatchTone2": "#F4EBE3",
+    "swatchTone3": "#FAF4ED"
+  }
+}
+

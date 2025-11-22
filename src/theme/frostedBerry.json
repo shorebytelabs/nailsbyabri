@@ -1,0 +1,27 @@
+{
+  "id": "frostedBerry",
+  "name": "Frosted Berry",
+  "colors": {
+    "primaryBackground": "#F7F3F6",
+    "secondaryBackground": "#D9C7D8",
+    "surface": "#FFFFFF",
+    "surfaceMuted": "#FAF6FA",
+    "primaryFont": "#2C2C3C",
+    "secondaryFont": "#5A4A5F",
+    "onSurface": "#2C2C3C",
+    "accent": "#A16A87",
+    "accentContrast": "#FFFFFF",
+    "hover": "#B68CA1",
+    "border": "#D7C2D4",
+    "divider": "#E6DFE6",
+    "success": "#4B7A57",
+    "error": "#B33A3A",
+    "warning": "#C27A3B",
+    "shadow": "#000000",
+    "swatchBase": "#D9C7D8",
+    "swatchTone1": "#E3D1E3",
+    "swatchTone2": "#ECE0EC",
+    "swatchTone3": "#F5EFF5"
+  }
+}
+

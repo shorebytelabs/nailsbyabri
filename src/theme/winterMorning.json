@@ -1,0 +1,27 @@
+{
+  "id": "winterMorning",
+  "name": "Winter Morning",
+  "colors": {
+    "primaryBackground": "#EAF1F7",
+    "secondaryBackground": "#C8D8E4",
+    "surface": "#FFFFFF",
+    "surfaceMuted": "#F2F7FA",
+    "primaryFont": "#2C4A5C",
+    "secondaryFont": "#4A6477",
+    "onSurface": "#2C4A5C",
+    "accent": "#7DA1B8",
+    "accentContrast": "#FFFFFF",
+    "hover": "#B0C8D9",
+    "border": "#D3E0E8",
+    "divider": "#E0E8F0",
+    "success": "#4B7A57",
+    "error": "#B33A3A",
+    "warning": "#C27A3B",
+    "shadow": "#000000",
+    "swatchBase": "#C8D8E4",
+    "swatchTone1": "#D6E4EC",
+    "swatchTone2": "#E3EFF5",
+    "swatchTone3": "#F0F7FA"
+  }
+}
+

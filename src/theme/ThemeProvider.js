@@ -3,6 +3,14 @@ import { View, StyleSheet } from 'react-native';
 import classicChristmas from './classicChristmas.json';
 import modernMaroon from './modernMaroon.json';
 import snow from './snow.json';
+import winterMorning from './winterMorning.json';
+import autumnLeaves from './autumnLeaves.json';
+import cozyCandlelight from './cozyCandlelight.json';
+import frostedLilac from './frostedLilac.json';
+import frostedBerry from './frostedBerry.json';
+import deepTeal from './deepTeal.json';
+import slateBlue from './slateBlue.json';
+import warmCharcoal from './warmCharcoal.json';
 import { 
   getActiveTheme, 
   subscribeToActiveTheme,
@@ -11,7 +19,7 @@ import {
 } from '../services/appSettingsService';
 import BackgroundAnimation from '../components/BackgroundAnimation';
 
-const themeRegistry = [classicChristmas, modernMaroon, snow];
+const themeRegistry = [classicChristmas, modernMaroon, snow, winterMorning, autumnLeaves, cozyCandlelight, frostedLilac, frostedBerry, deepTeal, slateBlue, warmCharcoal];
 const themeIndex = themeRegistry.reduce((acc, theme) => {
   acc[theme.id] = theme;
   return acc;

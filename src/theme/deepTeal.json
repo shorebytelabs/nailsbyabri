@@ -1,0 +1,27 @@
+{
+  "id": "deepTeal",
+  "name": "Deep Teal",
+  "colors": {
+    "primaryBackground": "#3E6477",
+    "secondaryBackground": "#4A7589",
+    "surface": "#5A8A9B",
+    "surfaceMuted": "#DDE8EB",
+    "primaryFont": "#FFFFFF",
+    "secondaryFont": "#E0E0E0",
+    "onSurface": "#2C4A5C",
+    "accent": "#6BB0D6",
+    "accentContrast": "#FFFFFF",
+    "hover": "#5290AC",
+    "border": "#B0C9D2",
+    "divider": "#C0D2DB",
+    "success": "#4BB88A",
+    "error": "#D84A5A",
+    "warning": "#E89A5B",
+    "shadow": "#000000",
+    "swatchBase": "#5A8A9B",
+    "swatchTone1": "#6AA3B1",
+    "swatchTone2": "#7ABCC6",
+    "swatchTone3": "#8AD5DB"
+  }
+}
+

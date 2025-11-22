@@ -1,0 +1,27 @@
+{
+  "id": "warmCharcoal",
+  "name": "Warm Charcoal",
+  "colors": {
+    "primaryBackground": "#505A6B",
+    "secondaryBackground": "#606A7A",
+    "surface": "#707B8B",
+    "surfaceMuted": "#E3E5E9",
+    "primaryFont": "#FFFFFF",
+    "secondaryFont": "#DADADA",
+    "onSurface": "#2C4A5C",
+    "accent": "#8ABAD8",
+    "accentContrast": "#FFFFFF",
+    "hover": "#6F8DA4",
+    "border": "#B2BDC9",
+    "divider": "#C3CAD4",
+    "success": "#4BB88A",
+    "error": "#D84A5A",
+    "warning": "#E89A5B",
+    "shadow": "#000000",
+    "swatchBase": "#707B8B",
+    "swatchTone1": "#8490A0",
+    "swatchTone2": "#98A4B5",
+    "swatchTone3": "#ACB9CA"
+  }
+}
+

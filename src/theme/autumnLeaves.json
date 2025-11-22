@@ -1,0 +1,27 @@
+{
+  "id": "autumnLeaves",
+  "name": "Autumn Leaves",
+  "colors": {
+    "primaryBackground": "#F4ECE1",
+    "secondaryBackground": "#D9CBB6",
+    "surface": "#FFFFFF",
+    "surfaceMuted": "#F9F5F0",
+    "primaryFont": "#3A3A3A",
+    "secondaryFont": "#767154",
+    "onSurface": "#3A3A3A",
+    "accent": "#A77C52",
+    "accentContrast": "#FFFFFF",
+    "hover": "#CBB897",
+    "border": "#E2D7C5",
+    "divider": "#EDE3DB",
+    "success": "#4B7A57",
+    "error": "#B33A3A",
+    "warning": "#C27A3B",
+    "shadow": "#000000",
+    "swatchBase": "#D9CBB6",
+    "swatchTone1": "#E2D7C5",
+    "swatchTone2": "#ECE1D3",
+    "swatchTone3": "#F5EFE7"
+  }
+}
+

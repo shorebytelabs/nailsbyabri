@@ -1,0 +1,27 @@
+{
+  "id": "slateBlue",
+  "name": "Slate Blue",
+  "colors": {
+    "primaryBackground": "#475E7B",
+    "secondaryBackground": "#5A708F",
+    "surface": "#6B839F",
+    "surfaceMuted": "#E1E7EC",
+    "primaryFont": "#FFFFFF",
+    "secondaryFont": "#D9E0E6",
+    "onSurface": "#2C4A5C",
+    "accent": "#89B2D0",
+    "accentContrast": "#FFFFFF",
+    "hover": "#6E94B1",
+    "border": "#B0C5D6",
+    "divider": "#C1D1DF",
+    "success": "#4BB88A",
+    "error": "#D84A5A",
+    "warning": "#E89A5B",
+    "shadow": "#000000",
+    "swatchBase": "#6B839F",
+    "swatchTone1": "#7C95B0",
+    "swatchTone2": "#8DA7C1",
+    "swatchTone3": "#9EB9D2"
+  }
+}
+

@@ -1,0 +1,27 @@
+{
+  "id": "frostedLilac",
+  "name": "Frosted Lilac",
+  "colors": {
+    "primaryBackground": "#F4F3F8",
+    "secondaryBackground": "#D8D5E5",
+    "surface": "#FFFFFF",
+    "surfaceMuted": "#F9F8FB",
+    "primaryFont": "#2C2C3C",
+    "secondaryFont": "#5A5A6A",
+    "onSurface": "#2C2C3C",
+    "accent": "#A999C2",
+    "accentContrast": "#FFFFFF",
+    "hover": "#BFB3D9",
+    "border": "#D2CBE0",
+    "divider": "#E3E0EB",
+    "success": "#4B7A57",
+    "error": "#B33A3A",
+    "warning": "#C27A3B",
+    "shadow": "#000000",
+    "swatchBase": "#D8D5E5",
+    "swatchTone1": "#E3E0EB",
+    "swatchTone2": "#EAE7F2",
+    "swatchTone3": "#F2F0F7"
+  }
+}
+
