@@ -1,27 +1,18 @@
 name: Apply migrations to Stage
 
+# DISABLED - Stage environment not in use
+# This workflow will not run automatically on push
+# It can still be run manually from GitHub Actions UI if needed
+
 on:
-  workflow_dispatch:     # run manually from GitHub UI
-  push:
-    branches:
-      - main
+  workflow_dispatch:     # Only runs when manually triggered from GitHub UI
+  # push:                # Disabled - removed automatic trigger
+  #   branches:
+  #     - main
 
 jobs:
   migrate-stage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install psql client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
-
-      - name: Apply migrations to stage
-        env:
-          STAGE_DB: ${{ secrets.STAGE_DB }}   # set this in repo secrets (full conn string)
-        run: |
-          for f in supabase/migrations/*.sql; do
-            echo "Applying $f"
-            psql "$STAGE_DB" -f "$f"
-          done
+      - name: Workflow disabled
+        run: echo "This workflow is disabled. Stage environment is not in use."

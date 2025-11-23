@@ -286,8 +286,8 @@
 				ENABLE_BITCODE = NO;
 				ENVFILE = .env.development;
 				INFOPLIST_FILE = nailsbyabri/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Nails by Abri";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				INFOPLIST_KEY_CFBundleDisplayName = "NailsByAbri";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -317,8 +317,8 @@
 				DEVELOPMENT_TEAM = AXH3Z6NB4D;
 				ENVFILE = .env.production;
 				INFOPLIST_FILE = nailsbyabri/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Nails by Abri";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				INFOPLIST_KEY_CFBundleDisplayName = "NailsByAbri";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

@@ -1,3 +1,14 @@
+#!/bin/bash
+# Update AppIcon.appiconset/Contents.json with generated icon filenames
+set -e
+CONTENTS_FILE="ios/nailsbyabri/Images.xcassets/AppIcon.appiconset/Contents.json"
+ICON_DIR="ios/nailsbyabri/Images.xcassets/AppIcon.appiconset"
+if [ ! -f "$ICON_DIR/icon-1024.png" ]; then
+  echo "❌ Error: Icon files not found. Run generate-app-icons.sh first."
+  exit 1
+fi
+echo "📝 Updating Contents.json with icon filenames..."
+cat > "$CONTENTS_FILE" << 'JSON_END'
 {
   "images" : [
     {
@@ -60,3 +71,8 @@
     "version" : 1
   }
 }
+JSON_END
+echo "✅ Contents.json updated successfully!"
+echo ""
+echo "📋 Generated icons:"
+ls -lh "$ICON_DIR"/icon-*.png 2>/dev/null | awk '{print "   " $9 " (" $5 ")"}'
