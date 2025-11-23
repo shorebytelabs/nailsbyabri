@@ -63,7 +63,7 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "ENVFILE"
-            value = ".env.stage"
+            value = ".env.development"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>
