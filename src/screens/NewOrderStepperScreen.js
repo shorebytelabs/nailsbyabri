@@ -519,6 +519,7 @@ function NewOrderStepperScreen({ route }) {
     }
     toastTimerRef.current = setTimeout(() => {
       setToastMessage(null);
+      setToastType('default');
     }, 5000); // Auto-dismiss after 5 seconds (matching OrdersScreen)
     return () => {
       if (toastTimerRef.current) {
@@ -606,10 +607,7 @@ function NewOrderStepperScreen({ route }) {
             promoCode: '',
             promoCodeData: null,
           }));
-          setState((prev) => ({
-            ...prev,
-            statusMessage: validationResult.error || 'Promo code is no longer valid',
-          }));
+          showToast(validationResult.error || 'Promo code is no longer valid', 'error');
         }
       } catch (error) {
         console.error('[NewOrderStepper] Error re-validating promo code:', error);
@@ -622,7 +620,7 @@ function NewOrderStepperScreen({ route }) {
       revalidatePromoCode();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderDraft.sets.length, orderDraft.deliveryDetails?.method, orderDraft.deliveryDetails?.speed, orderDraft.promoCode, state.currentUser?.id]);
+  }, [orderDraft.sets.length, orderDraft.deliveryDetails?.method, orderDraft.deliveryDetails?.speed, orderDraft.promoCode, state.currentUser?.id, showToast]);
 
   const resumeFlag = Boolean(route?.params?.resume);
   // Check if order is a draft or "Awaiting Submission" (both can be edited)
@@ -1653,11 +1651,8 @@ function NewOrderStepperScreen({ route }) {
       }, state.currentUser?.id);
 
       if (!validationResult.valid) {
-        // Show error message
-        setState((prev) => ({
-          ...prev,
-          statusMessage: validationResult.error || 'Promo code not found or expired',
-        }));
+        // Show error message as toast
+        showToast(validationResult.error || 'Promo code not found or expired', 'error');
         return;
       }
 
@@ -1677,12 +1672,9 @@ function NewOrderStepperScreen({ route }) {
       }));
     } catch (error) {
       console.error('[NewOrderStepper] Error validating promo code:', error);
-      setState((prev) => ({
-        ...prev,
-        statusMessage: 'Unable to validate promo code. Please try again.',
-      }));
+      showToast('Unable to validate promo code. Please try again.', 'error');
     }
-  }, [promoInputValue, orderDraft.sets, orderDraft.deliveryDetails, state.currentUser?.id, setState]);
+  }, [promoInputValue, orderDraft.sets, orderDraft.deliveryDetails, state.currentUser?.id, showToast]);
 
   const handleClearPromoCode = useCallback(() => {
     setOrderDraft((prev) => ({
@@ -1695,6 +1687,7 @@ function NewOrderStepperScreen({ route }) {
   }, []);
 
   const [toastMessage, setToastMessage] = useState(null);
+  const [toastType, setToastType] = useState('default'); // 'default', 'error', 'success'
   const toastTimerRef = useRef(null);
 
   const computeSetPricing = useCallback(
@@ -1963,8 +1956,9 @@ function NewOrderStepperScreen({ route }) {
     [editingSetId],
   );
 
-  const showToast = useCallback((message) => {
+  const showToast = useCallback((message, type = 'default') => {
     setToastMessage(message);
+    setToastType(type);
   }, []);
 
   return (
@@ -2541,14 +2535,17 @@ function NewOrderStepperScreen({ route }) {
         ) : null}
       </View>
 
-      {/* Toast notification for draft saved */}
+      {/* Toast notification */}
       {toastMessage ? (
         <View
           style={[
             styles.toastContainer,
             {
-              backgroundColor: withOpacity(accent || '#6F171F', 0.95),
+              backgroundColor: toastType === 'error' 
+                ? withOpacity(warningColor || '#C27A3B', 0.95)
+                : withOpacity(accent || '#6F171F', 0.95),
               shadowColor: shadow || '#000000',
+              bottom: 80 + Math.max(insets.bottom, 0),
             },
           ]}
         >
@@ -2556,7 +2553,10 @@ function NewOrderStepperScreen({ route }) {
             {toastMessage}
           </Text>
           <TouchableOpacity
-            onPress={() => setToastMessage(null)}
+            onPress={() => {
+              setToastMessage(null);
+              setToastType('default');
+            }}
             style={styles.toastCloseButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
