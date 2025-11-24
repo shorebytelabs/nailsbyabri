@@ -20,7 +20,9 @@
                                 <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                             </imageView>
                         </subviews>
-                        <color key="backgroundColor" systemColor="systemBackgroundColor" cocoaTouchSystemColor="whiteColor"/>
+                        <!-- Background color - AppDelegate will update to saved theme color immediately -->
+                        <!-- Using default theme color as fallback - will be updated by AppDelegate on launch -->
+                        <color key="backgroundColor" red="0.957" green="0.922" blue="0.890" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
                             <constraint firstItem="splash-image" firstAttribute="leading" secondItem="Bcu-3y-fUS" secondAttribute="leading" id="img-leading"/>
                             <constraint firstItem="splash-image" firstAttribute="trailing" secondItem="Bcu-3y-fUS" secondAttribute="trailing" id="img-trailing"/>

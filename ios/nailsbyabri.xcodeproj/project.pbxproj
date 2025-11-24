@@ -11,6 +11,8 @@
 		59FCF5C370AA37EEEC14F688 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		DC9BB3092ED36A17000F826B /* SplashThemeModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC9BB3082ED36A17000F826B /* SplashThemeModule.swift */; };
+		DC9BB30A2ED36A17000F826B /* SplashThemeModule.m in Sources */ = {isa = PBXBuildFile; fileRef = DC9BB3072ED36A17000F826B /* SplashThemeModule.m */; };
 		F360C4695E66B46AEAA6ECF9 /* libPods-nailsbyabri.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C7B8F76E5E99CEEEB1E3C97 /* libPods-nailsbyabri.a */; };
 /* End PBXBuildFile section */
 
@@ -25,6 +27,9 @@
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = nailsbyabri/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		9A7F5EE75ED9A32C1A159F69 /* Pods-nailsbyabri.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-nailsbyabri.debug.xcconfig"; path = "Target Support Files/Pods-nailsbyabri/Pods-nailsbyabri.debug.xcconfig"; sourceTree = "<group>"; };
 		DA733D94FAB4F87B8CFBAB85 /* ReactNativeConfig.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = ReactNativeConfig.xcconfig; sourceTree = "<group>"; };
+		DC9BB3072ED36A17000F826B /* SplashThemeModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = SplashThemeModule.m; path = nailsbyabri/SplashThemeModule.m; sourceTree = "<group>"; };
+		DC9BB3082ED36A17000F826B /* SplashThemeModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SplashThemeModule.swift; path = nailsbyabri/SplashThemeModule.swift; sourceTree = "<group>"; };
+		DC9BB30B2ED36A55000F826B /* nailsbyabri-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "nailsbyabri-Bridging-Header.h"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -43,11 +48,14 @@
 		13B07FAE1A68108700A75B9A /* nailsbyabri */ = {
 			isa = PBXGroup;
 			children = (
+				DC9BB3072ED36A17000F826B /* SplashThemeModule.m */,
+				DC9BB3082ED36A17000F826B /* SplashThemeModule.swift */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
+				DC9BB30B2ED36A55000F826B /* nailsbyabri-Bridging-Header.h */,
 			);
 			name = nailsbyabri;
 			sourceTree = "<group>";
@@ -134,7 +142,7 @@
 				LastUpgradeCheck = 1210;
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
-						LastSwiftMigration = 1120;
+						LastSwiftMigration = 1620;
 					};
 				};
 			};
@@ -268,6 +276,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DC9BB3092ED36A17000F826B /* SplashThemeModule.swift in Sources */,
+				DC9BB30A2ED36A17000F826B /* SplashThemeModule.m in Sources */,
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -286,7 +296,7 @@
 				ENABLE_BITCODE = NO;
 				ENVFILE = .env.development;
 				INFOPLIST_FILE = nailsbyabri/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "NailsByAbri";
+				INFOPLIST_KEY_CFBundleDisplayName = NailsByAbri;
 				IPHONEOS_DEPLOYMENT_TARGET = 13.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -301,6 +311,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "com.shorebytelabs.--PRODUCT-NAME-rfc1034identifier-";
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.shorebytelabs.nailsbyabri;
 				PRODUCT_NAME = nailsbyabri;
+				SWIFT_OBJC_BRIDGING_HEADER = "nailsbyabri-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -317,7 +328,7 @@
 				DEVELOPMENT_TEAM = AXH3Z6NB4D;
 				ENVFILE = .env.production;
 				INFOPLIST_FILE = nailsbyabri/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "NailsByAbri";
+				INFOPLIST_KEY_CFBundleDisplayName = NailsByAbri;
 				IPHONEOS_DEPLOYMENT_TARGET = 13.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -332,6 +343,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "com.shorebytelabs.--PRODUCT-NAME-rfc1034identifier-";
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.shorebytelabs.nailsbyabri;
 				PRODUCT_NAME = nailsbyabri;
+				SWIFT_OBJC_BRIDGING_HEADER = "nailsbyabri-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
