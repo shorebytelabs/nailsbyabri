@@ -1,0 +1,27 @@
+{
+  "id": "softSage",
+  "name": "Soft Sage",
+  "colors": {
+    "primaryBackground": "#F4F8F5",
+    "secondaryBackground": "#CFE3D8",
+    "surface": "#FFFFFF",
+    "surfaceMuted": "#F7FBF8",
+    "primaryFont": "#2E3F36",
+    "secondaryFont": "#546E60",
+    "onSurface": "#2E3F36",
+    "accent": "#5F9C7E",
+    "accentContrast": "#FFFFFF",
+    "hover": "#79B296",
+    "border": "#CBE1D7",
+    "divider": "#E2EFE8",
+    "success": "#4E7C63",
+    "error": "#B23A3A",
+    "warning": "#C28A3F",
+    "shadow": "#000000",
+    "swatchBase": "#CFE3D8",
+    "swatchTone1": "#DBECE4",
+    "swatchTone2": "#EAF4EF",
+    "swatchTone3": "#F3FAF6"
+  }
+}
+

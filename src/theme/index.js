@@ -12,4 +12,6 @@ export { default as deepTeal } from './deepTeal.json';
 export { default as slateBlue } from './slateBlue.json';
 export { default as warmCharcoal } from './warmCharcoal.json';
 export { default as velvetBlush } from './velvetBlush.json';
+export { default as softSage } from './softSage.json';
+export { default as deepSageNight } from './deepSageNight.json';
 

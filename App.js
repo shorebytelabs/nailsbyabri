@@ -20,6 +20,8 @@ import deepTeal from './src/theme/deepTeal.json';
 import slateBlue from './src/theme/slateBlue.json';
 import warmCharcoal from './src/theme/warmCharcoal.json';
 import velvetBlush from './src/theme/velvetBlush.json';
+import softSage from './src/theme/softSage.json';
+import deepSageNight from './src/theme/deepSageNight.json';
 
 // Logs will appear in:
 // 1. Metro Bundler terminal (where you run npm run start:dev)
@@ -103,6 +105,8 @@ const App = () => {
       slateBlue,
       warmCharcoal,
       velvetBlush,
+      softSage,
+      deepSageNight,
     };
     const theme = themeMap[initialThemeId] || classicChristmas;
     const mergedColors = {
