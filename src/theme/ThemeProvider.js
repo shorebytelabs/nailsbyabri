@@ -11,6 +11,7 @@ import frostedBerry from './frostedBerry.json';
 import deepTeal from './deepTeal.json';
 import slateBlue from './slateBlue.json';
 import warmCharcoal from './warmCharcoal.json';
+import velvetBlush from './velvetBlush.json';
 import { 
   getActiveTheme, 
   subscribeToActiveTheme,
@@ -21,7 +22,7 @@ import BackgroundAnimation from '../components/BackgroundAnimation';
 import { saveSplashThemeColor } from '../utils/splashScreenTheme';
 import { saveThemeId } from '../utils/themeLoader';
 
-const themeRegistry = [classicChristmas, modernMaroon, snow, winterMorning, autumnLeaves, cozyCandlelight, frostedLilac, frostedBerry, deepTeal, slateBlue, warmCharcoal];
+const themeRegistry = [classicChristmas, modernMaroon, snow, winterMorning, autumnLeaves, cozyCandlelight, frostedLilac, frostedBerry, deepTeal, slateBlue, warmCharcoal, velvetBlush];
 const themeIndex = themeRegistry.reduce((acc, theme) => {
   acc[theme.id] = theme;
   return acc;

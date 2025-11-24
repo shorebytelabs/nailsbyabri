@@ -1,14 +1,21 @@
 /**
  * Falling Leaves Background Component
- * Displays autumn-themed falling leaves animation
+ * Displays autumn-themed falling leaves animation with actual leaf shapes
  */
 import React, { useEffect, useRef, useMemo } from 'react';
 import { View, StyleSheet, Animated, Dimensions } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const LEAF_COUNT = 35;
 const LEAF_COLORS = ['#D2691E', '#CD853F', '#DA8709', '#B8860B', '#8B4513', '#A0522D', '#DEB887'];
+
+// Simple leaf shape path - stylized leaf with a pointy tip and rounded base
+// Creates a simple, lightweight leaf shape that looks like an actual leaf
+// Path: teardrop-like shape with pointed tip at top and wider rounded base
+// This creates a natural-looking autumn leaf shape
+const LEAF_PATH = 'M 0,-12 L -1,-10 Q -2,-8 -2.5,-5 Q -3,-2 -2.5,0 Q -2,2 -1.5,4 Q -1,6 0,8 Q 1,6 1.5,4 Q 2,2 2.5,0 Q 3,-2 2.5,-5 Q 2,-8 1,-10 Z';
 
 function FallingLeaves({ visible }) {
   const leaves = useMemo(
@@ -19,17 +26,17 @@ function FallingLeaves({ visible }) {
       return Array.from({ length: LEAF_COUNT }, (_, i) => ({
         id: i,
         x: Math.random() * SCREEN_WIDTH,
-        size: Math.random() * 12 + 6, // 6-18px
-        duration: Math.random() * 18000 + 12000, // 12-30 seconds (slow fall)
-        initialDelay: Math.random() * 3000,
-        opacity: Math.random() * 0.5 + 0.5, // 0.5-1.0
+        size: Math.random() * 18 + 12, // 12-30px (larger for better visibility as leaves)
+        duration: Math.random() * 20000 + 15000, // 15-35 seconds (varied fall speeds)
+        initialDelay: Math.random() * 4000,
+        opacity: Math.random() * 0.4 + 0.6, // 0.6-1.0 (more visible)
         rotation: Math.random() * 360,
-        rotationSpeed: (Math.random() - 0.5) * 3, // -1.5 to 1.5 degrees per frame
-        horizontalSpeed: (Math.random() - 0.5) * 2, // -1 to 1 pixels per frame
-        fallSpeed: Math.random() * 2 + 1, // 1-3 pixels per frame
+        rotationSpeed: (Math.random() - 0.5) * 4, // -2 to 2 degrees per frame (more rotation)
+        horizontalSpeed: (Math.random() - 0.5) * 3, // -1.5 to 1.5 pixels per frame (more drift)
+        fallSpeed: Math.random() * 2.5 + 1, // 1-3.5 pixels per frame (varied speeds)
         color: LEAF_COLORS[Math.floor(Math.random() * LEAF_COLORS.length)],
-        sway: Math.random() * 20 + 10, // 10-30 pixels side-to-side sway
-        swaySpeed: Math.random() * 1000 + 500, // 0.5-1.5 seconds per sway cycle
+        sway: Math.random() * 25 + 15, // 15-40 pixels side-to-side sway (more natural)
+        swaySpeed: Math.random() * 1200 + 600, // 0.6-1.8 seconds per sway cycle (varied)
       }));
     },
     [],
@@ -181,12 +188,11 @@ function FallingLeaves({ visible }) {
           <Animated.View
             key={`leaf-${leaf.id}`}
             style={[
-              styles.leaf,
+              styles.leafContainer,
               {
                 left: leaf.x,
                 width: leaf.size,
-                height: leaf.size * 0.8, // Slightly oblong
-                backgroundColor: leaf.color,
+                height: leaf.size,
                 opacity: anim.opacity,
                 transform: [
                   { translateY: anim.translateY },
@@ -195,7 +201,22 @@ function FallingLeaves({ visible }) {
                 ],
               },
             ]}
-          />
+          >
+            <Svg
+              width={leaf.size}
+              height={leaf.size}
+              viewBox="-12 -12 24 24"
+              style={styles.leafSvg}
+            >
+              <Path
+                d={LEAF_PATH}
+                fill={leaf.color}
+                stroke={leaf.color}
+                strokeWidth="0.3"
+                opacity={0.85}
+              />
+            </Svg>
+          </Animated.View>
         );
       })}
     </View>
@@ -212,9 +233,13 @@ const styles = StyleSheet.create({
     zIndex: 1,
     elevation: 1,
   },
-  leaf: {
+  leafContainer: {
     position: 'absolute',
-    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  leafSvg: {
+    // SVG styling handled by Path component
   },
 });
 

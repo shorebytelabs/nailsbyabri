@@ -1,0 +1,27 @@
+{
+  "id": "velvetBlush",
+  "name": "Velvet Blush",
+  "colors": {
+    "primaryBackground": "#FBF4F5",
+    "secondaryBackground": "#E8C6CB",
+    "surface": "#FFFFFF",
+    "surfaceMuted": "#FDF7F8",
+    "primaryFont": "#3B1D22",
+    "secondaryFont": "#703841",
+    "onSurface": "#3B1D22",
+    "accent": "#943E4A",
+    "accentContrast": "#FFFFFF",
+    "hover": "#B45E69",
+    "border": "#E3BCC2",
+    "divider": "#F2E2E5",
+    "success": "#4D7C63",
+    "error": "#AB3442",
+    "warning": "#C48A3E",
+    "shadow": "#000000",
+    "swatchBase": "#E8C6CB",
+    "swatchTone1": "#EFD2D6",
+    "swatchTone2": "#F6E4E6",
+    "swatchTone3": "#FBF1F2"
+  }
+}
+

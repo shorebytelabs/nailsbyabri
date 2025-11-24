@@ -1,14 +1,24 @@
 /**
  * Hearts Raining Background Component
- * Displays falling hearts animation for fun, Valentine's, or playful moments
+ * Displays falling hearts animation with actual heart shapes
+ * Fun, romantic/Valentine's vibe with clearly recognizable heart shapes
  */
 import React, { useEffect, useRef, useMemo } from 'react';
 import { View, StyleSheet, Animated, Dimensions } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const HEART_COUNT = 25;
+const HEART_COUNT = 45; // Increased from 25 for better visibility
 const HEART_COLORS = ['#FF69B4', '#FF1493', '#FFB6C1', '#FFC0CB', '#FF69B4', '#FF1493'];
+
+// Classic heart shape path - two rounded lobes at top, pointy bottom
+// Creates a recognizable, lightweight heart shape using SVG path
+// Path: Proper heart shape with two rounded lobes at top and pointy V at bottom
+// This creates a classic, clearly recognizable heart shape
+// Using bezier curves: two arcs for top lobes, pointy V for bottom
+// Standard heart path formula: two rounded top lobes, pointy bottom
+const HEART_PATH = 'M 12,21.35 C 12,21.35 2,12.35 2,7.35 C 2,3.35 5,0.35 12,0.35 C 19,0.35 22,3.35 22,7.35 C 22,12.35 12,21.35 12,21.35 Z';
 
 function HeartsRaining({ visible }) {
   const hearts = useMemo(
@@ -19,15 +29,17 @@ function HeartsRaining({ visible }) {
       return Array.from({ length: HEART_COUNT }, (_, i) => ({
         id: i,
         x: Math.random() * SCREEN_WIDTH,
-        size: Math.random() * 10 + 6, // 6-16px
-        duration: Math.random() * 15000 + 10000, // 10-25 seconds
-        initialDelay: Math.random() * 4000,
-        opacity: Math.random() * 0.5 + 0.5, // 0.5-1.0
+        size: Math.random() * 25 + 10, // 10-35px (larger size variation for better visibility)
+        duration: Math.random() * 20000 + 10000, // 10-30 seconds (more varied fall speeds)
+        initialDelay: Math.random() * 6000,
+        opacity: Math.random() * 0.3 + 0.7, // 0.7-1.0 (more visible, not overwhelming)
         rotation: Math.random() * 360,
-        rotationSpeed: (Math.random() - 0.5) * 2, // -1 to 1 degrees per frame
-        horizontalSpeed: (Math.random() - 0.5) * 1.5, // -0.75 to 0.75 pixels per frame
+        rotationSpeed: (Math.random() - 0.5) * 4, // -2 to 2 degrees per frame (more noticeable rotation)
+        horizontalSpeed: (Math.random() - 0.5) * 3, // -1.5 to 1.5 pixels per frame (more noticeable drift)
         color: HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)],
-        scale: Math.random() * 0.3 + 0.7, // 0.7-1.0
+        scale: Math.random() * 0.3 + 0.7, // 0.7-1.0 (for pulsing effect)
+        sway: Math.random() * 30 + 20, // 20-50 pixels side-to-side sway (natural floating)
+        swaySpeed: Math.random() * 1500 + 800, // 0.8-2.3 seconds per sway cycle (varied)
       }));
     },
     [],
@@ -45,6 +57,7 @@ function HeartsRaining({ visible }) {
 
   const animationLoops = useRef([]);
   const pulseLoops = useRef([]);
+  const swayLoops = useRef([]);
   const timeouts = useRef([]);
   const isActiveRef = useRef(false);
 
@@ -57,9 +70,11 @@ function HeartsRaining({ visible }) {
       isActiveRef.current = false;
       animationLoops.current.forEach((loop) => loop?.stop());
       pulseLoops.current.forEach((loop) => loop?.stop());
+      swayLoops.current.forEach((loop) => loop?.stop());
       timeouts.current.forEach((timeout) => clearTimeout(timeout));
       animationLoops.current = [];
       pulseLoops.current = [];
+      swayLoops.current = [];
       timeouts.current = [];
       animations.current.forEach((anim) => {
         anim.translateY.setValue(0);
@@ -78,19 +93,50 @@ function HeartsRaining({ visible }) {
     hearts.forEach((heart, index) => {
       const anim = animations.current[index];
 
+      // Swaying motion (side-to-side while falling - natural floating)
+      const startSway = () => {
+        if (!isActiveRef.current) return;
+
+        const swayAnimation = Animated.sequence([
+          Animated.timing(anim.translateX, {
+            toValue: heart.sway,
+            duration: heart.swaySpeed,
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim.translateX, {
+            toValue: -heart.sway,
+            duration: heart.swaySpeed * 2,
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim.translateX, {
+            toValue: 0,
+            duration: heart.swaySpeed,
+            useNativeDriver: true,
+          }),
+        ]);
+
+        swayAnimation.start((finished) => {
+          if (finished && isActiveRef.current) {
+            startSway();
+          }
+        });
+
+        swayLoops.current[index] = swayAnimation;
+      };
+
       // Pulsing animation (heartbeat effect)
       const startPulse = () => {
         if (!isActiveRef.current) return;
 
         const pulseAnimation = Animated.sequence([
           Animated.timing(anim.scale, {
-            toValue: heart.scale * 1.2,
-            duration: 500,
+            toValue: heart.scale * 1.15,
+            duration: 400,
             useNativeDriver: true,
           }),
           Animated.timing(anim.scale, {
             toValue: heart.scale,
-            duration: 500,
+            duration: 400,
             useNativeDriver: true,
           }),
         ]);
@@ -101,14 +147,14 @@ function HeartsRaining({ visible }) {
               if (isActiveRef.current) {
                 startPulse();
               }
-            }, 2000);
+            }, 1500 + Math.random() * 1000); // Varied pulse timing
           }
         });
 
         pulseLoops.current[index] = pulseAnimation;
       };
 
-      // Falling animation
+      // Falling animation with rotation
       const runAnimation = () => {
         if (!isActiveRef.current) return;
 
@@ -117,17 +163,11 @@ function HeartsRaining({ visible }) {
         anim.rotate.setValue(heart.rotation);
 
         const verticalDistance = SCREEN_HEIGHT + heart.size * 2;
-        const horizontalDistance = heart.horizontalSpeed * heart.duration;
         const rotationDistance = heart.rotationSpeed * 360;
 
         const animation = Animated.parallel([
           Animated.timing(anim.translateY, {
             toValue: verticalDistance,
-            duration: heart.duration,
-            useNativeDriver: true,
-          }),
-          Animated.timing(anim.translateX, {
-            toValue: horizontalDistance,
             duration: heart.duration,
             useNativeDriver: true,
           }),
@@ -149,6 +189,7 @@ function HeartsRaining({ visible }) {
 
       const timeoutId = setTimeout(() => {
         if (isActiveRef.current) {
+          startSway();
           startPulse();
           runAnimation();
         }
@@ -161,9 +202,11 @@ function HeartsRaining({ visible }) {
       isActiveRef.current = false;
       animationLoops.current.forEach((loop) => loop?.stop());
       pulseLoops.current.forEach((loop) => loop?.stop());
+      swayLoops.current.forEach((loop) => loop?.stop());
       timeouts.current.forEach((timeout) => clearTimeout(timeout));
       animationLoops.current = [];
       pulseLoops.current = [];
+      swayLoops.current = [];
       timeouts.current = [];
     };
   }, [visible, hearts]);
@@ -185,12 +228,11 @@ function HeartsRaining({ visible }) {
           <Animated.View
             key={`heart-${heart.id}`}
             style={[
-              styles.heart,
+              styles.heartContainer,
               {
                 left: heart.x,
                 width: heart.size,
                 height: heart.size,
-                backgroundColor: heart.color,
                 opacity: anim.opacity,
                 transform: [
                   { translateY: anim.translateY },
@@ -200,7 +242,22 @@ function HeartsRaining({ visible }) {
                 ],
               },
             ]}
-          />
+          >
+            <Svg
+              width={heart.size}
+              height={heart.size}
+              viewBox="0 0 24 24"
+              style={styles.heartSvg}
+            >
+              <Path
+                d={HEART_PATH}
+                fill={heart.color}
+                stroke={heart.color}
+                strokeWidth="0.4"
+                opacity={0.95}
+              />
+            </Svg>
+          </Animated.View>
         );
       })}
     </View>
@@ -217,16 +274,13 @@ const styles = StyleSheet.create({
     zIndex: 1,
     elevation: 1,
   },
-  heart: {
+  heartContainer: {
     position: 'absolute',
-    // Simple heart shape approximation - will render as a rounded square
-    // For a true heart shape, SVG would be needed but this works for animation
-    borderRadius: 20,
-    shadowColor: '#FF1493',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 4,
-    elevation: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heartSvg: {
+    // SVG styling handled by Path component
   },
 });
 
