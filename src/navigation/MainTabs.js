@@ -124,7 +124,6 @@ export default function MainTabs() {
           }}
           options={{
             tabBarLabel: 'Orders',
-            tabBarBadge: draftBadgeCount > 0 ? draftBadgeCount : undefined,
             tabBarIcon: ({ color, focused }) => (
               <Icon name="orders" color={color} size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE} />
             ),
