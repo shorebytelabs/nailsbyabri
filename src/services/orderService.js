@@ -866,7 +866,7 @@ export async function fetchOrders(params = {}) {
       // are fetched when viewing individual order details via fetchOrder()
       const { data: sets, error: setsError } = await supabase
         .from('order_sets')
-        .select('id, order_id, name, shape_id, quantity, description, set_notes, sizes, requires_follow_up, created_at, updated_at')
+        .select('id, order_id, name, shape_id, quantity, description, set_notes, sizes, requires_follow_up, requires_design_help, requires_sizing_help, created_at, updated_at')
         .in('order_id', orderIds)
         .order('created_at', { ascending: true });
 

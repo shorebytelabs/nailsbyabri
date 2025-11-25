@@ -1009,9 +1009,70 @@ function OrdersScreen({ route }) {
     [getAdminDraft, updateOrderAdmin, setState],
   );
 
+  const getFollowUpMessage = useCallback((order) => {
+    const nailSets = order.nailSets || [];
+    
+    // Check if any set needs design help or sizing help
+    // Handle backward compatibility: if requiresFollowUp exists but separate fields don't, treat it as design help
+    // (old orders only had requiresFollowUp which was for design help)
+    let needsDesignHelp = false;
+    let needsSizingHelp = false;
+    
+    nailSets.forEach((set) => {
+      // Check for new separate fields (use truthy check to handle boolean true)
+      const hasDesignHelp = Boolean(set.requiresDesignHelp);
+      const hasSizingHelp = Boolean(set.requiresSizingHelp);
+      const hasOldFollowUp = Boolean(set.requiresFollowUp);
+      
+      if (__DEV__) {
+        console.log('[OrdersScreen] Checking set follow-up flags:', {
+          setId: set.id,
+          requiresDesignHelp: set.requiresDesignHelp,
+          requiresSizingHelp: set.requiresSizingHelp,
+          requiresFollowUp: set.requiresFollowUp,
+          hasDesignHelp,
+          hasSizingHelp,
+          hasOldFollowUp,
+        });
+      }
+      
+      if (hasDesignHelp) {
+        needsDesignHelp = true;
+      }
+      if (hasSizingHelp) {
+        needsSizingHelp = true;
+      }
+      
+      // Backward compatibility: if only requiresFollowUp exists (and new fields are not set),
+      // treat it as design help (matching old behavior)
+      if (hasOldFollowUp && !hasDesignHelp && !hasSizingHelp) {
+        needsDesignHelp = true;
+      }
+    });
+    
+    if (__DEV__) {
+      console.log('[OrdersScreen] Follow-up message result:', {
+        orderId: order.id,
+        needsDesignHelp,
+        needsSizingHelp,
+      });
+    }
+    
+    // Build message based on what's needed
+    if (needsDesignHelp && needsSizingHelp) {
+      return 'Needs design & sizing follow-up';
+    } else if (needsDesignHelp) {
+      return 'Needs design follow-up';
+    } else if (needsSizingHelp) {
+      return 'Needs sizing follow-up';
+    }
+    
+    return null; // No follow-up needed
+  }, []);
+
   const renderOrderCard = (order) => {
     const primarySet = order.nailSets?.[0];
-    const needsFollowUp = order.nailSets?.some((set) => set.requiresFollowUp);
+    const followUpMessage = getFollowUpMessage(order);
     
     // Get the current status - use draft status if admin section is expanded, otherwise use order status
     const adminDraft = getAdminDraft(order);
@@ -1227,6 +1288,21 @@ function OrdersScreen({ route }) {
             {getOrderUserLabel(order)}
           </Text>
         ) : null}
+        {isAdmin && followUpMessage ? (
+          <View style={[styles.followUpContainer, { marginTop: 4 }]}>
+            <Text style={[styles.followUpIcon, { color: secondaryFontColor }]}>⚠</Text>
+            <Text
+              style={[
+                styles.cardMeta,
+                { color: secondaryFontColor },
+              ]}
+              accessibilityLabel={followUpMessage}
+              accessibilityRole="text"
+            >
+              {followUpMessage}
+            </Text>
+          </View>
+        ) : null}
         <View style={styles.cardFooter}>
           <TouchableOpacity
             style={[
@@ -1244,16 +1320,6 @@ function OrdersScreen({ route }) {
               View details
             </Text>
           </TouchableOpacity>
-          {needsFollowUp ? (
-            <Text
-              style={[
-                styles.linkInlineText,
-                { color: secondaryFontColor },
-              ]}
-            >
-              Needs design follow-up
-            </Text>
-          ) : null}
         </View>
         {isAdmin && showAdminControls ? (
           <View style={styles.adminSection}>
@@ -2218,6 +2284,14 @@ const styles = StyleSheet.create({
   cardMetaSecondary: {
     fontSize: 12,
     marginTop: 4,
+  },
+  followUpContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  followUpIcon: {
+    fontSize: 12,
   },
   capacityInfoBanner: {
     marginTop: 10,
