@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -18,13 +18,14 @@ import Icon from '../icons/Icon';
 import { logEvent } from '../utils/analytics';
 import { withOpacity } from '../utils/color';
 import { getEnabledTips } from '../services/tipsService';
+import { getShapeById } from '../utils/pricing';
 
 const CTA_LABEL = 'Create Nail Set';
 
 function HomeDashboardScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const { state, handleStartOrder, ensureAuthenticated } = useAppState();
+  const { state, handleStartOrder, ensureAuthenticated, setState } = useAppState();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
@@ -36,28 +37,229 @@ function HomeDashboardScreen() {
   const accentColor = colors.accent || '#6F171F';
   const accentContrastColor = colors.accentContrast || '#FFFFFF';
   const onSurfaceColor = colors.onSurface || colors.primaryFont; // Use onSurface for text on surface backgrounds
+  const warningColor = colors.warning || '#FF9800';
+  const errorColor = colors.error || '#B33A3A';
+  const successColor = colors.success || '#4CAF50';
+  const secondaryBackgroundColor = colors.secondaryBackground || '#BF9B7A';
+  const surfaceColor = colors.surface || '#FFFFFF';
+  const primaryFontColor = colors.primaryFont || '#220707';
+  const secondaryFontColor = colors.secondaryFont || '#5C5F5D';
+  const borderColor = colors.border || '#D9C8A9';
+
+  // Order status constants (same as OrdersScreen)
+  const ORDER_STATUS = {
+    DRAFT: 'Draft',
+    AWAITING_SUBMISSION: 'Awaiting Submission',
+    SUBMITTED: 'Submitted',
+    APPROVED_IN_PROGRESS: 'Approved & In Progress',
+    READY_FOR_PICKUP: 'Ready for Pickup',
+    READY_FOR_SHIPPING: 'Ready for Shipping',
+    READY_FOR_DELIVERY: 'Ready for Delivery',
+    COMPLETED: 'Completed',
+    CANCELLED: 'Cancelled',
+  };
 
   const activeOrders = useMemo(() => {
     const list = [];
+    
+    // Add activeOrder if it exists
     if (state.activeOrder) {
-      list.push({
-        id: state.activeOrder.id,
-        name: state.activeOrder.nailSets?.[0]?.name || 'Draft Set',
-        status: state.activeOrder.status || 'draft',
-        submittedAt: state.activeOrder.updatedAt || state.activeOrder.createdAt,
-      });
+      list.push(state.activeOrder);
     }
+    
+    // Add lastCompletedOrder if it exists and is different from activeOrder
     if (state.lastCompletedOrder && state.lastCompletedOrder.id !== state.activeOrder?.id) {
-      list.push({
-        id: state.lastCompletedOrder.id,
-        name: state.lastCompletedOrder.nailSets?.[0]?.name || 'Recent Order',
-        status: state.lastCompletedOrder.status || 'submitted',
-        submittedAt:
-          state.lastCompletedOrder.updatedAt || state.lastCompletedOrder.createdAt,
+      list.push(state.lastCompletedOrder);
+    }
+    
+    // Also include recent orders from state.orders that are active (not completed/cancelled)
+    // This ensures users see their orders even if activeOrder/lastCompletedOrder aren't set
+    if (state.orders && Array.isArray(state.orders)) {
+      const activeStatuses = ['draft', 'awaiting submission', 'awaiting_submission', 'submitted', 'approved & in progress', 'approved_in_progress', 'ready for pickup', 'ready_for_pickup', 'ready for shipping', 'ready_for_shipping', 'ready for delivery', 'ready_for_delivery'];
+      
+      state.orders.forEach((order) => {
+        // Skip if already in list
+        if (list.some((o) => o.id === order.id)) {
+          return;
+        }
+        
+        const statusLower = (order.status || '').toLowerCase();
+        const normalizedStatus = statusLower.replace(/\s+/g, '_').replace(/&/g, '');
+        const isActive = activeStatuses.some((activeStatus) => {
+          const normalizedActive = activeStatus.replace(/\s+/g, '_').replace(/&/g, '');
+          return normalizedStatus === normalizedActive;
+        });
+        
+        if (isActive) {
+          list.push(order);
+        }
       });
     }
-    return list.slice(0, 3);
-  }, [state.activeOrder, state.lastCompletedOrder]);
+    
+    // Sort by updatedAt (most recent first) and limit to 3
+    return list
+      .sort((a, b) => {
+        const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+        return bTime - aTime;
+      })
+      .slice(0, 3);
+  }, [state.activeOrder, state.lastCompletedOrder, state.orders]);
+
+  // Helper functions (same as OrdersScreen)
+  const getOrderNumber = useCallback((order) => {
+    if (!order?.id) {
+      return '—';
+    }
+    // Display first 8 characters of order ID in uppercase
+    return order.id.slice(0, 8).toUpperCase();
+  }, []);
+
+  const getOrderSummary = useCallback((order) => {
+    const nailSets = order.nailSets || [];
+    if (nailSets.length === 0) {
+      return '0 sets';
+    }
+
+    // Count total sets
+    const totalSets = nailSets.length;
+
+    // Count sets by shape
+    const shapeCounts = {};
+    nailSets.forEach((set) => {
+      if (set?.shapeId) {
+        const shape = getShapeById(set.shapeId);
+        if (shape) {
+          const shapeName = shape.name; // "Almond" or "Square"
+          shapeCounts[shapeName] = (shapeCounts[shapeName] || 0) + 1;
+        }
+      }
+    });
+
+    // Build summary string
+    const parts = [`${totalSets} set${totalSets !== 1 ? 's' : ''}`];
+    
+    // Add shape counts if they exist
+    if (shapeCounts['Almond']) {
+      parts.push(`Almond: ${shapeCounts['Almond']}`);
+    }
+    if (shapeCounts['Square']) {
+      parts.push(`Square: ${shapeCounts['Square']}`);
+    }
+
+    return parts.join(' • ');
+  }, []);
+
+  // Format updated time (same logic as OrdersScreen)
+  const formatUpdatedTime = useCallback((order) => {
+    if (!order.updatedAt && !order.createdAt) {
+      return 'Recently updated';
+    }
+    const date = new Date(order.updatedAt || order.createdAt);
+    return `Updated ${date.toLocaleString()}`;
+  }, []);
+
+  // Get status label and colors (same logic as OrdersScreen)
+  const getStatusInfo = useCallback((order) => {
+    const status = order.status || '';
+    const statusLower = status.toLowerCase();
+    const normalizedStatus = statusLower.replace(/\s+/g, '_').replace(/&/g, '');
+    
+    let statusLabel = ORDER_STATUS.SUBMITTED;
+    let statusBackground = withOpacity(accentColor, 0.12);
+    let statusTextColor = accentColor;
+
+    if (normalizedStatus === 'draft') {
+      statusLabel = ORDER_STATUS.DRAFT;
+      statusBackground = withOpacity(secondaryBackgroundColor, 0.2);
+      statusTextColor = primaryFontColor;
+    } else if (normalizedStatus === 'awaiting_submission' || normalizedStatus === 'awaitingsubmission') {
+      statusLabel = ORDER_STATUS.AWAITING_SUBMISSION;
+      statusBackground = withOpacity(warningColor, 0.12);
+      statusTextColor = warningColor;
+    } else if (normalizedStatus === 'submitted') {
+      statusLabel = ORDER_STATUS.SUBMITTED;
+      statusBackground = withOpacity(accentColor, 0.12);
+    } else if (normalizedStatus === 'approved_in_progress' || normalizedStatus === 'approvedinprogress') {
+      statusLabel = ORDER_STATUS.APPROVED_IN_PROGRESS;
+      statusBackground = withOpacity(accentColor, 0.12);
+    } else if (normalizedStatus === 'ready_for_pickup' || normalizedStatus === 'readyforpickup') {
+      statusLabel = ORDER_STATUS.READY_FOR_PICKUP;
+      statusBackground = withOpacity(accentColor, 0.15);
+    } else if (normalizedStatus === 'ready_for_shipping' || normalizedStatus === 'readyforshipping') {
+      statusLabel = ORDER_STATUS.READY_FOR_SHIPPING;
+      statusBackground = withOpacity(accentColor, 0.15);
+    } else if (normalizedStatus === 'ready_for_delivery' || normalizedStatus === 'readyfordelivery') {
+      statusLabel = ORDER_STATUS.READY_FOR_DELIVERY;
+      statusBackground = withOpacity(accentColor, 0.15);
+    } else if (normalizedStatus === 'completed' || normalizedStatus === 'delivered') {
+      statusLabel = ORDER_STATUS.COMPLETED;
+      statusBackground = withOpacity(accentColor, 0.18);
+    } else if (normalizedStatus === 'cancelled' || normalizedStatus === 'canceled') {
+      statusLabel = ORDER_STATUS.CANCELLED;
+      statusBackground = withOpacity('#B33A3A', 0.12);
+      statusTextColor = '#B33A3A';
+    }
+
+    return { statusLabel, statusBackground, statusTextColor };
+  }, [accentColor, warningColor, secondaryBackgroundColor, primaryFontColor]);
+
+  // Handle order card press
+  const handleOrderPress = useCallback(async (order) => {
+    if (!order) {
+      return;
+    }
+
+    logEvent('tap_order_view', { orderId: order.id, status: order.status });
+    // Navigate to order builder for draft orders and "Awaiting Submission" orders, order details for others
+    // Check status case-insensitively
+    const orderStatusLower = (order.status || '').toLowerCase();
+    if (orderStatusLower === 'draft' || orderStatusLower === 'awaiting submission' || orderStatusLower === 'awaiting_submission') {
+      // For draft and awaiting submission orders, fetch the full order details (including images) before editing
+      // The list query excludes design_uploads and sizing_uploads for performance
+      try {
+        setState((prev) => ({ ...prev, ordersLoading: true }));
+        const { fetchOrder } = await import('../services/orderService');
+        const { order: fullOrder } = await fetchOrder(order.id);
+        setState((prev) => ({
+          ...prev,
+          activeOrder: fullOrder,
+          ordersLoading: false,
+        }));
+        // Navigate to NewOrderFlow and go directly to Review & Submit step for "Awaiting Submission" orders
+        if (orderStatusLower === 'awaiting submission' || orderStatusLower === 'awaiting_submission') {
+          navigation.navigate('NewOrderFlow', { resume: true, initialStep: 'review' });
+        } else {
+          navigation.navigate('NewOrderFlow', { resume: true });
+        }
+      } catch (error) {
+        console.error('[HomeDashboard] Failed to fetch full order details:', error);
+        setState((prev) => ({ ...prev, ordersLoading: false }));
+        // Fallback: use the order from state
+        setState((prev) => ({
+          ...prev,
+          activeOrder: order,
+        }));
+        // Navigate to NewOrderFlow and go directly to Review & Submit step for "Awaiting Submission" orders
+        if (orderStatusLower === 'awaiting submission' || orderStatusLower === 'awaiting_submission') {
+          navigation.navigate('NewOrderFlow', { resume: true, initialStep: 'review' });
+        } else {
+          navigation.navigate('NewOrderFlow', { resume: true });
+        }
+      }
+      return;
+    }
+
+    // If order is submitted → open order details page
+    const navigateToRoot = (routeName, params) => {
+      let parentNav = navigation;
+      while (parentNav?.getParent?.()) {
+        parentNav = parentNav.getParent();
+      }
+      parentNav?.navigate(routeName, params);
+    };
+    navigateToRoot('OrderDetails', { order, fromHome: true });
+  }, [navigation, setState]);
 
   const [tips, setTips] = useState([]);
   const [tipsLoading, setTipsLoading] = useState(true);
@@ -287,59 +489,70 @@ function HomeDashboardScreen() {
               </View>
             ]
           ) : (
-            activeOrders.map((order) => (
-              <View
-                key={order.id}
-                style={[
-                  styles.orderCard,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: colors.surface,
-                    width: cardWidth,
-                  },
-                ]}
-              >
-                <Text
+            activeOrders.map((order) => {
+              const statusInfo = getStatusInfo(order);
+              return (
+                <TouchableOpacity
+                  key={order.id}
                   style={[
-                    styles.orderName,
-                    { color: onSurfaceColor },
-                  ]}
-                >
-                  {order.name}
-                </Text>
-                <View
-                  style={[
-                    styles.statusChip,
+                    styles.orderCard,
                     {
-                      backgroundColor:
-                        (order.status || '').toLowerCase() === 'submitted' ||
-                        (order.status || '').toLowerCase() === 'approved & in progress' ||
-                        (order.status || '').toLowerCase() === 'approved_in_progress' ||
-                        (order.status || '').toLowerCase().includes('ready')
-                          ? withOpacity(accentColor, 0.1)
-                          : withOpacity(colors.secondaryBackground, 0.38),
+                      borderColor: borderColor,
+                      backgroundColor: surfaceColor,
+                      width: cardWidth,
                     },
                   ]}
+                  onPress={() => handleOrderPress(order)}
+                  activeOpacity={0.7}
                 >
-                  <Text
-                    style={[
-                      styles.statusText,
-                      { color: accentColor },
-                    ]}
-                  >
-                    {order.status || 'Draft'}
-                  </Text>
-                </View>
-                <Text
-                  style={[
-                    styles.orderMeta,
-                    { color: colors.secondaryFont },
-                  ]}
-                >
-                  Updated {order.submittedAt ? new Date(order.submittedAt).toLocaleDateString() : 'today'}
-                </Text>
-              </View>
-            ))
+                  <View style={styles.orderCardContent}>
+                    {/* Order Number */}
+                    <Text
+                      style={[
+                        styles.orderNumber,
+                        { color: primaryFontColor },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      Order #{getOrderNumber(order)}
+                    </Text>
+                    
+                    {/* Status */}
+                    <View
+                      style={[
+                        styles.statusPill,
+                        {
+                          backgroundColor: statusInfo.statusBackground,
+                          alignSelf: 'flex-start',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusText,
+                          { color: statusInfo.statusTextColor },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {statusInfo.statusLabel.toUpperCase()}
+                      </Text>
+                    </View>
+                    
+                    {/* Set Summary */}
+                    <Text
+                      style={[
+                        styles.orderSummary,
+                        { color: secondaryFontColor },
+                      ]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {getOrderSummary(order)}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
           )}
         </ScrollView>
 
@@ -496,25 +709,32 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
     padding: 16,
-    gap: 10,
   },
-  orderName: {
-    fontSize: 16,
+  orderCardContent: {
+    gap: 8,
+  },
+  orderNumber: {
+    fontSize: 18,
     fontWeight: '700',
   },
-  statusChip: {
-    alignSelf: 'flex-start',
+  statusPill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 14,
   },
   statusText: {
     fontSize: 12,
     fontWeight: '700',
-    textTransform: 'capitalize',
+    textTransform: 'uppercase',
+  },
+  orderSummary: {
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
   orderMeta: {
     fontSize: 12,
+    marginTop: 2,
   },
   tipsCarousel: {
     paddingVertical: 4,
