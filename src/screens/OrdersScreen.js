@@ -24,6 +24,7 @@ import { uploadImageToStorage } from '../services/imageStorageService';
 import Icon from '../icons/Icon';
 import { deleteOrder } from '../services/api';
 import { getNextWeekStart, getNextWeekStartDateTime, formatNextAvailabilityDateTime, checkCapacityAvailability } from '../services/workloadService';
+import { getShapeById } from '../utils/pricing';
 
 /**
  * Order Status Constants
@@ -506,6 +507,41 @@ function OrdersScreen({ route }) {
     }
     // Display first 8 characters of order ID in uppercase
     return order.id.slice(0, 8).toUpperCase();
+  }, []);
+
+  const getOrderSummary = useCallback((order) => {
+    const nailSets = order.nailSets || [];
+    if (nailSets.length === 0) {
+      return '0 sets';
+    }
+
+    // Count total sets
+    const totalSets = nailSets.length;
+
+    // Count sets by shape
+    const shapeCounts = {};
+    nailSets.forEach((set) => {
+      if (set?.shapeId) {
+        const shape = getShapeById(set.shapeId);
+        if (shape) {
+          const shapeName = shape.name; // "Almond" or "Square"
+          shapeCounts[shapeName] = (shapeCounts[shapeName] || 0) + 1;
+        }
+      }
+    });
+
+    // Build summary string
+    const parts = [`${totalSets} set${totalSets !== 1 ? 's' : ''}`];
+    
+    // Add shape counts if they exist
+    if (shapeCounts['Almond']) {
+      parts.push(`Almond: ${shapeCounts['Almond']}`);
+    }
+    if (shapeCounts['Square']) {
+      parts.push(`Square: ${shapeCounts['Square']}`);
+    }
+
+    return parts.join(' • ');
   }, []);
 
   const getOrderUserLabel = useCallback((order) => {
@@ -1048,7 +1084,7 @@ function OrdersScreen({ route }) {
                 { color: primaryFontColor },
               ]}
             >
-              {primarySet?.name || 'Custom Set'}
+              Order #{getOrderNumber(order)}
             </Text>
             <Text
               style={[
@@ -1056,7 +1092,7 @@ function OrdersScreen({ route }) {
                 { color: secondaryFontColor },
               ]}
             >
-              Order #{getOrderNumber(order)}
+              {getOrderSummary(order)}
             </Text>
           </View>
           <View style={styles.cardHeaderRight}>
