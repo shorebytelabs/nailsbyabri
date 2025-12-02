@@ -64,6 +64,7 @@ import ManageTipsScreen from './ManageTipsScreen';
 import ManageThemeScreen from './ManageThemeScreen';
 import ManageShapesScreen from './ManageShapesScreen';
 import ManageDeliveryMethodsScreen from './ManageDeliveryMethodsScreen';
+import ManageFeedbackScreen from './ManageFeedbackScreen';
 import { Image } from 'react-native';
 
 function AdminPanelScreen({ navigation }) {
@@ -970,6 +971,15 @@ function AdminPanelScreen({ navigation }) {
         setActiveView('theme');
       },
     },
+    {
+      key: 'feedback',
+      title: 'Customer Feedback',
+      description: 'View customer reviews and ratings',
+      icon: 'star',
+      onPress: () => {
+        setActiveView('feedback');
+      },
+    },
   ];
 
   const primaryFont = colors.primaryFont || '#220707';
@@ -1152,6 +1162,19 @@ function AdminPanelScreen({ navigation }) {
   if (activeView === 'deliveryMethods') {
     return (
       <ManageDeliveryMethodsScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
+          },
+        }}
+      />
+    );
+  }
+
+  if (activeView === 'feedback') {
+    return (
+      <ManageFeedbackScreen
         navigation={{
           ...navigation,
           goBack: () => {

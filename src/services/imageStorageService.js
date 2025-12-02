@@ -14,7 +14,7 @@ const STORAGE_BUCKET = 'order-images';
  * @param {string} userId - User ID (required)
  * @param {string} orderId - Order ID (required)
  * @param {string} setId - Set ID (optional)
- * @param {string} imageType - 'design', 'sizing', or 'admin'
+ * @param {string} imageType - 'design', 'sizing', 'admin', or 'feedback'
  * @returns {Promise<{url: string, path: string, fileName: string}>} Public URL and storage path
  */
 export async function uploadImageToStorage(file, userId, orderId, setId = null, imageType = 'design') {

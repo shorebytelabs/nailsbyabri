@@ -25,6 +25,7 @@ import Icon from '../icons/Icon';
 import { deleteOrder } from '../services/api';
 import { getNextWeekStart, getNextWeekStartDateTime, formatNextAvailabilityDateTime, checkCapacityAvailability } from '../services/workloadService';
 import { getShapeById } from '../utils/pricing';
+import { hasPendingFeedback, getFeedbackByOrderId } from '../services/feedbackService';
 
 /**
  * Order Status Constants
@@ -1092,7 +1093,14 @@ function OrdersScreen({ route }) {
     let statusTextColor = accentColor;
 
     // Normalize status for comparison (case-insensitive, handle both old and new formats)
-    const normalizedStatus = statusLower.replace(/\s+/g, '_').replace(/&/g, '');
+    // Handle em dash (—) and regular dash (-) in status
+    // Replace dashes first, then spaces, then collapse multiple underscores
+    const normalizedStatus = statusLower
+      .replace(/[—–-]/g, '_')  // Replace all dash types with underscore first
+      .replace(/\s+/g, '_')      // Replace spaces with underscore
+      .replace(/&/g, '')         // Remove ampersands
+      .replace(/_+/g, '_')       // Collapse multiple underscores into one
+      .replace(/^_|_$/g, '');    // Remove leading/trailing underscores
     
     // All status checks are now case-insensitive using normalizedStatus
     if (normalizedStatus === 'draft') {
@@ -1304,22 +1312,30 @@ function OrdersScreen({ route }) {
           </View>
         ) : null}
         <View style={styles.cardFooter}>
-          <TouchableOpacity
-            style={[
-              styles.linkButton,
-              { borderColor: accentColor },
-            ]}
-            onPress={() => handleViewDetails(order)}
-          >
-            <Text
+          <View style={styles.cardFooterLeft}>
+            <TouchableOpacity
               style={[
-                styles.linkButtonText,
-                { color: accentColor },
+                styles.linkButton,
+                { borderColor: accentColor },
               ]}
+              onPress={() => handleViewDetails(order)}
             >
-              View details
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={[
+                  styles.linkButtonText,
+                  { color: accentColor },
+                ]}
+              >
+                View details
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.cardFooterRight}>
+            {/* Show feedback chip for completed orders */}
+            {normalizedStatus === 'completed' && !isAdmin ? (
+              <FeedbackChipComponent orderId={order.id} navigation={navigation} accentColor={accentColor} />
+            ) : null}
+          </View>
         </View>
         {isAdmin && showAdminControls ? (
           <View style={styles.adminSection}>
@@ -2159,6 +2175,86 @@ function OrdersScreen({ route }) {
   );
 }
 
+// Feedback Chip Component - shows "Leave Review" if no feedback, "View Feedback" if feedback exists
+function FeedbackChipComponent({ orderId, navigation, accentColor }) {
+  const { state } = useAppState();
+  const [feedback, setFeedback] = React.useState(null); // null = checking, object = has feedback, false = no feedback
+
+  React.useEffect(() => {
+    const checkFeedback = async () => {
+      try {
+        const feedbackData = await getFeedbackByOrderId(orderId);
+        setFeedback(feedbackData || false);
+      } catch (error) {
+        console.error('[OrdersScreen] Error checking feedback:', error);
+        // If error, assume no feedback
+        setFeedback(false);
+      }
+    };
+
+    checkFeedback();
+    
+    // Re-check when orders are refreshed (after feedback submission)
+    if (state.refreshOrders) {
+      checkFeedback();
+    }
+  }, [orderId, state.refreshOrders]);
+
+  // Don't show anything while checking
+  if (feedback === null) {
+    return null;
+  }
+
+  // Show "View Feedback" if feedback exists (styled like "View Details" button)
+  if (feedback) {
+    return (
+      <TouchableOpacity
+        style={[
+          styles.linkButton,
+          { borderColor: accentColor },
+        ]}
+        onPress={() => navigation.navigate('Feedback', { orderId, viewOnly: true })}
+        accessibilityRole="button"
+        accessibilityLabel="View your feedback"
+      >
+        <Text
+          style={[
+            styles.linkButtonText,
+            { color: accentColor },
+          ]}
+        >
+          View Feedback 💅
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
+  // Show "Leave Review" if no feedback exists
+  return (
+    <TouchableOpacity
+      style={[
+        styles.feedbackChip,
+        {
+          backgroundColor: withOpacity(accentColor, 0.1),
+          borderColor: accentColor,
+        },
+      ]}
+      onPress={() => navigation.navigate('Feedback', { orderId })}
+      accessibilityRole="button"
+      accessibilityLabel="Leave a review"
+    >
+      <Text
+        style={[
+          styles.feedbackChipText,
+          { color: accentColor },
+        ]}
+      >
+        Leave a Review 💅
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
@@ -2272,6 +2368,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 14,
+    minHeight: 32, // Ensure minimum height for two-line status
+  },
+  statusTextContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
   },
   statusText: {
     fontSize: 12,
@@ -2284,6 +2386,16 @@ const styles = StyleSheet.create({
   cardMetaSecondary: {
     fontSize: 12,
     marginTop: 4,
+  },
+  feedbackChip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  feedbackChipText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   followUpContainer: {
     flexDirection: 'row',
@@ -2311,11 +2423,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  cardFooterLeft: {
+    flex: 1,
+  },
+  cardFooterRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   linkButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
+    alignSelf: 'flex-start',
   },
   linkButtonText: {
     fontSize: 14,

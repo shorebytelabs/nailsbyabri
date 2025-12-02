@@ -21,6 +21,7 @@ import UserDetailScreen from '../screens/UserDetailScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import MainTabs from './MainTabs';
 import NewOrderStepperScreen from '../screens/NewOrderStepperScreen';
+import FeedbackScreen from '../screens/FeedbackScreen';
 import { useAppState } from '../context/AppContext';
 import { useTheme } from '../theme';
 import { logEvent } from '../utils/analytics';
@@ -713,6 +714,7 @@ function AppNavigator() {
         />
         <Stack.Screen name="OrderConfirmation" component={OrderConfirmationContainer} />
         <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
+        <Stack.Screen name="Feedback" component={FeedbackScreen} />
         <Stack.Screen
           name="AdminPanel"
           component={AdminPanelScreen}

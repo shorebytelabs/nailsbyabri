@@ -1065,6 +1065,17 @@ export async function updateOrder(orderId, updates) {
       console.log('[orders] Updating order:', orderId, updates);
     }
 
+    // First fetch existing order to check previous status (needed for admin completion logic)
+    const { data: existingOrder, error: checkError } = await supabase
+      .from('orders')
+      .select('id, status, tracking_number, paid_at, discount, user_id')
+      .eq('id', orderId)
+      .single();
+
+    if (checkError || !existingOrder) {
+      throw new Error(`Order not found: ${orderId}`);
+    }
+
     // Allowed status values - includes both old and new status formats
     // New status structure:
     // - Draft
@@ -1100,7 +1111,16 @@ export async function updateOrder(orderId, updates) {
     // Allow status update if it's in the allowed set
     // Also allow any status that matches the new status constants (case-insensitive check)
     if (updates.status) {
-      const statusLower = String(updates.status).toLowerCase();
+      const statusLower = String(updates.status).toLowerCase().trim();
+      
+      if (__DEV__) {
+        console.log('[updateOrder] Status update requested:', {
+          originalStatus: updates.status,
+          statusLower,
+          existingOrderStatus: existingOrder?.status,
+        });
+      }
+      
       const isAllowed = allowedStatuses.has(updates.status) ||
         statusLower === 'draft' ||
         statusLower === 'awaiting submission' ||
@@ -1119,14 +1139,16 @@ export async function updateOrder(orderId, updates) {
         statusLower === 'cancelled' ||
         statusLower === 'canceled';
       
+      if (__DEV__ && !isAllowed) {
+        console.warn('[updateOrder] Status not in allowed list:', updates.status);
+      }
+      
       if (isAllowed) {
         // Normalize to the proper status format
         if (statusLower === 'draft') {
           updatePayload.status = 'Draft';
         } else if (statusLower === 'awaiting submission' || statusLower === 'awaiting_submission' || statusLower === 'awaitingsubmission') {
           updatePayload.status = 'Awaiting Submission';
-        } else if (statusLower === 'submitted') {
-          updatePayload.status = 'Submitted';
         } else if (statusLower === 'approved & in progress' || statusLower === 'approved_in_progress' || statusLower === 'in_progress') {
           updatePayload.status = 'Approved & In Progress';
         } else if (statusLower === 'ready for pickup' || statusLower === 'ready_for_pickup') {
@@ -1135,12 +1157,23 @@ export async function updateOrder(orderId, updates) {
           updatePayload.status = 'Ready for Shipping';
         } else if (statusLower === 'ready for delivery' || statusLower === 'ready_for_delivery') {
           updatePayload.status = 'Ready for Delivery';
+        } else if (statusLower === 'submitted') {
+          updatePayload.status = 'Submitted';
         } else if (statusLower === 'completed' || statusLower === 'delivered') {
+          // Always set to "Completed" status (no separate pending feedback status)
           updatePayload.status = 'Completed';
         } else if (statusLower === 'cancelled' || statusLower === 'canceled') {
           updatePayload.status = 'Cancelled';
         } else {
           // Use the provided status as-is if it's already in the correct format
+          // But first check if it matches any of our known status formats
+          if (__DEV__) {
+            console.log('[updateOrder] Status not matched in normalization, using as-is:', {
+              originalStatus: updates.status,
+              statusLower,
+              updatePayloadStatus: updatePayload.status,
+            });
+          }
           updatePayload.status = updates.status;
         }
       }
@@ -1253,17 +1286,6 @@ export async function updateOrder(orderId, updates) {
       return { order: transformed };
     }
 
-    // First verify the order exists and get previous state for notifications
-    const { data: existingOrder, error: checkError } = await supabase
-      .from('orders')
-      .select('id, status, tracking_number, paid_at, discount, user_id')
-      .eq('id', orderId)
-      .single();
-
-    if (checkError || !existingOrder) {
-      throw new Error(`Order not found: ${orderId}`);
-    }
-
     // Store previous state for notification triggers
     const previousOrder = {
       status: existingOrder.status,
@@ -1274,6 +1296,13 @@ export async function updateOrder(orderId, updates) {
     };
 
     // Update order
+    if (__DEV__) {
+      console.log('[updateOrder] Final updatePayload:', {
+        ...updatePayload,
+        status: updatePayload.status,
+      });
+    }
+    
     const { data: updatedOrder, error: updateError } = await supabase
       .from('orders')
       .update(updatePayload)
@@ -1291,6 +1320,16 @@ export async function updateOrder(orderId, updates) {
 
     if (!updatedOrder) {
       throw new Error(`Update succeeded but no order data returned for: ${orderId}`);
+    }
+
+    if (__DEV__) {
+      console.log('[updateOrder] Order updated successfully:', {
+        orderId,
+        requestedStatus: updates.status,
+        updatePayloadStatus: updatePayload.status,
+        returnedStatus: updatedOrder.status,
+        statusMatch: updatePayload.status === updatedOrder.status,
+      });
     }
 
     // Fetch order sets (if we didn't already fetch them for pricing recalculation)
@@ -1396,7 +1435,39 @@ export async function updateOrder(orderId, updates) {
           });
         }
 
-        // 5. Discount applied
+        // 5. Order completed - request feedback (when admin marks as completed)
+        const finalStatus = updatePayload.status || updates.status || '';
+        const finalStatusLower = String(finalStatus).toLowerCase();
+        if (finalStatus && (
+          finalStatusLower === 'completed' || finalStatusLower === 'delivered'
+        ) && previousOrder.status?.toLowerCase() !== 'completed') {
+          // Check if user is admin (to only send notification when admin marks complete)
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('is_admin')
+              .eq('id', session.user.id)
+              .single();
+            
+            // Only send notification if admin is marking order as completed
+            if (profile?.is_admin === true) {
+              await createSystemNotification({
+                title: 'Order Complete! 💅',
+                message: `Your order #${orderNumber} is complete! We'd love to hear your feedback.`,
+                systemEventType: 'order_completed_feedback_request',
+                relatedOrderId: orderId,
+                relatedUserId: updatedOrder.user_id,
+                metadata: { 
+                  deepLink: `feedback:${orderId}`,
+                  orderNumber,
+                },
+              });
+            }
+          }
+        }
+
+        // 6. Discount applied
         if (updates.discount !== undefined && updates.discount > 0 && 
             (!previousOrder.discount || previousOrder.discount === 0)) {
           await createSystemNotification({

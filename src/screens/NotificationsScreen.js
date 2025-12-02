@@ -95,6 +95,19 @@ function NotificationsScreen() {
         }
       }
 
+      // Check for deep link in metadata (for feedback requests)
+      if (notification.metadata?.deepLink) {
+        const deepLink = notification.metadata.deepLink;
+        if (deepLink.startsWith('feedback:')) {
+          const orderId = deepLink.replace('feedback:', '');
+          navigation.goBack();
+          setTimeout(() => {
+            navigation.navigate('Feedback', { orderId });
+          }, 100);
+          return;
+        }
+      }
+
       // Navigate to order if related - fetch order first
       if (notification.relatedOrderId) {
         try {
