@@ -74,15 +74,19 @@ export async function fetchConsentLogs(userId) {
   return getConsentLogs(userId);
 }
 
+// Migrated to Supabase - use shapesService instead
+import { getVisibleShapes } from './shapesService';
+
 export async function fetchShapes() {
   try {
-    const response = await fetch(`${API_BASE_URL}/catalog/shapes`);
-    const data = await handleResponse(response);
-    if (Array.isArray(data.shapes) && data.shapes.length) {
-      return data.shapes;
+    const shapes = await getVisibleShapes();
+    if (Array.isArray(shapes) && shapes.length > 0) {
+      return shapes;
     }
+    // Fallback to static catalog if database fails
     return shapeCatalog;
   } catch (error) {
+    console.error('[api] Error fetching shapes, using fallback:', error);
     return shapeCatalog;
   }
 }

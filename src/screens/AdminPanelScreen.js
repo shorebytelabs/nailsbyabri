@@ -62,6 +62,8 @@ import ManageWorkloadScreen from './ManageWorkloadScreen';
 import ManageNotificationsScreen from './ManageNotificationsScreen';
 import ManageTipsScreen from './ManageTipsScreen';
 import ManageThemeScreen from './ManageThemeScreen';
+import ManageShapesScreen from './ManageShapesScreen';
+import ManageDeliveryMethodsScreen from './ManageDeliveryMethodsScreen';
 import { Image } from 'react-native';
 
 function AdminPanelScreen({ navigation }) {
@@ -904,6 +906,24 @@ function AdminPanelScreen({ navigation }) {
       },
     },
     {
+      key: 'shapes',
+      title: 'Manage Shapes',
+      description: 'Configure nail shapes and prices',
+      icon: 'shape',
+      onPress: () => {
+        setActiveView('shapes');
+      },
+    },
+    {
+      key: 'deliveryMethods',
+      title: 'Manage Delivery Methods',
+      description: 'Configure delivery options and pricing',
+      icon: 'truck',
+      onPress: () => {
+        setActiveView('deliveryMethods');
+      },
+    },
+    {
       key: 'users',
       title: 'Manage Users',
       description: 'View and manage user accounts',
@@ -1106,6 +1126,32 @@ function AdminPanelScreen({ navigation }) {
   if (activeView === 'theme') {
     return (
       <ManageThemeScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
+          },
+        }}
+      />
+    );
+  }
+
+  if (activeView === 'shapes') {
+    return (
+      <ManageShapesScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
+          },
+        }}
+      />
+    );
+  }
+
+  if (activeView === 'deliveryMethods') {
+    return (
+      <ManageDeliveryMethodsScreen
         navigation={{
           ...navigation,
           goBack: () => {

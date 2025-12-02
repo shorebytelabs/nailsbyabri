@@ -15,11 +15,11 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
 import { fetchShapes, createOrUpdateOrder } from '../services/api';
-import { calculatePriceBreakdown, pricingConstants, formatCurrency } from '../utils/pricing';
+import { calculatePriceBreakdown, calculatePriceBreakdownSync, getDeliveryMethods, getDeliveryMethodsSync, clearDeliveryMethodsCache, formatCurrency } from '../utils/pricing';
 import { validatePromoCode } from '../services/promoCodeService';
 import PrimaryButton from '../components/PrimaryButton';
 import Icon from '../icons/Icon';
@@ -360,6 +360,8 @@ function NewOrderStepperScreen({ route }) {
 
   const [shapes, setShapes] = useState([]);
   const [loadingShapes, setLoadingShapes] = useState(true);
+  const [deliveryMethods, setDeliveryMethods] = useState(null);
+  const [loadingDeliveryMethods, setLoadingDeliveryMethods] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -528,6 +530,29 @@ function NewOrderStepperScreen({ route }) {
     };
   }, [toastMessage]);
 
+  const loadDeliveryMethods = useCallback(async () => {
+    try {
+      setLoadingDeliveryMethods(true);
+      // Clear cache to get fresh data
+      clearDeliveryMethodsCache();
+      const methods = await getDeliveryMethods();
+      if (methods && Object.keys(methods).length > 0) {
+        setDeliveryMethods(methods);
+      } else {
+        // Fallback to static methods
+        const { pricingConstants } = require('../utils/pricing');
+        setDeliveryMethods(pricingConstants.DELIVERY_METHODS);
+      }
+    } catch (err) {
+      console.error('[NewOrderStepper] Error loading delivery methods:', err);
+      // Fallback to static methods
+      const { pricingConstants } = require('../utils/pricing');
+      setDeliveryMethods(pricingConstants.DELIVERY_METHODS);
+    } finally {
+      setLoadingDeliveryMethods(false);
+    }
+  }, []);
+
   useEffect(() => {
     const loadShapes = async () => {
       try {
@@ -569,7 +594,15 @@ function NewOrderStepperScreen({ route }) {
     };
 
     loadShapes();
-  }, []);
+    loadDeliveryMethods();
+  }, [loadDeliveryMethods]);
+
+  // Reload delivery methods when screen comes into focus (in case admin made changes)
+  useFocusEffect(
+    useCallback(() => {
+      loadDeliveryMethods();
+    }, [loadDeliveryMethods])
+  );
 
   const selectedShape = useMemo(
     () => shapes.find((shape) => shape.id === currentSetDraft.shapeId),
@@ -644,8 +677,9 @@ function NewOrderStepperScreen({ route }) {
 
     const draftSets = Array.isArray(resumeDraft.nailSets) ? resumeDraft.nailSets : [];
     const method = resumeDraft.fulfillment?.method || 'pickup';
-    const methodConfigCandidate = pricingConstants.DELIVERY_METHODS[method];
-    const fallbackMethodConfig = pricingConstants.DELIVERY_METHODS.pickup;
+    const methods = deliveryMethods || getDeliveryMethodsSync();
+    const methodConfigCandidate = methods[method];
+    const fallbackMethodConfig = methods.pickup || Object.values(methods)[0];
     const methodConfigForDraft = methodConfigCandidate || fallbackMethodConfig;
     const speed =
       resumeDraft.fulfillment?.speed || methodConfigForDraft?.defaultSpeed || 'standard';
@@ -839,7 +873,7 @@ function NewOrderStepperScreen({ route }) {
         ? orderDraft.promoCodeData // Pass the validated promo data
         : orderDraft.promoCode; // Fallback to string
 
-      const breakdown = calculatePriceBreakdown({
+      const breakdown = calculatePriceBreakdownSync({
         nailSets: orderDraft.sets.map((set) => ({
           ...set,
           designUploads: (set.designUploads || []).map((upload, index) => ({
@@ -1692,7 +1726,7 @@ function NewOrderStepperScreen({ route }) {
 
   const computeSetPricing = useCallback(
     (setDraft) => {
-      const pricing = calculatePriceBreakdown({
+      const pricing = calculatePriceBreakdownSync({
         nailSets: [
           {
             ...setDraft,
@@ -2240,16 +2274,19 @@ function NewOrderStepperScreen({ route }) {
             <FulfillmentStep
               colors={colors}
               fulfillment={orderDraft.deliveryDetails}
+              deliveryMethods={deliveryMethods || getDeliveryMethodsSync()}
               onChangeMethod={(method) =>
-                setOrderDraft((prev) => ({
-                  ...prev,
-                  deliveryDetails: {
-                    ...prev.deliveryDetails,
-                    method,
-                    speed:
-                      pricingConstants.DELIVERY_METHODS[method]?.defaultSpeed || 'standard',
-                  },
-                }))
+                setOrderDraft((prev) => {
+                  const methods = deliveryMethods || getDeliveryMethodsSync();
+                  return {
+                    ...prev,
+                    deliveryDetails: {
+                      ...prev.deliveryDetails,
+                      method,
+                      speed: methods[method]?.defaultSpeed || 'standard',
+                    },
+                  };
+                })
               }
               onChangeSpeed={(speed) =>
                 setOrderDraft((prev) => ({
@@ -2303,6 +2340,7 @@ function NewOrderStepperScreen({ route }) {
             }}
             onPreviewSet={handlePreviewSet}
             deliveryDetails={orderDraft.deliveryDetails}
+            deliveryMethods={deliveryMethods || getDeliveryMethodsSync()}
             onEditDelivery={() => {
               const fulfillmentIndex = STEP_DEFINITIONS.findIndex((step) => step.key === 'fulfillment');
               if (fulfillmentIndex > -1) {
@@ -2617,6 +2655,13 @@ function ShapeStep({ colors, shapes, selectedShapeId, onSelect, loading }) {
             onPress={() => onSelect(shape.id)}
             accessibilityRole="button"
           >
+            {shape.image_url || shape.imageUrl ? (
+              <Image
+                source={{ uri: shape.image_url || shape.imageUrl }}
+                style={styles.shapeImage}
+                resizeMode="cover"
+              />
+            ) : null}
             <Text
               style={[
                 styles.shapeName,
@@ -4018,7 +4063,7 @@ function SizingStep({
   );
 }
 
-function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, onChangeAddress, saveAddress, onSaveAddressChange }) {
+function FulfillmentStep({ colors, fulfillment, deliveryMethods = {}, onChangeMethod, onChangeSpeed, onChangeAddress, saveAddress, onSaveAddressChange }) {
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState(null); // null = not initialized, 'add_new' or address ID
   const [showDropdown, setShowDropdown] = useState(false);
@@ -4192,7 +4237,7 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
         Delivery method
       </Text>
       <View style={styles.methodRow}>
-        {Object.values(pricingConstants.DELIVERY_METHODS).map((method) => {
+        {Object.values(deliveryMethods || {}).map((method) => {
           const isActive = fulfillment.method === method.id;
           return (
             <TouchableOpacity
@@ -4239,7 +4284,7 @@ function FulfillmentStep({ colors, fulfillment, onChangeMethod, onChangeSpeed, o
       </Text>
       <View style={styles.speedRow}>
         {Object.values(
-          pricingConstants.DELIVERY_METHODS[fulfillment.method].speedOptions,
+          deliveryMethods?.[fulfillment.method]?.speedOptions || {},
         ).map((speed) => {
           const isActive = fulfillment.speed === speed.id;
           return (
@@ -4649,6 +4694,7 @@ function ReviewStep({
   onAddAnotherSet,
   onPreviewSet,
   deliveryDetails,
+  deliveryMethods = {},
   onEditDelivery,
   promoCode = '',
   isPromoInputVisible = false,
@@ -4669,7 +4715,8 @@ function ReviewStep({
     warning: warningColor = '#FF9800',
   } = colors || {};
 
-  const methodConfig = pricingConstants.DELIVERY_METHODS[deliveryDetails?.method] || null;
+  const methods = deliveryMethods || getDeliveryMethodsSync();
+  const methodConfig = methods[deliveryDetails?.method] || null;
   const speedConfig = methodConfig?.speedOptions?.[deliveryDetails?.speed] || null;
   const estimatedDate = priceDetails?.estimatedCompletionDate
     ? new Date(priceDetails.estimatedCompletionDate).toLocaleDateString()
@@ -5329,13 +5376,22 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     gap: 6,
+    alignItems: 'center',
+  },
+  shapeImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 12,
+    marginBottom: 8,
   },
   shapeName: {
     fontSize: 16,
     fontWeight: '700',
+    textAlign: 'center',
   },
   shapeDescription: {
     fontSize: 12,
+    textAlign: 'center',
   },
   designContainer: {
     gap: 16,

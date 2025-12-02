@@ -124,6 +124,78 @@ export async function deleteImageFromStorage(filePath) {
 }
 
 /**
+ * Upload a shape image to Supabase Storage
+ * @param {string} uri - File URI from image picker
+ * @param {string} bucket - Storage bucket name
+ * @returns {Promise<string>} Public URL of uploaded image
+ */
+export async function uploadShapeImage(uri, bucket) {
+  try {
+    if (!uri) {
+      throw new Error('File URI is required');
+    }
+
+    // Get session for authentication
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      throw new Error('Not authenticated');
+    }
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(7);
+    const fileName = `shape_${timestamp}_${randomId}.jpg`;
+    const filePath = `shapes/${fileName}`;
+
+    // Create FormData for React Native
+    const formData = new FormData();
+    formData.append('file', {
+      uri: uri,
+      type: 'image/jpeg',
+      name: fileName,
+    });
+
+    // Upload using Supabase Storage REST API
+    const uploadUrl = `${SUPABASE_URL}/storage/v1/object/${bucket}/${filePath}`;
+
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        // Don't set Content-Type - let FormData set it with boundary
+      },
+      body: formData,
+    });
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      let errorMessage = 'Upload failed';
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.message || errorJson.error || errorMessage;
+      } catch {
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(filePath);
+
+    if (!urlData?.publicUrl) {
+      throw new Error('Failed to get image URL from storage.');
+    }
+
+    return urlData.publicUrl;
+  } catch (error) {
+    console.error('[imageStorageService] Error uploading shape image:', error);
+    throw error;
+  }
+}
+
+/**
  * Extract storage path from a public URL
  * @param {string} url - Public Supabase Storage URL
  * @returns {string|null} Storage path or null if invalid

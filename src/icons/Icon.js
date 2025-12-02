@@ -742,6 +742,74 @@ const iconRenderers = {
       />
     </Svg>
   ),
+  shape: (props = {}) => (
+    <Svg
+      width={ICON_SIZE}
+      height={ICON_SIZE}
+      viewBox="0 0 24 24"
+      color={props.color || 'currentColor'}
+      {...props}
+    >
+      <Path
+        d="M12 2L2 7l10 5 10-5-10-5Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M2 17l10 5 10-5M2 12l10 5 10-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+    </Svg>
+  ),
+  truck: (props = {}) => (
+    <Svg
+      width={ICON_SIZE}
+      height={ICON_SIZE}
+      viewBox="0 0 24 24"
+      color={props.color || 'currentColor'}
+      {...props}
+    >
+      <Path
+        d="M1 3h15v13H1z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M16 8h4l3 3v5h-7V8z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+      <Circle cx="5.5" cy="18.5" r="2.5" fill="none" stroke="currentColor" strokeWidth={1.8} />
+      <Circle cx="18.5" cy="18.5" r="2.5" fill="none" stroke="currentColor" strokeWidth={1.8} />
+    </Svg>
+  ),
+  chevronUp: (props = {}) => (
+    <Svg
+      width={ICON_SIZE}
+      height={ICON_SIZE}
+      viewBox="0 0 24 24"
+      color={props.color || 'currentColor'}
+      {...props}
+    >
+      <Path
+        d="m18 15-6-6-6 6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.9}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  ),
 };
 
 export function Icon({ name, color, size = ICON_SIZE, ...rest }) {
