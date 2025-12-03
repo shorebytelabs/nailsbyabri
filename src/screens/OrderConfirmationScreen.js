@@ -59,7 +59,6 @@ function OrderConfirmationScreen({ order, onDone, onViewOrder }) {
   const orderItem =
     order?.nailSets?.[0]?.name || shapeCatalog[0]?.name || 'Custom Nail Set';
   const fulfillmentMethod = methodConfig.label;
-  const totalPaid = order?.pricing ? formatCurrency(order.pricing.total) : '—';
   const contactEmail =
     order?.contactEmail ||
     order?.customerEmail ||
@@ -72,9 +71,8 @@ function OrderConfirmationScreen({ order, onDone, onViewOrder }) {
       { label: 'Order Item', value: orderItem },
       { label: 'Delivery Method', value: fulfillmentMethod },
       { label: 'Delivery Timing', value: speedConfig?.description || '—' },
-      { label: 'Total Paid', value: totalPaid },
     ],
-    [orderItem, totalPaid, fulfillmentMethod, speedConfig?.description],
+    [orderItem, fulfillmentMethod, speedConfig?.description],
   );
 
   const handleCopyOrderId = useCallback(async () => {

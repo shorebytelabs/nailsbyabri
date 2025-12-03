@@ -328,6 +328,43 @@ function transformOrderSetFromDB(set) {
  * Transform order from database to app format
  */
 function transformOrderFromDB(order, orderSets = []) {
+  // Parse pricing if it's a string (JSONB from Supabase might be stringified)
+  let pricing = order.pricing;
+  if (typeof pricing === 'string') {
+    try {
+      pricing = JSON.parse(pricing);
+    } catch (e) {
+      console.warn('[transformOrderFromDB] Failed to parse pricing JSON:', e);
+      pricing = null;
+    }
+  }
+
+  // If pricing is missing or invalid, try to recalculate it
+  if (!pricing || typeof pricing !== 'object' || !pricing.total) {
+    try {
+      const nailSets = orderSets.map(transformOrderSetFromDB);
+      const fulfillment = order.fulfillment || { method: 'pickup', speed: 'standard', address: null };
+      const promoCode = order.promo_code;
+      
+      // Only recalculate if we have nail sets
+      if (nailSets.length > 0) {
+        pricing = calculatePriceBreakdown({
+          nailSets,
+          fulfillment,
+          promoCode,
+        });
+        if (__DEV__) {
+          console.log('[transformOrderFromDB] Recalculated missing/invalid pricing:', pricing);
+        }
+      } else {
+        pricing = null;
+      }
+    } catch (error) {
+      console.error('[transformOrderFromDB] Failed to recalculate pricing:', error);
+      pricing = null;
+    }
+  }
+
   return {
     id: order.id,
     userId: order.user_id,
@@ -337,7 +374,7 @@ function transformOrderFromDB(order, orderSets = []) {
     customerSizes: order.customer_sizes || { mode: 'standard', values: {} },
     orderNotes: order.order_notes || '',
     promoCode: order.promo_code,
-    pricing: order.pricing,
+    pricing,
     paymentIntentId: order.payment_intent_id,
     discount: order.discount || 0,
     trackingNumber: order.tracking_number || '',
@@ -435,6 +472,13 @@ export async function createOrUpdateOrder(orderData) {
 
     const { nailSets, fulfillment, customerSizes, orderNotes, promoCode, status } = orderData;
 
+    // Backend validation constants (must match frontend)
+    const MAX_SETS_PER_ORDER = 10;
+    const MAX_PHOTOS_PER_SET = 5;
+    const MAX_COMMENT_LENGTH = 500;
+    const MAX_IMAGE_SIZE_MB = 5;
+    const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+
     // Normalize and validate nail sets
     const normalizedSets = Array.isArray(nailSets)
       ? nailSets.map(normalizeNailSetForStorage).filter((set) => set.shape_id)
@@ -444,6 +488,66 @@ export async function createOrUpdateOrder(orderData) {
     // This allows creating draft orders for image upload purposes before nail sets are created
     if (!normalizedSets.length && status !== 'Draft') {
       throw new Error('At least one nail set is required');
+    }
+
+    // Validate max sets per order
+    if (normalizedSets.length > MAX_SETS_PER_ORDER) {
+      throw new Error(`Maximum ${MAX_SETS_PER_ORDER} sets per order allowed`);
+    }
+
+    // Validate order notes length
+    const orderNotesStr = typeof orderNotes === 'string' ? orderNotes.trim() : '';
+    if (orderNotesStr.length > MAX_COMMENT_LENGTH) {
+      throw new Error(`Order notes must be ${MAX_COMMENT_LENGTH} characters or less`);
+    }
+
+    // Validate each set
+    for (const set of normalizedSets) {
+      // Validate comment lengths
+      if (set.description && set.description.length > MAX_COMMENT_LENGTH) {
+        throw new Error(`Design description must be ${MAX_COMMENT_LENGTH} characters or less`);
+      }
+      if (set.set_notes && set.set_notes.length > MAX_COMMENT_LENGTH) {
+        throw new Error(`Set notes must be ${MAX_COMMENT_LENGTH} characters or less`);
+      }
+
+      // Validate photo counts
+      const designUploadCount = Array.isArray(set.design_uploads) ? set.design_uploads.length : 0;
+      if (designUploadCount > MAX_PHOTOS_PER_SET) {
+        throw new Error(`Maximum ${MAX_PHOTOS_PER_SET} design photos per set allowed`);
+      }
+
+      const sizingUploadCount = Array.isArray(set.sizing_uploads) ? set.sizing_uploads.length : 0;
+      if (sizingUploadCount > MAX_PHOTOS_PER_SET) {
+        throw new Error(`Maximum ${MAX_PHOTOS_PER_SET} sizing photos per set allowed`);
+      }
+
+      // Validate image sizes (for base64 images - Storage URLs are already validated on upload)
+      if (Array.isArray(set.design_uploads)) {
+        for (const upload of set.design_uploads) {
+          if (upload.data || upload.base64 || upload.content) {
+            const base64Data = upload.data || upload.base64 || upload.content || '';
+            // Approximate size: base64 is ~33% larger than binary
+            const estimatedSize = (base64Data.length * 3) / 4;
+            if (estimatedSize > MAX_IMAGE_SIZE_BYTES) {
+              throw new Error(`Image "${upload.fileName || 'Unknown'}" exceeds ${MAX_IMAGE_SIZE_MB}MB size limit`);
+            }
+          }
+        }
+      }
+
+      if (Array.isArray(set.sizing_uploads)) {
+        for (const upload of set.sizing_uploads) {
+          if (upload.data || upload.base64 || upload.content) {
+            const base64Data = upload.data || upload.base64 || upload.content || '';
+            // Approximate size: base64 is ~33% larger than binary
+            const estimatedSize = (base64Data.length * 3) / 4;
+            if (estimatedSize > MAX_IMAGE_SIZE_BYTES) {
+              throw new Error(`Image "${upload.fileName || 'Unknown'}" exceeds ${MAX_IMAGE_SIZE_MB}MB size limit`);
+            }
+          }
+        }
+      }
     }
 
     // Validate each set has design, description, or follow-up flag (skip for draft orders)
@@ -461,12 +565,41 @@ export async function createOrUpdateOrder(orderData) {
       }
     }
 
+    // Duplicate submission protection: Check for recent submissions (non-draft orders only)
+    if (status !== 'Draft' && !orderData.id) {
+      // For new submissions, check if user recently submitted a similar order
+      const DUPLICATE_WINDOW_MS = 5000; // 5 seconds
+      const recentCutoff = new Date(Date.now() - DUPLICATE_WINDOW_MS).toISOString();
+      
+      // Check for recent orders by this user with same status
+      const { data: recentOrders, error: recentError } = await supabase
+        .from('orders')
+        .select('id, created_at, status')
+        .eq('user_id', userId)
+        .eq('status', status)
+        .gte('created_at', recentCutoff)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (!recentError && recentOrders && recentOrders.length > 0) {
+        // Found a recent submission - likely a duplicate
+        throw new Error('Your order is being processed. Please wait a moment before trying again.');
+      }
+    }
+
     // Calculate pricing (using frontend calculation)
-    const pricing = calculatePriceBreakdown({
+    // Note: calculatePriceBreakdown is async, so we need to await it
+    const pricing = await calculatePriceBreakdown({
       nailSets,
       fulfillment,
       promoCode,
     });
+
+    // Ensure pricing is a valid object with total
+    if (!pricing || typeof pricing !== 'object' || typeof pricing.total !== 'number') {
+      console.error('[orders] Invalid pricing calculated:', pricing);
+      throw new Error('Failed to calculate order pricing. Please try again.');
+    }
 
     const now = new Date().toISOString();
     const isUpdate = !!orderData.id;

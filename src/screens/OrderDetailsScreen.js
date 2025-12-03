@@ -623,7 +623,6 @@ function OrderDetailsScreen({ navigation, route }) {
   const orderDate = order?.placedAt || order?.createdAt || order?.submittedAt || order?.updatedAt || null;
   const orderTimestamp = orderDate ? new Date(orderDate) : null;
   const status = order?.status || 'Processing';
-  const totalPaid = order?.pricing ? formatCurrency(order.pricing.total) : formatCurrency(order?.total);
   const items = Array.isArray(order?.nailSets) ? order.nailSets : [];
   const fulfillment = order?.fulfillment || {};
   const deliveryMethod =
@@ -876,10 +875,6 @@ function OrderDetailsScreen({ navigation, route }) {
                     <Text style={styles.statusText}>{status}</Text>
                   </View>
                 </View>
-                <View style={styles.summaryRowCompact}>
-                  <Text style={styles.summaryLabelCompact}>Total paid</Text>
-                  <Text style={styles.summaryValueCompact}>{totalPaid || '—'}</Text>
-                </View>
               </View>
             </View>
 
@@ -1121,7 +1116,7 @@ function OrderDetailsScreen({ navigation, route }) {
               <View style={styles.cardHeaderRow}>
                 <Text style={styles.cardTitle}>Price Breakdown</Text>
               </View>
-              {Array.isArray(order?.pricing?.lineItems) && order.pricing.lineItems.length ? (
+              {order?.pricing && typeof order.pricing === 'object' && Array.isArray(order.pricing.lineItems) && order.pricing.lineItems.length > 0 ? (
                 order.pricing.lineItems.map((item) => (
                   <SummaryRow
                     key={item.id}
@@ -1135,7 +1130,13 @@ function OrderDetailsScreen({ navigation, route }) {
               )}
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalValue}>{formatCurrency(order?.pricing?.total)}</Text>
+                <Text style={styles.totalValue}>
+                  {order?.pricing && typeof order.pricing === 'object' && typeof order.pricing.total === 'number'
+                    ? formatCurrency(order.pricing.total)
+                    : typeof order?.total === 'number'
+                    ? formatCurrency(order.total)
+                    : formatCurrency(0)}
+                </Text>
               </View>
             </View>
           </View>

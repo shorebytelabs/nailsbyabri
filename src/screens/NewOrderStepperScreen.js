@@ -28,6 +28,15 @@ import { withOpacity } from '../utils/color';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { uploadImageToStorage } from '../services/imageStorageService';
 
+// Order safety limits
+const MAX_SETS_PER_ORDER = 10;
+const MAX_PHOTOS_PER_SET = 5;
+const MAX_COMMENT_LENGTH = 500;
+const MAX_IMAGE_SIZE_MB = 5;
+const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
+const DUPLICATE_SUBMISSION_WINDOW_MS = 5000; // 5 seconds
+
 const SET_STEPS = ['shape', 'design', 'size'];
 const ORDER_FLOW_STEPS = ['summary', 'fulfillment', 'review'];
 
@@ -1223,13 +1232,98 @@ function NewOrderStepperScreen({ route }) {
     }
   };
 
+  // Track last submission time to prevent duplicates
+  const lastSubmissionTimeRef = useRef(null);
+
   const handleSubmit = async () => {
     try {
+      // Prevent duplicate submissions
+      const now = Date.now();
+      if (lastSubmissionTimeRef.current && (now - lastSubmissionTimeRef.current) < DUPLICATE_SUBMISSION_WINDOW_MS) {
+        Alert.alert(
+          'Please wait',
+          'Your order is being processed. Please wait a moment before trying again.',
+        );
+        return;
+      }
+
+      // Disable button immediately
+      if (submitting) {
+        return;
+      }
       setSubmitting(true);
+      lastSubmissionTimeRef.current = now;
+
       if (!orderDraft.sets.length) {
         Alert.alert('Add a nail set', 'Save at least one nail set before submitting your order.');
         setCurrentStep(0);
+        setSubmitting(false);
         return;
+      }
+
+      // Validate max sets
+      if (orderDraft.sets.length > MAX_SETS_PER_ORDER) {
+        Alert.alert(
+          'Too many sets',
+          `You can only add up to ${MAX_SETS_PER_ORDER} sets per order. Please remove ${orderDraft.sets.length - MAX_SETS_PER_ORDER} set${orderDraft.sets.length - MAX_SETS_PER_ORDER !== 1 ? 's' : ''} before submitting.`,
+        );
+        setSubmitting(false);
+        return;
+      }
+
+      // Validate comment lengths
+      const orderNotesLength = (orderDraft.orderNotes || '').length;
+      if (orderNotesLength > MAX_COMMENT_LENGTH) {
+        Alert.alert(
+          'Comment too long',
+          `Order notes must be ${MAX_COMMENT_LENGTH} characters or less. Your current notes are ${orderNotesLength} characters. Please shorten them.`,
+        );
+        setSubmitting(false);
+        return;
+      }
+
+      // Validate set comments
+      for (const set of orderDraft.sets) {
+        const setNotesLength = (set.notes || '').length;
+        if (setNotesLength > MAX_COMMENT_LENGTH) {
+          Alert.alert(
+            'Comment too long',
+            `Notes for "${set.name || 'this set'}" must be ${MAX_COMMENT_LENGTH} characters or less. Your current notes are ${setNotesLength} characters. Please shorten them.`,
+          );
+          setSubmitting(false);
+          return;
+        }
+
+        const descriptionLength = (set.designDescription || '').length;
+        if (descriptionLength > MAX_COMMENT_LENGTH) {
+          Alert.alert(
+            'Description too long',
+            `Design description for "${set.name || 'this set'}" must be ${MAX_COMMENT_LENGTH} characters or less. Your current description is ${descriptionLength} characters. Please shorten it.`,
+          );
+          setSubmitting(false);
+          return;
+        }
+
+        // Validate photo count per set
+        const designPhotoCount = (set.designUploads || []).length;
+        if (designPhotoCount > MAX_PHOTOS_PER_SET) {
+          Alert.alert(
+            'Too many photos',
+            `"${set.name || 'This set'}" has ${designPhotoCount} design photos, but the maximum is ${MAX_PHOTOS_PER_SET}. Please remove ${designPhotoCount - MAX_PHOTOS_PER_SET} photo${designPhotoCount - MAX_PHOTOS_PER_SET !== 1 ? 's' : ''}.`,
+          );
+          setSubmitting(false);
+          return;
+        }
+
+        const sizingPhotoCount = (set.sizingUploads || []).length;
+        if (sizingPhotoCount > MAX_PHOTOS_PER_SET) {
+          Alert.alert(
+            'Too many photos',
+            `"${set.name || 'This set'}" has ${sizingPhotoCount} sizing photos, but the maximum is ${MAX_PHOTOS_PER_SET}. Please remove ${sizingPhotoCount - MAX_PHOTOS_PER_SET} photo${sizingPhotoCount - MAX_PHOTOS_PER_SET !== 1 ? 's' : ''}.`,
+          );
+          setSubmitting(false);
+          return;
+        }
       }
       
       // Check capacity availability before submitting
@@ -1384,12 +1478,22 @@ function NewOrderStepperScreen({ route }) {
 
   const handleAddDesignUpload = async () => {
     try {
+      // Check current photo count
+      const currentPhotoCount = (currentSetDraft.designUploads || []).length;
+      if (currentPhotoCount >= MAX_PHOTOS_PER_SET) {
+        Alert.alert(
+          'Photo limit reached',
+          `You can upload a maximum of ${MAX_PHOTOS_PER_SET} photos per nail set. Please remove a photo first if you'd like to add a new one.`,
+        );
+        return;
+      }
+
       const response = await launchImageLibrary({
         mediaType: 'photo',
         includeBase64: false, // Don't need base64, use URI for upload
         quality: 0.85,
         maxWidth: 1500,
-        selectionLimit: 0, // Allow multiple
+        selectionLimit: MAX_PHOTOS_PER_SET - currentPhotoCount, // Limit selection to remaining slots
       });
 
       if (response.didCancel) {
@@ -1404,6 +1508,58 @@ function NewOrderStepperScreen({ route }) {
       const assets = Array.isArray(response.assets) ? response.assets : [];
       if (!assets.length) {
         return;
+      }
+
+      // Validate image count won't exceed limit
+      const totalPhotosAfter = currentPhotoCount + assets.length;
+      if (totalPhotosAfter > MAX_PHOTOS_PER_SET) {
+        Alert.alert(
+          'Too many photos',
+          `You can only upload ${MAX_PHOTOS_PER_SET} photos per nail set. You currently have ${currentPhotoCount} photo${currentPhotoCount !== 1 ? 's' : ''}. Please select ${MAX_PHOTOS_PER_SET - currentPhotoCount} or fewer.`,
+        );
+        return;
+      }
+
+      // Validate image types and sizes
+      const invalidAssets = [];
+      for (const asset of assets) {
+        // Check file type
+        const mimeType = asset.type?.toLowerCase() || '';
+        const fileName = asset.fileName?.toLowerCase() || '';
+        const isJpeg = mimeType.includes('jpeg') || mimeType.includes('jpg') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg');
+        const isPng = mimeType.includes('png') || fileName.endsWith('.png');
+        
+        if (!isJpeg && !isPng) {
+          invalidAssets.push({
+            fileName: asset.fileName || 'Unknown',
+            reason: 'Only JPG and PNG images are allowed',
+          });
+          continue;
+        }
+
+        // Check file size (if available)
+        if (asset.fileSize && asset.fileSize > MAX_IMAGE_SIZE_BYTES) {
+          invalidAssets.push({
+            fileName: asset.fileName || 'Unknown',
+            reason: `File size exceeds ${MAX_IMAGE_SIZE_MB}MB limit`,
+          });
+        }
+      }
+
+      if (invalidAssets.length > 0) {
+        const errorMessages = invalidAssets.map((a) => `• ${a.fileName}: ${a.reason}`).join('\n');
+        Alert.alert(
+          'Invalid images',
+          `Some images couldn't be uploaded:\n\n${errorMessages}\n\nPlease select JPG or PNG images under ${MAX_IMAGE_SIZE_MB}MB each.`,
+        );
+        // Remove invalid assets from the list
+        assets.splice(0, assets.length, ...assets.filter((asset, index) => {
+          const invalidIndex = invalidAssets.findIndex((inv) => inv.fileName === (asset.fileName || 'Unknown'));
+          return invalidIndex === -1;
+        }));
+        if (assets.length === 0) {
+          return;
+        }
       }
 
       // Ensure we have a user ID and order ID before uploading
@@ -1483,6 +1639,9 @@ function NewOrderStepperScreen({ route }) {
         } catch (error) {
           console.error('[NewOrderStepper] Error uploading design image:', error);
           
+          // Safely extract error message
+          const errorMessage = error?.message || error?.toString() || 'Upload failed';
+          
           // Mark upload as failed
           setCurrentSetDraft((prev) => ({
             ...prev,
@@ -1491,13 +1650,13 @@ function NewOrderStepperScreen({ route }) {
                 ? {
                     ...upload,
                     uploading: false,
-                    error: error.message || 'Upload failed',
+                    error: errorMessage,
                   }
                 : upload,
             ),
           }));
 
-          Alert.alert('Upload Error', `Failed to upload image: ${error.message || 'Please try again.'}`);
+          Alert.alert('Upload Error', `Failed to upload image: ${errorMessage}`);
           return null;
         }
       });
@@ -1517,12 +1676,22 @@ function NewOrderStepperScreen({ route }) {
 
   const handleAddSizingUpload = async () => {
     try {
+      // Check current photo count
+      const currentPhotoCount = (currentSetDraft.sizingUploads || []).length;
+      if (currentPhotoCount >= MAX_PHOTOS_PER_SET) {
+        Alert.alert(
+          'Photo limit reached',
+          `You can upload a maximum of ${MAX_PHOTOS_PER_SET} photos per nail set. Please remove a photo first if you'd like to add a new one.`,
+        );
+        return;
+      }
+
       const response = await launchImageLibrary({
         mediaType: 'photo',
         includeBase64: false, // Don't need base64, use URI for upload
         quality: 0.85,
         maxWidth: 1500,
-        selectionLimit: 0, // Allow multiple
+        selectionLimit: MAX_PHOTOS_PER_SET - currentPhotoCount, // Limit selection to remaining slots
       });
 
       if (response.didCancel) {
@@ -1537,6 +1706,58 @@ function NewOrderStepperScreen({ route }) {
       const assets = Array.isArray(response.assets) ? response.assets : [];
       if (!assets.length) {
         return;
+      }
+
+      // Validate image count won't exceed limit
+      const totalPhotosAfter = currentPhotoCount + assets.length;
+      if (totalPhotosAfter > MAX_PHOTOS_PER_SET) {
+        Alert.alert(
+          'Too many photos',
+          `You can only upload ${MAX_PHOTOS_PER_SET} photos per nail set. You currently have ${currentPhotoCount} photo${currentPhotoCount !== 1 ? 's' : ''}. Please select ${MAX_PHOTOS_PER_SET - currentPhotoCount} or fewer.`,
+        );
+        return;
+      }
+
+      // Validate image types and sizes
+      const invalidAssets = [];
+      for (const asset of assets) {
+        // Check file type
+        const mimeType = asset.type?.toLowerCase() || '';
+        const fileName = asset.fileName?.toLowerCase() || '';
+        const isJpeg = mimeType.includes('jpeg') || mimeType.includes('jpg') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg');
+        const isPng = mimeType.includes('png') || fileName.endsWith('.png');
+        
+        if (!isJpeg && !isPng) {
+          invalidAssets.push({
+            fileName: asset.fileName || 'Unknown',
+            reason: 'Only JPG and PNG images are allowed',
+          });
+          continue;
+        }
+
+        // Check file size (if available)
+        if (asset.fileSize && asset.fileSize > MAX_IMAGE_SIZE_BYTES) {
+          invalidAssets.push({
+            fileName: asset.fileName || 'Unknown',
+            reason: `File size exceeds ${MAX_IMAGE_SIZE_MB}MB limit`,
+          });
+        }
+      }
+
+      if (invalidAssets.length > 0) {
+        const errorMessages = invalidAssets.map((a) => `• ${a.fileName}: ${a.reason}`).join('\n');
+        Alert.alert(
+          'Invalid images',
+          `Some images couldn't be uploaded:\n\n${errorMessages}\n\nPlease select JPG or PNG images under ${MAX_IMAGE_SIZE_MB}MB each.`,
+        );
+        // Remove invalid assets from the list
+        assets.splice(0, assets.length, ...assets.filter((asset, index) => {
+          const invalidIndex = invalidAssets.findIndex((inv) => inv.fileName === (asset.fileName || 'Unknown'));
+          return invalidIndex === -1;
+        }));
+        if (assets.length === 0) {
+          return;
+        }
       }
 
       // Ensure we have a user ID and order ID before uploading
@@ -1616,6 +1837,9 @@ function NewOrderStepperScreen({ route }) {
         } catch (error) {
           console.error('[NewOrderStepper] Error uploading sizing image:', error);
           
+          // Safely extract error message
+          const errorMessage = error?.message || error?.toString() || 'Upload failed';
+          
           // Mark upload as failed
           setCurrentSetDraft((prev) => ({
             ...prev,
@@ -1624,20 +1848,22 @@ function NewOrderStepperScreen({ route }) {
                 ? {
                     ...upload,
                     uploading: false,
-                    error: error.message || 'Upload failed',
+                    error: errorMessage,
                   }
                 : upload,
             ),
           }));
 
-          Alert.alert('Upload Error', `Failed to upload image: ${error.message || 'Please try again.'}`);
+          Alert.alert('Upload Error', `Failed to upload image: ${errorMessage}`);
           return null;
         }
       });
 
       await Promise.all(uploadPromises);
     } catch (err) {
-      Alert.alert('Upload error', err.message || 'Something went wrong. Please try again.');
+      // Safely extract error message
+      const errorMessage = err?.message || err?.toString() || 'Something went wrong. Please try again.';
+      Alert.alert('Upload error', errorMessage);
     }
   };
 
@@ -1803,6 +2029,44 @@ function NewOrderStepperScreen({ route }) {
       setStepErrors((prev) => ({ ...prev, size: true }));
       return;
     }
+
+    // Validate comment lengths before saving
+    const setNotesLength = (currentSetDraft.notes || '').length;
+    if (setNotesLength > MAX_COMMENT_LENGTH) {
+      Alert.alert(
+        'Notes too long',
+        `Set notes must be ${MAX_COMMENT_LENGTH} characters or less. Your current notes are ${setNotesLength} characters. Please shorten them.`,
+      );
+      return;
+    }
+
+    const descriptionLength = (currentSetDraft.designDescription || '').length;
+    if (descriptionLength > MAX_COMMENT_LENGTH) {
+      Alert.alert(
+        'Description too long',
+        `Design description must be ${MAX_COMMENT_LENGTH} characters or less. Your current description is ${descriptionLength} characters. Please shorten it.`,
+      );
+      return;
+    }
+
+    // Validate photo counts
+    const designPhotoCount = (currentSetDraft.designUploads || []).length;
+    if (designPhotoCount > MAX_PHOTOS_PER_SET) {
+      Alert.alert(
+        'Too many photos',
+        `You can only upload ${MAX_PHOTOS_PER_SET} design photos per nail set. Please remove ${designPhotoCount - MAX_PHOTOS_PER_SET} photo${designPhotoCount - MAX_PHOTOS_PER_SET !== 1 ? 's' : ''}.`,
+      );
+      return;
+    }
+
+    const sizingPhotoCount = (currentSetDraft.sizingUploads || []).length;
+    if (sizingPhotoCount > MAX_PHOTOS_PER_SET) {
+      Alert.alert(
+        'Too many photos',
+        `You can only upload ${MAX_PHOTOS_PER_SET} sizing photos per nail set. Please remove ${sizingPhotoCount - MAX_PHOTOS_PER_SET} photo${sizingPhotoCount - MAX_PHOTOS_PER_SET !== 1 ? 's' : ''}.`,
+      );
+      return;
+    }
     
     // If user selected manual entry with save-as-default checkbox checked, save as default
     const shouldSaveAsDefault = saveAsDefault || currentSetDraft.saveAsDefault;
@@ -1853,6 +2117,17 @@ function NewOrderStepperScreen({ route }) {
     let nextCount = 0;
     setOrderDraft((prev) => {
       const existingIndex = prev.sets.findIndex((set) => set.id === setId);
+      const isNewSet = existingIndex < 0;
+      
+      // Check max sets limit when adding a new set
+      if (isNewSet && prev.sets.length >= MAX_SETS_PER_ORDER) {
+        Alert.alert(
+          'Set limit reached',
+          `You can only add up to ${MAX_SETS_PER_ORDER} sets per order. Please remove a set first if you'd like to add a new one.`,
+        );
+        return prev; // Don't update state
+      }
+
       const nextSets =
         existingIndex >= 0
           ? prev.sets.map((set, index) => (index === existingIndex ? setToSave : set))
@@ -2922,6 +3197,7 @@ function DesignStep({
           placeholderTextColor={withOpacity(primaryFont, 0.4)}
           multiline
           numberOfLines={4}
+          maxLength={MAX_COMMENT_LENGTH}
           style={[
             styles.designDescriptionInput,
             {
