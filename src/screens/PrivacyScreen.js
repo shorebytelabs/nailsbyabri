@@ -68,7 +68,18 @@ function PrivacyScreen({ navigation }) {
           • Payment information (processed securely through Venmo)
         </Text>
 
-        <Text style={[styles.subsectionTitle, { color: primaryFont }]}>1.3 Usage Information</Text>
+        <Text style={[styles.subsectionTitle, { color: primaryFont }]}>1.3 Feedback Information</Text>
+        <Text style={[styles.bodyText, { color: primaryFont }]}>
+          When you provide feedback on completed orders, we collect:
+        </Text>
+        <Text style={[styles.bodyText, { color: primaryFont }]}>
+          • Star rating (1-5 stars){'\n'}
+          • Written comments or reviews (optional){'\n'}
+          • Photos of completed nails (optional){'\n'}
+          • Timestamp of feedback submission
+        </Text>
+
+        <Text style={[styles.subsectionTitle, { color: primaryFont }]}>1.4 Usage Information</Text>
         <Text style={[styles.bodyText, { color: primaryFont }]}>
           We automatically collect certain information when you use the App, including:
         </Text>
@@ -88,6 +99,7 @@ function PrivacyScreen({ navigation }) {
           • Process and fulfill your orders{'\n'}
           • Communicate with you about your orders, account, and our services{'\n'}
           • Send you notifications (order updates, promotions, etc.){'\n'}
+          • Collect and analyze customer feedback to improve our products and services{'\n'}
           • Verify your age and eligibility to use the App{'\n'}
           • Detect, prevent, and address technical issues and fraud{'\n'}
           • Comply with legal obligations
