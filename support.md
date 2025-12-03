@@ -11,7 +11,7 @@ Need help with the Nails by Abri app? We're here to assist you.
 
 If you have questions, concerns, or need technical support, please reach out to us:
 
-**Email:** NailsByAbriannaC@gmail.com(mailto:NailsByAbriannaC@gmail.com)
+**Email:** [NailsByAbriannaC@gmail.com](mailto:NailsByAbriannaC@gmail.com)
 
 We aim to respond to all inquiries within 24-48 hours.
 

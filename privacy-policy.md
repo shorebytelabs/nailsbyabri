@@ -118,7 +118,7 @@ We may update this Privacy Policy from time to time. We will notify you of any m
 
 If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us at:
 
-**Email:** NailsByAbriannaC@gmail.com(mailto:NailsByAbriannaC@gmail.com)
+**Email:** [NailsByAbriannaC@gmail.com](mailto:NailsByAbriannaC@gmail.com)
 
 By using the Nails by Abri App, you acknowledge that you have read, understood, and agree to this Privacy Policy.
 
