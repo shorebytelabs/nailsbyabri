@@ -13,7 +13,7 @@
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		DC9BB3092ED36A17000F826B /* SplashThemeModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC9BB3082ED36A17000F826B /* SplashThemeModule.swift */; };
 		DC9BB30A2ED36A17000F826B /* SplashThemeModule.m in Sources */ = {isa = PBXBuildFile; fileRef = DC9BB3072ED36A17000F826B /* SplashThemeModule.m */; };
-		F360C4695E66B46AEAA6ECF9 /* libPods-nailsbyabri.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C7B8F76E5E99CEEEB1E3C97 /* libPods-nailsbyabri.a */; };
+		DE08AACECC26BE5DDBF6ECAE /* libPods-nailsbyabri.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 79578172EF3D0B62C0206608 /* libPods-nailsbyabri.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -21,11 +21,11 @@
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = nailsbyabri/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = nailsbyabri/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = nailsbyabri/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		3C7B8F76E5E99CEEEB1E3C97 /* libPods-nailsbyabri.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-nailsbyabri.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		4EAB9F8F5B7050A704168450 /* Pods-nailsbyabri.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-nailsbyabri.release.xcconfig"; path = "Target Support Files/Pods-nailsbyabri/Pods-nailsbyabri.release.xcconfig"; sourceTree = "<group>"; };
+		2B928C87E4CD13E7C1EBC541 /* Pods-nailsbyabri.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-nailsbyabri.release.xcconfig"; path = "Target Support Files/Pods-nailsbyabri/Pods-nailsbyabri.release.xcconfig"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = nailsbyabri/AppDelegate.swift; sourceTree = "<group>"; };
+		79578172EF3D0B62C0206608 /* libPods-nailsbyabri.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-nailsbyabri.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = nailsbyabri/LaunchScreen.storyboard; sourceTree = "<group>"; };
-		9A7F5EE75ED9A32C1A159F69 /* Pods-nailsbyabri.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-nailsbyabri.debug.xcconfig"; path = "Target Support Files/Pods-nailsbyabri/Pods-nailsbyabri.debug.xcconfig"; sourceTree = "<group>"; };
+		929658180284755488448A15 /* Pods-nailsbyabri.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-nailsbyabri.debug.xcconfig"; path = "Target Support Files/Pods-nailsbyabri/Pods-nailsbyabri.debug.xcconfig"; sourceTree = "<group>"; };
 		DA733D94FAB4F87B8CFBAB85 /* ReactNativeConfig.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = ReactNativeConfig.xcconfig; sourceTree = "<group>"; };
 		DC9BB3072ED36A17000F826B /* SplashThemeModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = SplashThemeModule.m; path = nailsbyabri/SplashThemeModule.m; sourceTree = "<group>"; };
 		DC9BB3082ED36A17000F826B /* SplashThemeModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SplashThemeModule.swift; path = nailsbyabri/SplashThemeModule.swift; sourceTree = "<group>"; };
@@ -38,7 +38,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F360C4695E66B46AEAA6ECF9 /* libPods-nailsbyabri.a in Frameworks */,
+				DE08AACECC26BE5DDBF6ECAE /* libPods-nailsbyabri.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -64,7 +64,7 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				3C7B8F76E5E99CEEEB1E3C97 /* libPods-nailsbyabri.a */,
+				79578172EF3D0B62C0206608 /* libPods-nailsbyabri.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -102,8 +102,8 @@
 		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				9A7F5EE75ED9A32C1A159F69 /* Pods-nailsbyabri.debug.xcconfig */,
-				4EAB9F8F5B7050A704168450 /* Pods-nailsbyabri.release.xcconfig */,
+				929658180284755488448A15 /* Pods-nailsbyabri.debug.xcconfig */,
+				2B928C87E4CD13E7C1EBC541 /* Pods-nailsbyabri.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -115,14 +115,14 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "nailsbyabri" */;
 			buildPhases = (
-				27C4641F389307BE2E09D008 /* [CP] Check Pods Manifest.lock */,
+				4F84732F173483899DA4F3D5 /* [CP] Check Pods Manifest.lock */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				DC87E7C32ED24334003F9402 /* Generate ReactNativeConfig */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
-				D5ADFD413570D1491C6C3AF9 /* [CP] Embed Pods Frameworks */,
-				3DCFC2C8E1381F7E0111E11D /* [CP] Copy Pods Resources */,
+				BB42BD1E642920D49745E8B4 /* [CP] Embed Pods Frameworks */,
+				78AFB69917E01C34946DFC58 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -194,7 +194,7 @@
 			shellPath = /bin/sh;
 			shellScript = "set -e\n\nWITH_ENVIRONMENT=\"$REACT_NATIVE_PATH/scripts/xcode/with-environment.sh\"\nREACT_NATIVE_XCODE=\"$REACT_NATIVE_PATH/scripts/react-native-xcode.sh\"\n\n/bin/sh -c \"$WITH_ENVIRONMENT $REACT_NATIVE_XCODE\"\n";
 		};
-		27C4641F389307BE2E09D008 /* [CP] Check Pods Manifest.lock */ = {
+		4F84732F173483899DA4F3D5 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -216,7 +216,7 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		3DCFC2C8E1381F7E0111E11D /* [CP] Copy Pods Resources */ = {
+		78AFB69917E01C34946DFC58 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -233,7 +233,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-nailsbyabri/Pods-nailsbyabri-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		D5ADFD413570D1491C6C3AF9 /* [CP] Embed Pods Frameworks */ = {
+		BB42BD1E642920D49745E8B4 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -287,10 +287,12 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9A7F5EE75ED9A32C1A159F69 /* Pods-nailsbyabri.debug.xcconfig */;
+			baseConfigurationReference = 929658180284755488448A15 /* Pods-nailsbyabri.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = AXH3Z6NB4D;
 				ENABLE_BITCODE = NO;
@@ -311,6 +313,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "com.shorebytelabs.--PRODUCT-NAME-rfc1034identifier-";
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.shorebytelabs.nailsbyabri;
 				PRODUCT_NAME = nailsbyabri;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "nailsbyabri-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -320,10 +323,12 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 4EAB9F8F5B7050A704168450 /* Pods-nailsbyabri.release.xcconfig */;
+			baseConfigurationReference = 2B928C87E4CD13E7C1EBC541 /* Pods-nailsbyabri.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = AXH3Z6NB4D;
 				ENVFILE = .env.production;
@@ -343,6 +348,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "com.shorebytelabs.--PRODUCT-NAME-rfc1034identifier-";
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.shorebytelabs.nailsbyabri;
 				PRODUCT_NAME = nailsbyabri;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "nailsbyabri-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";

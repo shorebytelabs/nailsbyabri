@@ -1,15 +1,42 @@
 #!/bin/bash
 
 # Generate ReactNativeConfig for iOS
-export ENVFILE="${ENVFILE:-.env}"
-export SOURCE_ROOT="${SRCROOT}/.."
-export CONFIG_OUTPUT="${SRCROOT}/ReactNativeConfig.xcconfig"
-export GENERATED_DOTENV="${SRCROOT}/ReactNativeConfig/GeneratedDotEnv.m"
+# Priority: 1) /tmp/envfile-override (set by npm script), 2) Environment variable ENVFILE, 3) Xcode build setting ENVFILE, 4) default .env
+if [ -f /tmp/envfile-override ]; then
+  # Highest priority: file written by npm script before build
+  export ENVFILE="$(cat /tmp/envfile-override | tr -d '\n' | tr -d '\r')"
+  echo "📝 Using ENVFILE from /tmp/envfile-override: $ENVFILE"
+elif [ -n "$ENVFILE" ]; then
+  # Environment variable (if set in shell)
+  export ENVFILE="$ENVFILE"
+  echo "📝 Using ENVFILE from environment variable: $ENVFILE"
+else
+  # Use Xcode build setting (this is set in project.pbxproj)
+  # This will be .env.development for Debug, .env.production for Release
+  export ENVFILE="${ENVFILE:-.env}"
+  echo "📝 Using ENVFILE from Xcode build setting: $ENVFILE"
+fi
+
+# Calculate source root - SRCROOT is set by Xcode to the ios/ directory
+# If SRCROOT is not set (manual run), use current directory's parent
+if [ -z "$SRCROOT" ]; then
+  # Manual run - assume we're in project root
+  export SOURCE_ROOT="$(pwd)"
+else
+  # Xcode run - SRCROOT is ios/, so go up one level
+  export SOURCE_ROOT="${SRCROOT}/.."
+fi
+
+export CONFIG_OUTPUT="${SRCROOT:-ios}/ReactNativeConfig.xcconfig"
+export GENERATED_DOTENV="${SRCROOT:-ios}/ReactNativeConfig/GeneratedDotEnv.m"
 
 # Write ENVFILE to /tmp/envfile so react-native-config's podspec script can read it
 # This ensures the podspec script uses the correct .env file
+# Also write to envfile-override so it persists across builds
 echo "$ENVFILE" > /tmp/envfile
+echo "$ENVFILE" > /tmp/envfile-override
 echo "📝 Wrote ENVFILE to /tmp/envfile: $ENVFILE"
+echo "📝 Wrote ENVFILE to /tmp/envfile-override: $ENVFILE"
 
 echo "📦 Generating ReactNativeConfig"
 echo "   ENVFILE: $ENVFILE"
