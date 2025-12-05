@@ -1,20 +1,63 @@
 #!/bin/bash
 
 # Generate ReactNativeConfig for iOS
-# Priority: 1) /tmp/envfile-override (set by npm script), 2) Environment variable ENVFILE, 3) Xcode build setting ENVFILE, 4) default .env
-if [ -f /tmp/envfile-override ]; then
-  # Highest priority: file written by npm script before build
+# Priority logic:
+# 1. Archive builds (ACTION=install): ALWAYS use Xcode build setting (Release = .env.production)
+# 2. Regular builds: Use Xcode build setting (Debug = .env.development, Release = .env.production)
+# 3. npm script override: Only used if explicitly set and not an Archive build
+
+# Check if this is an Archive build
+IS_ARCHIVE_BUILD=false
+if [ "$ACTION" = "install" ]; then
+  IS_ARCHIVE_BUILD=true
+  echo "📦 Archive build detected (ACTION=install) - will use Xcode build setting ENVFILE"
+fi
+
+# For Archive builds, ALWAYS use Xcode build setting (ignore override)
+if [ "$IS_ARCHIVE_BUILD" = true ]; then
+  if [ -n "$ENVFILE" ]; then
+    export ENVFILE="$ENVFILE"
+    echo "📝 Archive: Using ENVFILE from Xcode build setting: $ENVFILE"
+    echo "📝 Archive: CONFIGURATION=$CONFIGURATION"
+  else
+    echo "⚠️  Archive build but ENVFILE not set in Xcode build settings!"
+    export ENVFILE=".env.production"
+    echo "📝 Archive: Falling back to .env.production"
+  fi
+# For regular builds, check Xcode build setting first
+elif [ -n "$ENVFILE" ]; then
+  # Xcode sets ENVFILE in build settings
+  # Debug config: .env.development
+  # Release config: .env.production
+  export ENVFILE="$ENVFILE"
+  echo "📝 Regular build: Using ENVFILE from Xcode build setting: $ENVFILE"
+  echo "📝 Regular build: CONFIGURATION=$CONFIGURATION"
+  
+  # If override exists and is different, warn but use Xcode setting
+  if [ -f /tmp/envfile-override ]; then
+    OVERRIDE_ENVFILE="$(cat /tmp/envfile-override | tr -d '\n' | tr -d '\r')"
+    if [ "$OVERRIDE_ENVFILE" != "$ENVFILE" ]; then
+      echo "⚠️  Warning: /tmp/envfile-override has '$OVERRIDE_ENVFILE' but using Xcode setting '$ENVFILE'"
+      echo "⚠️  To use override, run: npm run ios:dev (or ios:stage, ios:production)"
+    fi
+  fi
+# Check override file (only for manual npm script runs)
+elif [ -f /tmp/envfile-override ]; then
   export ENVFILE="$(cat /tmp/envfile-override | tr -d '\n' | tr -d '\r')"
   echo "📝 Using ENVFILE from /tmp/envfile-override: $ENVFILE"
+# Environment variable fallback
 elif [ -n "$ENVFILE" ]; then
-  # Environment variable (if set in shell)
   export ENVFILE="$ENVFILE"
   echo "📝 Using ENVFILE from environment variable: $ENVFILE"
+# Final fallback
 else
-  # Use Xcode build setting (this is set in project.pbxproj)
-  # This will be .env.development for Debug, .env.production for Release
-  export ENVFILE="${ENVFILE:-.env}"
-  echo "📝 Using ENVFILE from Xcode build setting: $ENVFILE"
+  # Default based on configuration if available
+  if [ "$CONFIGURATION" = "Release" ]; then
+    export ENVFILE=".env.production"
+  else
+    export ENVFILE=".env.development"
+  fi
+  echo "📝 Using default ENVFILE based on CONFIGURATION: $ENVFILE"
 fi
 
 # Calculate source root - SRCROOT is set by Xcode to the ios/ directory

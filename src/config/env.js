@@ -15,6 +15,27 @@ export const APP_ENV = Config.APP_ENV ?? 'development';
 export const SUPABASE_URL = Config.SUPABASE_URL ?? '';
 export const SUPABASE_ANON_KEY = Config.SUPABASE_ANON_KEY ?? '';
 
+// Environment info for debugging (works in production too)
+export const ENV_INFO = {
+  envFile: Config.ENVFILE || 'unknown',
+  appEnv: APP_ENV,
+  supabaseUrl: SUPABASE_URL ? SUPABASE_URL.substring(0, 40) + '...' : 'NOT SET',
+  isProduction: SUPABASE_URL?.includes('production') || SUPABASE_URL?.includes('prod') || APP_ENV === 'production',
+  // Show first part of URL to identify which Supabase instance
+  supabaseInstance: SUPABASE_URL ? new URL(SUPABASE_URL).hostname : 'unknown',
+};
+
+// Always log environment info (even in production) - this helps debug archive issues
+console.log('[env] ========================================');
+console.log('[env] ENVIRONMENT CONFIGURATION');
+console.log('[env] ========================================');
+console.log('[env] APP_ENV:', APP_ENV);
+console.log('[env] ENVFILE:', Config.ENVFILE || 'not set');
+console.log('[env] Supabase Instance:', ENV_INFO.supabaseInstance);
+console.log('[env] Is Production:', ENV_INFO.isProduction);
+console.log('[env] Supabase URL (first 50 chars):', SUPABASE_URL ? SUPABASE_URL.substring(0, 50) + '...' : 'NOT SET');
+console.log('[env] ========================================');
+
 if (__DEV__) {
   console.log('[env] Configuration loaded:');
   console.log('[env]   APP_ENV:', APP_ENV);

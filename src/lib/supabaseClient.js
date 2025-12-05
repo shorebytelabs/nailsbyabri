@@ -1,16 +1,29 @@
 import { createClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SUPABASE_ANON_KEY, SUPABASE_URL } from '../config/env';
+import { SUPABASE_ANON_KEY, SUPABASE_URL, ENV_INFO } from '../config/env';
+
+// Log environment info for debugging (works in production too)
+console.log('[supabase] Environment check:', {
+  hasUrl: !!SUPABASE_URL,
+  hasKey: !!SUPABASE_ANON_KEY,
+  urlLength: SUPABASE_URL?.length || 0,
+  keyLength: SUPABASE_ANON_KEY?.length || 0,
+  envInfo: ENV_INFO,
+});
 
 if (!SUPABASE_URL) {
-  throw new Error('Supabase URL is not set. Ensure SUPABASE_URL is defined in your environment configuration.');
+  const errorMsg = 'Supabase URL is not set. Ensure SUPABASE_URL is defined in your environment configuration. Check that .env.production (for Archive) or .env.development (for Debug) exists and contains SUPABASE_URL.';
+  console.error('[supabase] ❌', errorMsg);
+  console.error('[supabase] ENV_INFO:', ENV_INFO);
+  throw new Error(errorMsg);
 }
 
 if (!SUPABASE_ANON_KEY) {
-  throw new Error(
-    'Supabase anon key is not set. Ensure SUPABASE_ANON_KEY is defined in your environment configuration.',
-  );
+  const errorMsg = 'Supabase anon key is not set. Ensure SUPABASE_ANON_KEY is defined in your environment configuration. Check that .env.production (for Archive) or .env.development (for Debug) exists and contains SUPABASE_ANON_KEY.';
+  console.error('[supabase] ❌', errorMsg);
+  console.error('[supabase] ENV_INFO:', ENV_INFO);
+  throw new Error(errorMsg);
 }
 
 // Ensure URL doesn't have trailing slash and is valid
