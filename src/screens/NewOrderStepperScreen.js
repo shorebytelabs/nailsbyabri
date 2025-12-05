@@ -5030,31 +5030,42 @@ function ReviewStep({
   return (
     <View style={styles.reviewContainer}>
       <View style={styles.reviewSection}>
-        <View style={styles.reviewSectionHeader}>
-          <AppText
-            style={[
-              styles.reviewHeading,
-              { color: primaryFont },
-            ]}
-          >
-            Order Summary
-          </AppText>
-          <TouchableOpacity
-            onPress={onAddAnotherSet}
-            accessibilityRole="button"
-          >
+        <View
+          style={[
+            styles.reviewCard,
+            {
+              borderColor: withOpacity(border, 0.5),
+              backgroundColor: surface,
+            },
+          ]}
+        >
+          <View style={styles.reviewCardHeader}>
             <AppText
               style={[
-                styles.reviewLink,
-                { color: accent },
+                styles.reviewHeading,
+                { color: primaryFont },
               ]}
             >
-              Add another set
+              Order Summary
             </AppText>
-          </TouchableOpacity>
-        </View>
+          </View>
+          <View style={styles.reviewCardActionRow}>
+            <TouchableOpacity
+              onPress={onAddAnotherSet}
+              accessibilityRole="button"
+            >
+              <AppText
+                style={[
+                  styles.reviewLink,
+                  { color: accent },
+                ]}
+              >
+                Add another set
+              </AppText>
+            </TouchableOpacity>
+          </View>
 
-        <View style={styles.reviewSetList}>
+          <View style={styles.reviewSetList}>
           {sets.map((set, index) => {
             const previewSource = resolveUploadPreview(set.designUploads?.[0]);
             const quantity = set.quantity || 1;
@@ -5265,34 +5276,11 @@ function ReviewStep({
               </View>
             );
           })}
+          </View>
         </View>
       </View>
 
       <View style={styles.reviewSection}>
-        <View style={styles.reviewSectionHeader}>
-          <AppText
-            style={[
-              styles.reviewHeading,
-              { color: primaryFont },
-            ]}
-          >
-            Delivery Details
-          </AppText>
-          <TouchableOpacity
-            onPress={onEditDelivery}
-            accessibilityRole="button"
-            accessibilityLabel="Edit delivery details"
-          >
-            <AppText
-              style={[
-                styles.reviewLink,
-                { color: accent },
-              ]}
-            >
-              Edit delivery details
-            </AppText>
-          </TouchableOpacity>
-        </View>
         <View
           style={[
             styles.deliveryCard,
@@ -5302,6 +5290,32 @@ function ReviewStep({
             },
           ]}
         >
+          <View style={styles.reviewCardHeader}>
+            <AppText
+              style={[
+                styles.reviewHeading,
+                { color: primaryFont },
+              ]}
+            >
+              Delivery Details
+            </AppText>
+          </View>
+          <View style={styles.reviewCardActionRow}>
+            <TouchableOpacity
+              onPress={onEditDelivery}
+              accessibilityRole="button"
+              accessibilityLabel="Edit delivery details"
+            >
+              <AppText
+                style={[
+                  styles.reviewLink,
+                  { color: accent },
+                ]}
+              >
+                Edit delivery details
+              </AppText>
+            </TouchableOpacity>
+          </View>
           <View style={styles.reviewMetaRow}>
             <AppText style={[styles.deliveryLabel, { color: secondaryFont }]}>Method</AppText>
             <AppText style={[styles.deliveryValue, { color: primaryFont }]}>
@@ -5407,26 +5421,6 @@ function ReviewStep({
       )}
 
       <View style={styles.reviewSection}>
-        <View style={styles.reviewSectionHeader}>
-          <AppText
-            style={[
-              styles.reviewHeading,
-              { color: primaryFont },
-            ]}
-          >
-            Price Breakdown
-          </AppText>
-          <TouchableOpacity accessibilityRole="button" onPress={onTogglePromoInput}>
-            <AppText
-              style={[
-                styles.reviewLink,
-                { color: withOpacity(primaryFont, 0.7) },
-              ]}
-            >
-              {promoCode ? `Promo code applied: ${promoCode.toUpperCase()}` : 'Have a promo code?'}
-            </AppText>
-          </TouchableOpacity>
-        </View>
         <View
           style={[
             styles.priceCard,
@@ -5436,6 +5430,28 @@ function ReviewStep({
             },
           ]}
         >
+          <View style={styles.reviewCardHeader}>
+            <AppText
+              style={[
+                styles.reviewHeading,
+                { color: primaryFont },
+              ]}
+            >
+              Price Breakdown
+            </AppText>
+          </View>
+          <View style={styles.reviewCardActionRow}>
+            <TouchableOpacity accessibilityRole="button" onPress={onTogglePromoInput}>
+              <AppText
+                style={[
+                  styles.reviewLink,
+                  { color: withOpacity(primaryFont, 0.7) },
+                ]}
+              >
+                {promoCode ? `Promo code applied: ${promoCode.toUpperCase()}` : 'Have a promo code?'}
+              </AppText>
+            </TouchableOpacity>
+          </View>
           <View style={styles.promoContainer}>
             {promoCode ? (
               <View style={styles.promoBadgeRow}>
@@ -6464,6 +6480,20 @@ const styles = StyleSheet.create({
   },
   reviewSection: {
     gap: 12,
+  },
+  reviewCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  reviewCardHeader: {
+    marginBottom: 8,
+  },
+  reviewCardActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 12,
   },
   reviewSectionHeader: {
     flexDirection: 'row',
