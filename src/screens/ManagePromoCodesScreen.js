@@ -4,17 +4,8 @@
  */
 
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {ActivityIndicator, Alert, FlatList, ScrollView, StyleSheet, TextInput, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../icons/Icon';
 import { useTheme } from '../theme';
@@ -275,7 +266,7 @@ function ManagePromoCodesScreen({ navigation }) {
     >
       <View style={styles.promoCardHeader}>
         <View style={styles.promoCardTitleRow}>
-          <Text style={[styles.promoCode, { color: accent }]}>{promo.code}</Text>
+          <AppText style={[styles.promoCode, { color: accent }]}>{promo.code}</AppText>
           <TouchableOpacity
             onPress={() => handleToggleActive(promo)}
             style={[
@@ -287,7 +278,7 @@ function ManagePromoCodesScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.toggleText,
                 {
@@ -296,18 +287,18 @@ function ManagePromoCodesScreen({ navigation }) {
               ]}
             >
               {promo.active ? 'Active' : 'Inactive'}
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </View>
         {promo.description && (
-          <Text style={[styles.promoDescription, { color: secondaryFont }]}>
+          <AppText style={[styles.promoDescription, { color: secondaryFont }]}>
             {promo.description}
-          </Text>
+          </AppText>
         )}
       </View>
 
       <View style={styles.promoDetails}>
-        <Text style={[styles.promoDetail, { color: secondaryFont }]}>
+        <AppText style={[styles.promoDetail, { color: secondaryFont }]}>
           Type: {formatPromoType(promo.type)}
           {promo.value !== null && promo.value !== undefined && (
             <>
@@ -317,12 +308,12 @@ function ManagePromoCodesScreen({ navigation }) {
                 : `$${Number(promo.value).toFixed(2)}`}
             </>
           )}
-        </Text>
+        </AppText>
         {promo.uses_count !== undefined && (
-          <Text style={[styles.promoDetail, { color: secondaryFont }]}>
+          <AppText style={[styles.promoDetail, { color: secondaryFont }]}>
             Uses: {promo.uses_count}
             {promo.max_uses ? ` / ${promo.max_uses}` : ''}
-          </Text>
+          </AppText>
         )}
       </View>
 
@@ -331,15 +322,15 @@ function ManagePromoCodesScreen({ navigation }) {
           onPress={() => handleEditPromo(promo)}
           style={[styles.actionButton, { borderColor: withOpacity(borderColor, 0.5) }]}
         >
-          <Text style={[styles.actionButtonText, { color: primaryFont }]}>Edit</Text>
+          <AppText style={[styles.actionButtonText, { color: primaryFont }]}>Edit</AppText>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => handleDeletePromo(promo)}
           style={[styles.actionButton, { borderColor: withOpacity(colors.error || '#B33A3A', 0.5) }]}
         >
-          <Text style={[styles.actionButtonText, { color: colors.error || '#B33A3A' }]}>
+          <AppText style={[styles.actionButtonText, { color: colors.error || '#B33A3A' }]}>
             Delete
-          </Text>
+          </AppText>
         </TouchableOpacity>
       </View>
     </View>
@@ -351,7 +342,7 @@ function ManagePromoCodesScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="chevronRight" color={primaryFont} size={20} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: primaryFont }]}>Promo Codes</Text>
+        <AppText style={[styles.headerTitle, { color: primaryFont }]}>Promo Codes</AppText>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -385,7 +376,7 @@ function ManagePromoCodesScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.filterChipText,
                 {
@@ -394,7 +385,7 @@ function ManagePromoCodesScreen({ navigation }) {
               ]}
             >
               Active
-            </Text>
+            </AppText>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleActiveFilter(false)}
@@ -406,7 +397,7 @@ function ManagePromoCodesScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.filterChipText,
                 {
@@ -415,7 +406,7 @@ function ManagePromoCodesScreen({ navigation }) {
               ]}
             >
               Inactive
-            </Text>
+            </AppText>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleActiveFilter(null)}
@@ -427,7 +418,7 @@ function ManagePromoCodesScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.filterChipText,
                 {
@@ -436,28 +427,28 @@ function ManagePromoCodesScreen({ navigation }) {
               ]}
             >
               All
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </ScrollView>
       </View>
 
       <View style={styles.contentHeader}>
-        <Text style={[styles.sectionTitle, { color: primaryFont }]}>Promo Codes</Text>
+        <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Promo Codes</AppText>
         <TouchableOpacity
           onPress={handleCreatePromo}
           style={[styles.addButton, { backgroundColor: accent }]}
         >
           <Icon name="plus" color={colors.accentContrast || '#FFFFFF'} size={16} />
-          <Text style={[styles.addButtonText, { color: colors.accentContrast || '#FFFFFF' }]}>
+          <AppText style={[styles.addButtonText, { color: colors.accentContrast || '#FFFFFF' }]}>
             Create
-          </Text>
+          </AppText>
         </TouchableOpacity>
       </View>
 
       {loading ? (
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color={accent} />
-          <Text style={[styles.loadingText, { color: secondaryFont }]}>Loading promo codes...</Text>
+          <AppText style={[styles.loadingText, { color: secondaryFont }]}>Loading promo codes...</AppText>
         </View>
       ) : (
         <FlatList
@@ -470,11 +461,11 @@ function ManagePromoCodesScreen({ navigation }) {
           ListEmptyComponent={
             !loading ? (
               <View style={styles.emptyContainer}>
-                <Text style={[styles.emptyText, { color: secondaryFont }]}>
+                <AppText style={[styles.emptyText, { color: secondaryFont }]}>
                   {searchQuery || activeFilter !== null
                     ? 'No promo codes match your filters'
                     : 'No promo codes yet. Create one to get started.'}
-                </Text>
+                </AppText>
               </View>
             ) : null
           }
@@ -486,9 +477,9 @@ function ManagePromoCodesScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: primaryFont }]}>
+              <AppText style={[styles.modalTitle, { color: primaryFont }]}>
                 {editingPromo ? 'Edit Promo Code' : 'Create Promo Code'}
-              </Text>
+              </AppText>
               <TouchableOpacity onPress={() => setShowPromoForm(false)}>
                 <Icon name="close" color={secondaryFont} size={24} />
               </TouchableOpacity>
@@ -508,7 +499,7 @@ function ManagePromoCodesScreen({ navigation }) {
                 onChangeText={(text) => setFormData({ ...formData, description: text })}
                 placeholder="Welcome discount"
               />
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Type *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Type *</AppText>
               <View style={styles.typeButtons}>
                 {[
                   { value: 'percentage', label: 'Percentage Discount' },
@@ -539,7 +530,7 @@ function ManagePromoCodesScreen({ navigation }) {
                       },
                     ]}
                   >
-                    <Text
+                    <AppText
                       style={[
                         styles.typeButtonText,
                         {
@@ -548,7 +539,7 @@ function ManagePromoCodesScreen({ navigation }) {
                       ]}
                     >
                       {type.label}
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -598,7 +589,7 @@ function ManagePromoCodesScreen({ navigation }) {
               
               {/* Active Toggle */}
               <View style={styles.switchRow}>
-                <Text style={[styles.formLabel, { color: primaryFont }]}>Active</Text>
+                <AppText style={[styles.formLabel, { color: primaryFont }]}>Active</AppText>
                 <TouchableOpacity
                   onPress={() => setFormData({ ...formData, active: !formData.active })}
                   style={[
@@ -627,13 +618,13 @@ function ManagePromoCodesScreen({ navigation }) {
                 onPress={() => setShowPromoForm(false)}
                 style={[styles.modalButton, { borderColor: withOpacity(borderColor, 0.5) }]}
               >
-                <Text style={[styles.modalButtonText, { color: primaryFont }]}>Cancel</Text>
+                <AppText style={[styles.modalButtonText, { color: primaryFont }]}>Cancel</AppText>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleSavePromo}
                 style={[styles.modalButton, styles.modalButtonPrimary, { backgroundColor: accent }]}
               >
-                <Text style={[styles.modalButtonText, styles.modalButtonPrimaryText, { color: colors.accentContrast || '#FFFFFF' }]}>Save</Text>
+                <AppText style={[styles.modalButtonText, styles.modalButtonPrimaryText, { color: colors.accentContrast || '#FFFFFF' }]}>Save</AppText>
               </TouchableOpacity>
             </View>
           </View>

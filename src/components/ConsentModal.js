@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import PrimaryButton from './PrimaryButton';
 import Icon from '../icons/Icon';
 import { useTheme } from '../theme';
 import { withOpacity } from '../utils/color';
 import { supabase } from '../lib/supabaseClient';
+import AppText from './AppText';
 
 /**
  * ConsentModal - Modal that blocks access until user accepts Terms & Conditions and Privacy Policy
@@ -122,34 +123,34 @@ function ConsentModal({
         <View style={[styles.container, { backgroundColor: surface, borderColor }]}>
           <View style={styles.header}>
             <Icon name="alertCircle" color={accent} size={32} />
-            <Text style={[styles.title, { color: primaryFont }]}>Legal Consent Required</Text>
+            <AppText variant="ui" style={[styles.title, { color: primaryFont }]}>Legal Consent Required</AppText>
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
-            <Text style={[styles.message, { color: primaryFont }]}>
+            <AppText style={[styles.message, { color: primaryFont }]}>
               To continue using the app, you must accept our Terms & Conditions and Privacy Policy.
-            </Text>
+            </AppText>
 
             {(missingTerms || missingPrivacy) && (
               <View style={styles.missingInfo}>
-                <Text style={[styles.missingTitle, { color: primaryFont }]}>Missing consent:</Text>
+                <AppText variant="ui" style={[styles.missingTitle, { color: primaryFont }]}>Missing consent:</AppText>
                 {missingTerms && (
-                  <Text style={[styles.missingItem, { color: secondaryFont }]}>
+                  <AppText style={[styles.missingItem, { color: secondaryFont }]}>
                     • Terms & Conditions
-                  </Text>
+                  </AppText>
                 )}
                 {missingPrivacy && (
-                  <Text style={[styles.missingItem, { color: secondaryFont }]}>
+                  <AppText style={[styles.missingItem, { color: secondaryFont }]}>
                     • Privacy Policy
-                  </Text>
+                  </AppText>
                 )}
               </View>
             )}
 
             <View style={[styles.consentContainer, { backgroundColor: withOpacity(colors.secondaryBackground || '#E7D8CA', 0.3), borderColor: accent }]}>
-              <Text style={[styles.instructionText, { color: accent }]}>
+              <AppText variant="ui" style={[styles.instructionText, { color: accent }]}>
                 Tap to check the box and accept:
-              </Text>
+              </AppText>
               
               <TouchableOpacity
                 style={[styles.checkboxRow, { backgroundColor: surface, borderRadius: 12, padding: 16 }]}
@@ -174,9 +175,9 @@ function ConsentModal({
                   )}
                 </View>
                 <View style={styles.consentTextContainer}>
-                  <Text style={[styles.consentText, { color: primaryFont }]}>
+                  <AppText style={[styles.consentText, { color: primaryFont }]}>
                     I agree to the{' '}
-                    <Text
+                    <AppText
                       style={[styles.consentLink, { color: accent }]}
                       onPress={(e) => {
                         e.stopPropagation();
@@ -188,9 +189,9 @@ function ConsentModal({
                       accessibilityLabel="View Terms & Conditions"
                     >
                       Terms & Conditions
-                    </Text>
+                    </AppText>
                     {' '}and{' '}
-                    <Text
+                    <AppText
                       style={[styles.consentLink, { color: accent }]}
                       onPress={(e) => {
                         e.stopPropagation();
@@ -202,14 +203,14 @@ function ConsentModal({
                       accessibilityLabel="View Privacy Policy"
                     >
                       Privacy Policy
-                    </Text>
-                  </Text>
+                    </AppText>
+                  </AppText>
                 </View>
               </TouchableOpacity>
             </View>
 
             {error ? (
-              <Text style={[styles.error, { color: errorColor }]}>{error}</Text>
+              <AppText variant="small" style={[styles.error, { color: errorColor }]}>{error}</AppText>
             ) : null}
           </ScrollView>
 

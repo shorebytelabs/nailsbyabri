@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {ScrollView, StyleSheet, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import ScreenContainer from '../components/ScreenContainer';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
@@ -108,7 +109,7 @@ function ChangePasswordScreen({ navigation }) {
         >
           <Icon name="chevronRight" color={primaryFont} style={styles.backIcon} size={24} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: primaryFont }]}>Change Password</Text>
+        <AppText style={[styles.headerTitle, { color: primaryFont }]}>Change Password</AppText>
         <View style={styles.placeholder} />
       </View>
 
@@ -118,9 +119,9 @@ function ChangePasswordScreen({ navigation }) {
         showsVerticalScrollIndicator={true}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.subtitle, { color: secondaryFont }]}>
+        <AppText style={[styles.subtitle, { color: secondaryFont }]}>
           Enter your current password and choose a new password.
-        </Text>
+        </AppText>
 
         <View style={styles.formSection}>
           <FormField
@@ -161,11 +162,11 @@ function ChangePasswordScreen({ navigation }) {
           />
 
           {passwordError ? (
-            <Text style={[styles.errorText, { color: errorColor }]}>{passwordError}</Text>
+            <AppText style={[styles.errorText, { color: errorColor }]}>{passwordError}</AppText>
           ) : null}
 
           {successMessage ? (
-            <Text style={[styles.successText, { color: successColor }]}>{successMessage}</Text>
+            <AppText style={[styles.successText, { color: successColor }]}>{successMessage}</AppText>
           ) : null}
         </View>
 

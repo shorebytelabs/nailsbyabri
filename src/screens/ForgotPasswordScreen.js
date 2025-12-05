@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
@@ -99,7 +100,7 @@ function ForgotPasswordScreen({ onBackToLogin, onCancel = () => {} }) {
           accessibilityLabel="Go back to Login"
         >
           <Icon name="chevronRight" color={accentColor} style={styles.backIcon} size={20} />
-          <Text style={[styles.backLinkLabel, { color: accentColor }]}>Back to Login</Text>
+          <AppText style={[styles.backLinkLabel, { color: accentColor }]}>Back to Login</AppText>
         </Pressable>
 
         <View style={styles.formStack}>
@@ -125,22 +126,22 @@ function ForgotPasswordScreen({ onBackToLogin, onCancel = () => {} }) {
             ]}
           >
             <View style={styles.formIntro}>
-              <Text
+              <AppText
                 style={[
                   styles.title,
                   { color: primaryFontColor },
                 ]}
               >
                 Reset Password
-              </Text>
-              <Text
+              </AppText>
+              <AppText
                 style={[
                   styles.subtitle,
                   { color: withOpacity(primaryFontColor, 0.75) },
                 ]}
               >
                 Enter your email address and we'll send you a link to reset your password.
-              </Text>
+              </AppText>
             </View>
 
             {success ? (
@@ -154,22 +155,22 @@ function ForgotPasswordScreen({ onBackToLogin, onCancel = () => {} }) {
                     },
                   ]}
                 >
-                  <Text
+                  <AppText
                     style={[
                       styles.successTitle,
                       { color: accentColor },
                     ]}
                   >
                     Check your email
-                  </Text>
-                  <Text
+                  </AppText>
+                  <AppText
                     style={[
                       styles.successMessage,
                       { color: primaryFontColor },
                     ]}
                   >
                     We've sent a password reset link to {email.trim()}. Please check your inbox (the email will be from Supabase) and follow the instructions to reset your password.
-                  </Text>
+                  </AppText>
                 </View>
                 <PrimaryButton
                   label="Back to Login"
@@ -196,7 +197,7 @@ function ForgotPasswordScreen({ onBackToLogin, onCancel = () => {} }) {
                   />
                 </View>
 
-                {error ? <Text style={[styles.error, { color: errorColor }]}>{error}</Text> : null}
+                {error ? <AppText style={[styles.error, { color: errorColor }]}>{error}</AppText> : null}
 
                 <PrimaryButton
                   label="Send Reset Email"

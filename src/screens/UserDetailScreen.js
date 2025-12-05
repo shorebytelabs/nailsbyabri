@@ -5,18 +5,8 @@
  */
 
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Switch, TextInput, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../icons/Icon';
 import { useTheme } from '../theme';
@@ -515,7 +505,7 @@ function UserDetailScreen({ navigation, route }) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.primaryBackground || '#F4EBE3' }]}>
         <View style={styles.loaderContainer}>
-          <Text style={[styles.errorText, { color: colors.error || '#B33A3A' }]}>User not found</Text>
+          <AppText style={[styles.errorText, { color: colors.error || '#B33A3A' }]}>User not found</AppText>
         </View>
       </SafeAreaView>
     );
@@ -533,9 +523,9 @@ function UserDetailScreen({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="chevronRight" color={primaryFont} size={20} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: primaryFont }]} numberOfLines={1}>
+        <AppText style={[styles.headerTitle, { color: primaryFont }]} numberOfLines={1}>
           {user.name || user.email}
-        </Text>
+        </AppText>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -543,10 +533,10 @@ function UserDetailScreen({ navigation, route }) {
         {/* Edit Profile Section */}
         <View style={[styles.section, { backgroundColor: surface, borderColor: withOpacity(borderColor, 0.3) }]}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: primaryFont }]}>Profile Information</Text>
+            <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Profile Information</AppText>
             {!editingProfile ? (
               <TouchableOpacity onPress={() => setEditingProfile(true)}>
-                <Text style={[styles.editButton, { color: accent }]}>Edit</Text>
+                <AppText style={[styles.editButton, { color: accent }]}>Edit</AppText>
               </TouchableOpacity>
             ) : (
               <View style={styles.editActions}>
@@ -560,7 +550,7 @@ function UserDetailScreen({ navigation, route }) {
                     });
                   }}
                 >
-                  <Text style={[styles.cancelButton, { color: secondaryFont }]}>Cancel</Text>
+                  <AppText style={[styles.cancelButton, { color: secondaryFont }]}>Cancel</AppText>
                 </TouchableOpacity>
                 <PrimaryButton
                   label={saving ? 'Saving...' : 'Save'}
@@ -575,7 +565,7 @@ function UserDetailScreen({ navigation, route }) {
           {editingProfile ? (
             <View style={styles.form}>
               <View style={styles.formField}>
-                <Text style={[styles.formLabel, { color: primaryFont }]}>Name</Text>
+                <AppText style={[styles.formLabel, { color: primaryFont }]}>Name</AppText>
                 <TextInput
                   style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont }]}
                   value={profileDraft.name}
@@ -586,7 +576,7 @@ function UserDetailScreen({ navigation, route }) {
               </View>
 
               <View style={styles.formField}>
-                <Text style={[styles.formLabel, { color: primaryFont }]}>Email</Text>
+                <AppText style={[styles.formLabel, { color: primaryFont }]}>Email</AppText>
                 <TextInput
                   style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont }]}
                   value={profileDraft.email}
@@ -600,7 +590,7 @@ function UserDetailScreen({ navigation, route }) {
 
               <View style={styles.formField}>
                 <View style={styles.switchRow}>
-                  <Text style={[styles.formLabel, { color: primaryFont }]}>Active Account</Text>
+                  <AppText style={[styles.formLabel, { color: primaryFont }]}>Active Account</AppText>
                   <Switch
                     value={profileDraft.active}
                     onValueChange={(value) => setProfileDraft((prev) => ({ ...prev, active: value }))}
@@ -613,15 +603,15 @@ function UserDetailScreen({ navigation, route }) {
           ) : (
             <View style={styles.infoGrid}>
               <View style={styles.infoRow}>
-                <Text style={[styles.infoLabel, { color: secondaryFont }]}>Name:</Text>
-                <Text style={[styles.infoValue, { color: primaryFont }]}>{user.name || 'Not set'}</Text>
+                <AppText style={[styles.infoLabel, { color: secondaryFont }]}>Name:</AppText>
+                <AppText style={[styles.infoValue, { color: primaryFont }]}>{user.name || 'Not set'}</AppText>
               </View>
               <View style={styles.infoRow}>
-                <Text style={[styles.infoLabel, { color: secondaryFont }]}>Email:</Text>
-                <Text style={[styles.infoValue, { color: primaryFont }]}>{user.email}</Text>
+                <AppText style={[styles.infoLabel, { color: secondaryFont }]}>Email:</AppText>
+                <AppText style={[styles.infoValue, { color: primaryFont }]}>{user.email}</AppText>
               </View>
               <View style={styles.infoRow}>
-                <Text style={[styles.infoLabel, { color: secondaryFont }]}>Status:</Text>
+                <AppText style={[styles.infoLabel, { color: secondaryFont }]}>Status:</AppText>
                 <View
                   style={[
                     styles.statusBadge,
@@ -632,7 +622,7 @@ function UserDetailScreen({ navigation, route }) {
                     },
                   ]}
                 >
-                  <Text
+                  <AppText
                     style={[
                       styles.statusText,
                       {
@@ -641,14 +631,14 @@ function UserDetailScreen({ navigation, route }) {
                     ]}
                   >
                     {user.active ? 'Active' : 'Inactive'}
-                  </Text>
+                  </AppText>
                 </View>
               </View>
               <View style={styles.infoRow}>
-                <Text style={[styles.infoLabel, { color: secondaryFont }]}>Role:</Text>
-                <Text style={[styles.infoValue, { color: primaryFont }]}>
+                <AppText style={[styles.infoLabel, { color: secondaryFont }]}>Role:</AppText>
+                <AppText style={[styles.infoValue, { color: primaryFont }]}>
                   {user.role === 'admin' ? 'Admin' : 'User'}
-                </Text>
+                </AppText>
               </View>
             </View>
           )}
@@ -657,7 +647,7 @@ function UserDetailScreen({ navigation, route }) {
         {/* Reset Password Section */}
         <View style={[styles.section, { backgroundColor: surface, borderColor: withOpacity(borderColor, 0.3) }]}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: primaryFont }]}>Password</Text>
+            <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Password</AppText>
           </View>
           <PrimaryButton
             label="Reset Password"
@@ -665,21 +655,21 @@ function UserDetailScreen({ navigation, route }) {
             disabled={saving}
             style={styles.actionButton}
           />
-          <Text style={[styles.helpText, { color: secondaryFont }]}>
+          <AppText style={[styles.helpText, { color: secondaryFont }]}>
             Sends a password reset email to the user
-          </Text>
+          </AppText>
         </View>
 
         {/* Change Role Section */}
         <View style={[styles.section, { backgroundColor: surface, borderColor: withOpacity(borderColor, 0.3) }]}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: primaryFont }]}>Role Management</Text>
+            <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Role Management</AppText>
           </View>
           <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: secondaryFont }]}>Current Role:</Text>
-            <Text style={[styles.infoValue, { color: primaryFont }]}>
+            <AppText style={[styles.infoLabel, { color: secondaryFont }]}>Current Role:</AppText>
+            <AppText style={[styles.infoValue, { color: primaryFont }]}>
               {user.role === 'admin' ? 'Admin' : 'User'}
-            </Text>
+            </AppText>
           </View>
           <PrimaryButton
             label={user.role === 'admin' ? 'Remove Admin Access' : 'Grant Admin Access'}
@@ -687,17 +677,17 @@ function UserDetailScreen({ navigation, route }) {
             disabled={saving}
             style={[styles.actionButton, user.role === 'admin' && styles.dangerButton]}
           />
-          <Text style={[styles.helpText, { color: secondaryFont }]}>
+          <AppText style={[styles.helpText, { color: secondaryFont }]}>
             {user.role === 'admin'
               ? 'Removes admin privileges from this user'
               : 'WARNING: Grants full admin access to this user'}
-          </Text>
+          </AppText>
         </View>
 
         {/* Nail Size Profiles Section */}
         <View style={[styles.section, { backgroundColor: surface, borderColor: withOpacity(borderColor, 0.3) }]}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: primaryFont }]}>Nail Size Profiles</Text>
+            <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Nail Size Profiles</AppText>
             {/* If user has no profiles, always show Save button. Otherwise, show Edit button when not editing */}
             {nailSizeProfiles.length === 0 || editingSizes ? (
               <View style={styles.editActions}>
@@ -733,7 +723,7 @@ function UserDetailScreen({ navigation, route }) {
                       setEditingSizes(false);
                     }}
                   >
-                    <Text style={[styles.cancelButton, { color: secondaryFont }]}>Cancel</Text>
+                    <AppText style={[styles.cancelButton, { color: secondaryFont }]}>Cancel</AppText>
                   </TouchableOpacity>
                 )}
                 <PrimaryButton
@@ -745,7 +735,7 @@ function UserDetailScreen({ navigation, route }) {
               </View>
             ) : (
               <TouchableOpacity onPress={() => setEditingSizes(true)}>
-                <Text style={[styles.editButton, { color: accent }]}>Edit</Text>
+                <AppText style={[styles.editButton, { color: accent }]}>Edit</AppText>
               </TouchableOpacity>
             )}
           </View>
@@ -754,7 +744,7 @@ function UserDetailScreen({ navigation, route }) {
           {nailSizeProfiles.length === 0 || editingSizes ? (
             <View style={styles.nailSizesSection}>
               <View style={styles.sizeSectionHeader}>
-                <Text style={[styles.sectionTitle, { color: primaryFont }]}>Default nail sizes</Text>
+                <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Default nail sizes</AppText>
               </View>
               {renderSizeProfileCard({
                 profile: sizesDraft.defaultProfile,
@@ -766,10 +756,10 @@ function UserDetailScreen({ navigation, route }) {
               })}
 
               <View style={styles.sizeSectionHeaderRow}>
-                <Text style={[styles.sectionTitle, { color: primaryFont }]}>Additional profiles</Text>
-                <Text style={[styles.sizeSectionHint, { color: secondaryFont }]}>
+                <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Additional profiles</AppText>
+                <AppText style={[styles.sizeSectionHint, { color: secondaryFont }]}>
                   Save additional nail sizes.
-                </Text>
+                </AppText>
               </View>
               {sizesDraft.profiles.length
                 ? sizesDraft.profiles.map((profile) =>
@@ -795,20 +785,20 @@ function UserDetailScreen({ navigation, route }) {
                 accessibilityRole="button"
               >
                 <Icon name="plus" color={accent} size={16} />
-                <Text
+                <AppText
                   style={[
                     styles.addSizeButtonText,
                     { color: accent },
                   ]}
                 >
                   Add size profile
-                </Text>
+                </AppText>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.nailSizesSection}>
               <View style={styles.sizeSectionHeader}>
-                <Text style={[styles.sectionTitle, { color: primaryFont }]}>Default nail sizes</Text>
+                <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Default nail sizes</AppText>
               </View>
               {nailSizeProfiles.find((p) => p.isDefault) ? (
                 renderSizeProfileCard({
@@ -824,13 +814,13 @@ function UserDetailScreen({ navigation, route }) {
                   onChangeSize: () => {}, // Read-only
                 })
               ) : (
-                <Text style={[styles.emptyText, { color: secondaryFont }]}>No default profile</Text>
+                <AppText style={[styles.emptyText, { color: secondaryFont }]}>No default profile</AppText>
               )}
 
               {nailSizeProfiles.filter((p) => !p.isDefault).length > 0 && (
                 <>
                   <View style={styles.sizeSectionHeaderRow}>
-                    <Text style={[styles.sectionTitle, { color: primaryFont }]}>Additional profiles</Text>
+                    <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Additional profiles</AppText>
                   </View>
                   {nailSizeProfiles
                     .filter((p) => !p.isDefault)
@@ -860,7 +850,7 @@ function UserDetailScreen({ navigation, route }) {
             onPress={() => setActivityExpanded((prev) => !prev)}
             style={styles.sectionHeader}
           >
-            <Text style={[styles.sectionTitle, { color: primaryFont }]}>Activity Log</Text>
+            <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Activity Log</AppText>
             <Icon
               name="chevronRight"
               color={secondaryFont}
@@ -872,16 +862,16 @@ function UserDetailScreen({ navigation, route }) {
           {activityExpanded && (
             <View style={styles.activityList}>
               {activityLog.length === 0 ? (
-                <Text style={[styles.emptyText, { color: secondaryFont }]}>No activity recorded</Text>
+                <AppText style={[styles.emptyText, { color: secondaryFont }]}>No activity recorded</AppText>
               ) : (
                 activityLog.map((activity, index) => (
                   <View key={index} style={styles.activityItem}>
-                    <Text style={[styles.activityDescription, { color: primaryFont }]}>
+                    <AppText style={[styles.activityDescription, { color: primaryFont }]}>
                       {activity.description}
-                    </Text>
-                    <Text style={[styles.activityTimestamp, { color: secondaryFont }]}>
+                    </AppText>
+                    <AppText style={[styles.activityTimestamp, { color: secondaryFont }]}>
                       {formatDate(activity.timestamp)}
-                    </Text>
+                    </AppText>
                   </View>
                 ))
               )}
@@ -891,33 +881,33 @@ function UserDetailScreen({ navigation, route }) {
 
         {/* User Stats Section */}
         <View style={[styles.section, { backgroundColor: surface, borderColor: withOpacity(borderColor, 0.3) }]}>
-          <Text style={[styles.sectionTitle, { color: primaryFont }]}>Account Statistics</Text>
+          <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Account Statistics</AppText>
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: secondaryFont }]}>Account Created</Text>
-              <Text style={[styles.statValue, { color: primaryFont }]}>{formatDate(user.created_at)}</Text>
+              <AppText style={[styles.statLabel, { color: secondaryFont }]}>Account Created</AppText>
+              <AppText style={[styles.statValue, { color: primaryFont }]}>{formatDate(user.created_at)}</AppText>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: secondaryFont }]}>Last Login</Text>
-              <Text style={[styles.statValue, { color: primaryFont }]}>{formatDate(user.last_login)}</Text>
+              <AppText style={[styles.statLabel, { color: secondaryFont }]}>Last Login</AppText>
+              <AppText style={[styles.statValue, { color: primaryFont }]}>{formatDate(user.last_login)}</AppText>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: secondaryFont }]}>Total Orders</Text>
-              <Text style={[styles.statValue, { color: primaryFont }]}>{user.orderCount || 0}</Text>
+              <AppText style={[styles.statLabel, { color: secondaryFont }]}>Total Orders</AppText>
+              <AppText style={[styles.statValue, { color: primaryFont }]}>{user.orderCount || 0}</AppText>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: secondaryFont }]}>Failed Logins</Text>
-              <Text style={[styles.statValue, { color: primaryFont }]}>{user.failed_login_count || 0}</Text>
+              <AppText style={[styles.statLabel, { color: secondaryFont }]}>Failed Logins</AppText>
+              <AppText style={[styles.statValue, { color: primaryFont }]}>{user.failed_login_count || 0}</AppText>
             </View>
           </View>
         </View>
 
         {/* Impersonate Section */}
         <View style={[styles.section, { backgroundColor: surface, borderColor: withOpacity(colors.error || '#B33A3A', 0.3) }]}>
-          <Text style={[styles.sectionTitle, { color: primaryFont }]}>Impersonate User</Text>
-          <Text style={[styles.helpText, { color: secondaryFont, marginBottom: 12 }]}>
+          <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Impersonate User</AppText>
+          <AppText style={[styles.helpText, { color: secondaryFont, marginBottom: 12 }]}>
             View the app as this user. This action will be logged for security purposes.
-          </Text>
+          </AppText>
           <PrimaryButton
             label="Impersonate User"
             onPress={handleImpersonate}
@@ -929,7 +919,7 @@ function UserDetailScreen({ navigation, route }) {
 
       {confirmation ? (
         <View style={[styles.toast, { backgroundColor: withOpacity(accent, 0.92) }]}>
-          <Text style={[styles.toastText, { color: colors.accentContrast || '#FFFFFF' }]}>{confirmation}</Text>
+          <AppText style={[styles.toastText, { color: colors.accentContrast || '#FFFFFF' }]}>{confirmation}</AppText>
         </View>
       ) : null}
     </SafeAreaView>
@@ -961,9 +951,9 @@ function renderSizeProfileCard({
     >
       <View style={styles.sizeProfileHeader}>
         <View style={styles.sizeProfileHeaderText}>
-          <Text style={styles.sizeProfileTitle}>
+          <AppText style={styles.sizeProfileTitle}>
             {isDefault ? 'Default profile' : 'Additional profile'}
-          </Text>
+          </AppText>
         </View>
         {!isDefault && !isReadOnly && onRemove && (
           <TouchableOpacity
@@ -972,14 +962,14 @@ function renderSizeProfileCard({
             style={styles.sizeRemoveButton}
           >
             <Icon name="trash" color={withOpacity(colors.primaryFont || '#220707', 0.6)} size={16} />
-            <Text
+            <AppText
               style={[
                 styles.sizeRemoveText,
                 { color: withOpacity(colors.primaryFont || '#220707', 0.6) },
               ]}
             >
               Remove
-            </Text>
+            </AppText>
           </TouchableOpacity>
         )}
       </View>
@@ -1003,9 +993,9 @@ function renderSizeProfileCard({
       <View style={styles.sizeGrid}>
         {FINGER_DISPLAY.map(({ key, label }) => (
           <View key={`${profile.id}_${key}`} style={styles.sizeCell}>
-            <Text style={[styles.sizeLabel, { color: colors.secondaryFont || '#5C5F5D' }]}>
+            <AppText style={[styles.sizeLabel, { color: colors.secondaryFont || '#5C5F5D' }]}>
               {label}
-            </Text>
+            </AppText>
             <TextInput
               style={[
                 styles.sizeInput,

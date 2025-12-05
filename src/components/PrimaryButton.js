@@ -2,11 +2,11 @@ import React from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
-  Text,
   TouchableOpacity,
 } from 'react-native';
 import { useTheme } from '../theme';
 import { withOpacity } from '../utils/color';
+import AppText from './AppText';
 
 function PrimaryButton({
   label,
@@ -40,7 +40,7 @@ function PrimaryButton({
       {loading ? (
         <ActivityIndicator color={accentContrast} />
       ) : (
-        <Text style={[styles.label, { color: accentContrast }]}>{label}</Text>
+        <AppText variant="ui" style={[styles.label, { color: accentContrast }]}>{label}</AppText>
       )}
     </TouchableOpacity>
   );

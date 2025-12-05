@@ -4,15 +4,8 @@
  */
 
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {ActivityIndicator, Alert, ScrollView, StyleSheet, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../icons/Icon';
 import { useTheme } from '../theme';
@@ -166,7 +159,7 @@ function ManageThemeScreen({ navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Icon name="chevronLeft" color={primaryFont} size={20} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: primaryFont }]}>Theme Selector</Text>
+          <AppText style={[styles.headerTitle, { color: primaryFont }]}>Theme Selector</AppText>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
@@ -182,24 +175,24 @@ function ManageThemeScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="chevronLeft" color={primaryFont} size={20} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: primaryFont }]}>Theme Selector</Text>
+        <AppText style={[styles.headerTitle, { color: primaryFont }]}>Theme Selector</AppText>
         <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView style={styles.content}>
         {/* Theme Selection Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: primaryFont }]}>Theme</Text>
-          <Text style={[styles.description, { color: secondaryFont }]}>
+          <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Theme</AppText>
+          <AppText style={[styles.description, { color: secondaryFont }]}>
             Select the active theme for the entire application. All users will see the selected theme.
-          </Text>
+          </AppText>
           
           {activeThemeId && (
             <View style={styles.currentThemeContainer}>
-              <Text style={[styles.currentThemeLabel, { color: secondaryFont }]}>Current Theme:</Text>
-              <Text style={[styles.currentThemeName, { color: primaryFont }]}>
+              <AppText style={[styles.currentThemeLabel, { color: secondaryFont }]}>Current Theme:</AppText>
+              <AppText style={[styles.currentThemeName, { color: primaryFont }]}>
                 {availableThemes.find(t => t.id === activeThemeId)?.name || activeThemeId}
-              </Text>
+              </AppText>
             </View>
           )}
 
@@ -228,19 +221,19 @@ function ManageThemeScreen({ navigation }) {
                     <View style={styles.themeCardLeft}>
                       <View style={[styles.themePreview, { backgroundColor: themeOption.colors?.accent || accent }]} />
                       <View style={styles.themeInfo}>
-                        <Text style={[styles.themeName, { color: primaryFont }]}>
+                        <AppText style={[styles.themeName, { color: primaryFont }]}>
                           {themeOption.name}
-                        </Text>
-                        <Text style={[styles.themeId, { color: secondaryFont }]}>
+                        </AppText>
+                        <AppText style={[styles.themeId, { color: secondaryFont }]}>
                           {themeOption.id}
-                        </Text>
+                        </AppText>
                       </View>
                     </View>
                     <View style={styles.themeCardRight}>
                       {isSelected ? (
                         <View style={[styles.selectedBadge, { backgroundColor: withOpacity(accent, 0.1) }]}>
                           <Icon name="check" color={accent} size={18} />
-                          <Text style={[styles.selectedText, { color: accent }]}>Active</Text>
+                          <AppText style={[styles.selectedText, { color: accent }]}>Active</AppText>
                         </View>
                       ) : saving ? (
                         <ActivityIndicator size="small" color={accent} />
@@ -255,17 +248,17 @@ function ManageThemeScreen({ navigation }) {
 
         {/* Background Animation Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: primaryFont }]}>Background Animation</Text>
-          <Text style={[styles.description, { color: secondaryFont }]}>
+          <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Background Animation</AppText>
+          <AppText style={[styles.description, { color: secondaryFont }]}>
             Select a background animation to display across the app. Animations are independent of themes and can be enabled on any theme. Choose "None" to disable animations.
-          </Text>
+          </AppText>
           
           {activeAnimationId && (
             <View style={styles.currentThemeContainer}>
-              <Text style={[styles.currentThemeLabel, { color: secondaryFont }]}>Current Animation:</Text>
-              <Text style={[styles.currentThemeName, { color: primaryFont }]}>
+              <AppText style={[styles.currentThemeLabel, { color: secondaryFont }]}>Current Animation:</AppText>
+              <AppText style={[styles.currentThemeName, { color: primaryFont }]}>
                 {animationRegistry.find(a => a.id === activeAnimationId)?.name || activeAnimationId}
-              </Text>
+              </AppText>
             </View>
           )}
 
@@ -304,19 +297,19 @@ function ManageThemeScreen({ navigation }) {
                         ]} 
                       />
                       <View style={styles.themeInfo}>
-                        <Text style={[styles.themeName, { color: primaryFont }]}>
+                        <AppText style={[styles.themeName, { color: primaryFont }]}>
                           {animationOption.name}
-                        </Text>
-                        <Text style={[styles.themeId, { color: secondaryFont }]}>
+                        </AppText>
+                        <AppText style={[styles.themeId, { color: secondaryFont }]}>
                           {animationOption.id === 'none' ? 'No animation' : animationOption.id}
-                        </Text>
+                        </AppText>
                       </View>
                     </View>
                     <View style={styles.themeCardRight}>
                       {isSelected ? (
                         <View style={[styles.selectedBadge, { backgroundColor: withOpacity(accent, 0.1) }]}>
                           <Icon name="check" color={accent} size={18} />
-                          <Text style={[styles.selectedText, { color: accent }]}>Active</Text>
+                          <AppText style={[styles.selectedText, { color: accent }]}>Active</AppText>
                         </View>
                       ) : savingAnimation ? (
                         <ActivityIndicator size="small" color={accent} />

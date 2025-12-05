@@ -1,8 +1,9 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
 import { withOpacity } from '../../utils/color';
+import AppText from '../AppText';
 
 function BottomTabBar({ state, descriptors, navigation }) {
   const { theme } = useTheme();
@@ -92,13 +93,14 @@ function BottomTabBar({ state, descriptors, navigation }) {
                     },
                   ]}
                 >
-                  <Text style={[styles.badgeText, { color: colors.accentContrast || '#FFFFFF' }]}>
+                  <AppText variant="small" style={[styles.badgeText, { color: colors.accentContrast || '#FFFFFF' }]}>
                     {badgeValue}
-                  </Text>
+                  </AppText>
                 </View>
               ) : null}
             </View>
-            <Text
+            <AppText
+              variant="ui"
               style={[
                 styles.label,
                 {
@@ -107,7 +109,7 @@ function BottomTabBar({ state, descriptors, navigation }) {
               ]}
             >
               {label}
-            </Text>
+            </AppText>
           </Pressable>
         );
       })}

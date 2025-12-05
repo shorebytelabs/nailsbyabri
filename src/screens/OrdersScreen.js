@@ -1,19 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  Switch,
-  Image,
-  Alert,
-  Modal,
-  FlatList,
-  ActivityIndicator,
-} from 'react-native';
+import {RefreshControl, ScrollView, StyleSheet, TextInput, TouchableOpacity, View, Switch, Image, Alert, Modal, FlatList, ActivityIndicator} from 'react-native';
+import AppText from '../components/AppText';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
@@ -1147,22 +1134,22 @@ function OrdersScreen({ route }) {
       >
         <View style={styles.cardHeader}>
           <View style={styles.cardHeaderLeft}>
-            <Text
+            <AppText
               style={[
                 styles.cardTitle,
                 { color: primaryFontColor },
               ]}
             >
               Order #{getOrderNumber(order)}
-            </Text>
-            <Text
+            </AppText>
+            <AppText
               style={[
                 styles.cardOrderNumber,
                 { color: secondaryFontColor },
               ]}
             >
               {getOrderSummary(order)}
-            </Text>
+            </AppText>
           </View>
           <View style={styles.cardHeaderRight}>
             {/* Show delete button only for draft orders (case-insensitive check) */}
@@ -1190,14 +1177,14 @@ function OrdersScreen({ route }) {
                 },
               ]}
             >
-              <Text
+              <AppText
                 style={[
                   styles.statusText,
                   { color: statusTextColor },
                 ]}
               >
                 {statusLabel}
-              </Text>
+              </AppText>
             </View>
           </View>
         </View>
@@ -1218,7 +1205,7 @@ function OrdersScreen({ route }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.capacityInfoText,
                 {
@@ -1273,10 +1260,10 @@ function OrdersScreen({ route }) {
                 const formattedDateTime = formatNextAvailabilityDateTime(nextWeekStart);
                 return `Week full! You can submit it again when the next availability opens on ${formattedDateTime}.`;
               })()}
-            </Text>
+            </AppText>
           </View>
         ) : null}
-        <Text
+        <AppText
           style={[
             styles.cardMeta,
             { color: secondaryFontColor },
@@ -1285,21 +1272,21 @@ function OrdersScreen({ route }) {
           {order.updatedAt
             ? `Updated ${new Date(order.updatedAt).toLocaleString()}`
             : 'Recently updated'}
-        </Text>
+        </AppText>
         {isAdmin ? (
-          <Text
+          <AppText
             style={[
               styles.cardMetaSecondary,
               { color: secondaryFontColor },
             ]}
           >
             {getOrderUserLabel(order)}
-          </Text>
+          </AppText>
         ) : null}
         {isAdmin && followUpMessage ? (
           <View style={[styles.followUpContainer, { marginTop: 4 }]}>
-            <Text style={[styles.followUpIcon, { color: secondaryFontColor }]}>⚠</Text>
-            <Text
+            <AppText style={[styles.followUpIcon, { color: secondaryFontColor }]}>⚠</AppText>
+            <AppText
               style={[
                 styles.cardMeta,
                 { color: secondaryFontColor },
@@ -1308,7 +1295,7 @@ function OrdersScreen({ route }) {
               accessibilityRole="text"
             >
               {followUpMessage}
-            </Text>
+            </AppText>
           </View>
         ) : null}
         <View style={styles.cardFooter}>
@@ -1320,14 +1307,14 @@ function OrdersScreen({ route }) {
               ]}
               onPress={() => handleViewDetails(order)}
             >
-              <Text
+              <AppText
                 style={[
                   styles.linkButtonText,
                   { color: accentColor },
                 ]}
               >
                 View details
-              </Text>
+              </AppText>
             </TouchableOpacity>
           </View>
           <View style={styles.cardFooterRight}>
@@ -1349,13 +1336,13 @@ function OrdersScreen({ route }) {
                 },
               ]}
             >
-              <Text style={[styles.adminSectionToggleText, { color: accentColor }]}>
+              <AppText style={[styles.adminSectionToggleText, { color: accentColor }]}>
                 {expandedAdminOrders[order.id] ? 'Hide admin controls' : 'Show admin controls'}
-              </Text>
+              </AppText>
             </TouchableOpacity>
             {expandedAdminOrders[order.id] ? (
               <View style={styles.adminForm}>
-                <Text style={[styles.adminLabel, { color: primaryFontColor }]}>Notes</Text>
+                <AppText style={[styles.adminLabel, { color: primaryFontColor }]}>Notes</AppText>
                 <TextInput
                   value={adminDraft.notes}
                   onChangeText={(value) => handleAdminDraftChange(order.id, 'notes', value)}
@@ -1371,7 +1358,7 @@ function OrdersScreen({ route }) {
                   multiline
                 />
 
-                <Text style={[styles.adminLabel, { color: primaryFontColor }]}>Upload images</Text>
+                <AppText style={[styles.adminLabel, { color: primaryFontColor }]}>Upload images</AppText>
                 <View style={styles.adminUploadsRow}>
                   {adminImages.length ? (
                     adminImages.map((image) => {
@@ -1399,13 +1386,13 @@ function OrdersScreen({ route }) {
                               {image.uploading && (
                                 <View style={styles.uploadOverlay}>
                                   <ActivityIndicator color={accentColor} size="small" />
-                                  <Text style={[styles.uploadOverlayText, { color: surfaceColor }]}>Uploading...</Text>
+                                  <AppText style={[styles.uploadOverlayText, { color: surfaceColor }]}>Uploading...</AppText>
                                 </View>
                               )}
                               {image.error && !image.uploading && (
                                 <View style={[styles.uploadOverlay, { backgroundColor: 'rgba(255, 0, 0, 0.8)' }]}>
                                   <Icon name="close" color={surfaceColor} size={16} />
-                                  <Text style={[styles.uploadOverlayText, { color: surfaceColor }]}>Failed</Text>
+                                  <AppText style={[styles.uploadOverlayText, { color: surfaceColor }]}>Failed</AppText>
                                 </View>
                               )}
                             </>
@@ -1428,7 +1415,7 @@ function OrdersScreen({ route }) {
                                 },
                               ]}
                             >
-                              <Text style={[styles.adminImageRemoveText, { color: accentColor }]}>×</Text>
+                              <AppText style={[styles.adminImageRemoveText, { color: accentColor }]}>×</AppText>
                             </TouchableOpacity>
                           )}
                         </View>
@@ -1444,14 +1431,14 @@ function OrdersScreen({ route }) {
                         },
                       ]}
                     >
-                      <Text
+                      <AppText
                         style={[
                           styles.adminEmptyUploadText,
                           { color: secondaryFontColor },
                         ]}
                       >
                         No images uploaded yet
-                      </Text>
+                      </AppText>
                     </View>
                   )}
                   <TouchableOpacity
@@ -1464,12 +1451,12 @@ function OrdersScreen({ route }) {
                       },
                     ]}
                   >
-                    <Text style={[styles.adminImageAddText, { color: accentColor }]}>+ Add images</Text>
+                    <AppText style={[styles.adminImageAddText, { color: accentColor }]}>+ Add images</AppText>
                   </TouchableOpacity>
                 </View>
 
                 <View style={styles.adminField}>
-                  <Text style={[styles.adminLabel, { color: primaryFontColor }]}>Discount</Text>
+                  <AppText style={[styles.adminLabel, { color: primaryFontColor }]}>Discount</AppText>
                   <TextInput
                     value={adminDraft.discount}
                     onChangeText={(value) => handleAdminDraftChange(order.id, 'discount', value)}
@@ -1487,7 +1474,7 @@ function OrdersScreen({ route }) {
                 </View>
 
                 <View style={styles.adminField}>
-                  <Text style={[styles.adminLabel, { color: primaryFontColor }]}>Tracking number</Text>
+                  <AppText style={[styles.adminLabel, { color: primaryFontColor }]}>Tracking number</AppText>
                   <TextInput
                     value={adminDraft.trackingNumber}
                     onChangeText={(value) => handleAdminDraftChange(order.id, 'trackingNumber', value)}
@@ -1504,7 +1491,7 @@ function OrdersScreen({ route }) {
                 </View>
 
                 <View style={styles.adminStatusRow}>
-                  <Text style={[styles.adminLabel, { color: primaryFontColor }]}>Status</Text>
+                  <AppText style={[styles.adminLabel, { color: primaryFontColor }]}>Status</AppText>
                   <View style={styles.adminStatusChips}>
                     {STATUS_FILTERS.filter((filter) => filter.key !== 'all').map((filter) => {
                       // Normalize status comparison for matching
@@ -1550,14 +1537,14 @@ function OrdersScreen({ route }) {
                             },
                           ]}
                         >
-                          <Text
+                          <AppText
                             style={[
                               styles.adminStatusChipLabel,
                               { color: isSelected ? accentColor : secondaryFontColor },
                             ]}
                           >
                             {filter.label}
-                          </Text>
+                          </AppText>
                         </TouchableOpacity>
                       );
                     })}
@@ -1574,7 +1561,7 @@ function OrdersScreen({ route }) {
                       },
                     ]}
                   >
-                    <Text style={[styles.adminSaveButtonText, { color: surfaceColor }]}>Save changes</Text>
+                    <AppText style={[styles.adminSaveButtonText, { color: surfaceColor }]}>Save changes</AppText>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1610,22 +1597,22 @@ function OrdersScreen({ route }) {
       overScrollMode={isAdmin ? 'never' : 'auto'}
     >
       <View style={styles.header}>
-        <Text
+        <AppText
           style={[
             styles.headerTitle,
             { color: primaryFontColor },
           ]}
         >
           Your orders
-        </Text>
-        <Text
+        </AppText>
+        <AppText
           style={[
             styles.headerSubtitle,
             { color: secondaryFontColor },
           ]}
         >
           Track drafts, submitted sets, and upcoming deliveries.
-        </Text>
+        </AppText>
       </View>
 
       <View
@@ -1659,14 +1646,14 @@ function OrdersScreen({ route }) {
                 accessibilityRole="button"
                 accessibilityState={isActive ? { selected: true } : undefined}
               >
-                <Text
+                <AppText
                   style={[
                     styles.tabLabel,
                     { color: isActive ? accentColor : secondaryFontColor },
                   ]}
                 >
                   {tab.label}
-                </Text>
+                </AppText>
                 <View
                   style={[
                     styles.tabBadge,
@@ -1675,14 +1662,14 @@ function OrdersScreen({ route }) {
                     },
                   ]}
                 >
-                  <Text
+                  <AppText
                     style={[
                       styles.tabBadgeText,
                       { color: isActive ? surfaceColor : secondaryFontColor },
                     ]}
                   >
                     {tab.count}
-                  </Text>
+                  </AppText>
                 </View>
               </TouchableOpacity>
             );
@@ -1701,7 +1688,7 @@ function OrdersScreen({ route }) {
           ]}
         >
           <View style={styles.adminToggleRow}>
-            <Text style={[styles.adminToggleLabel, { color: primaryFontColor }]}>Show admin controls</Text>
+            <AppText style={[styles.adminToggleLabel, { color: primaryFontColor }]}>Show admin controls</AppText>
             <Switch
               value={showAdminControls}
               onValueChange={setShowAdminControls}
@@ -1724,7 +1711,7 @@ function OrdersScreen({ route }) {
                   },
                 ]}
               >
-                <Text
+                <AppText
                   style={[
                     styles.filterDropdownButtonText,
                     { color: primaryFontColor },
@@ -1736,7 +1723,7 @@ function OrdersScreen({ route }) {
                     : selectedStatusFilter.length === 1
                     ? STATUS_FILTERS.find((f) => f.key === selectedStatusFilter[0])?.label || 'Status'
                     : `${selectedStatusFilter.length} Statuses`}
-                </Text>
+                </AppText>
                 <Icon name="chevronDown" color={secondaryFontColor} size={16} />
               </TouchableOpacity>
             </View>
@@ -1753,7 +1740,7 @@ function OrdersScreen({ route }) {
                   },
                 ]}
               >
-                <Text
+                <AppText
                   style={[
                     styles.filterDropdownButtonText,
                     { color: primaryFontColor },
@@ -1765,7 +1752,7 @@ function OrdersScreen({ route }) {
                     : selectedUserFilter.length === 1
                     ? userOptions.find((o) => o.email === selectedUserFilter[0])?.name || 'User'
                     : `${selectedUserFilter.length} Users`}
-                </Text>
+                </AppText>
                 <Icon name="chevronDown" color={secondaryFontColor} size={16} />
               </TouchableOpacity>
             </View>
@@ -1796,7 +1783,7 @@ function OrdersScreen({ route }) {
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: primaryFontColor }]}>Filter by Status</Text>
+              <AppText style={[styles.modalTitle, { color: primaryFontColor }]}>Filter by Status</AppText>
               <TouchableOpacity onPress={() => setStatusDropdownVisible(false)}>
                 <Icon name="close" color={secondaryFontColor} size={20} />
               </TouchableOpacity>
@@ -1849,7 +1836,7 @@ function OrdersScreen({ route }) {
                           <Icon name="check" color={surfaceColor} size={14} />
                         )}
                       </View>
-                      <Text
+                      <AppText
                         style={[
                           styles.modalItemText,
                           {
@@ -1858,7 +1845,7 @@ function OrdersScreen({ route }) {
                         ]}
                       >
                         {item.label}
-                      </Text>
+                      </AppText>
                     </View>
                   </TouchableOpacity>
                 );
@@ -1872,13 +1859,13 @@ function OrdersScreen({ route }) {
                 }}
                 style={[styles.modalButton, { borderColor: withOpacity(borderColor, 0.6) }]}
               >
-                <Text style={[styles.modalButtonText, { color: secondaryFontColor }]}>Clear All</Text>
+                <AppText style={[styles.modalButtonText, { color: secondaryFontColor }]}>Clear All</AppText>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setStatusDropdownVisible(false)}
                 style={[styles.modalButton, { backgroundColor: accentColor }]}
               >
-                <Text style={[styles.modalButtonText, { color: surfaceColor }]}>Done</Text>
+                <AppText style={[styles.modalButtonText, { color: surfaceColor }]}>Done</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -1908,7 +1895,7 @@ function OrdersScreen({ route }) {
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: primaryFontColor }]}>Filter by User</Text>
+              <AppText style={[styles.modalTitle, { color: primaryFontColor }]}>Filter by User</AppText>
               <TouchableOpacity onPress={() => setUserDropdownVisible(false)}>
                 <Icon name="close" color={secondaryFontColor} size={20} />
               </TouchableOpacity>
@@ -1961,7 +1948,7 @@ function OrdersScreen({ route }) {
                           <Icon name="check" color={surfaceColor} size={14} />
                         )}
                       </View>
-                      <Text
+                      <AppText
                         style={[
                           styles.modalItemText,
                           {
@@ -1970,7 +1957,7 @@ function OrdersScreen({ route }) {
                         ]}
                       >
                         {item.name}
-                      </Text>
+                      </AppText>
                     </View>
                   </TouchableOpacity>
                 );
@@ -1984,13 +1971,13 @@ function OrdersScreen({ route }) {
                 }}
                 style={[styles.modalButton, { borderColor: withOpacity(borderColor, 0.6) }]}
               >
-                <Text style={[styles.modalButtonText, { color: secondaryFontColor }]}>Clear All</Text>
+                <AppText style={[styles.modalButtonText, { color: secondaryFontColor }]}>Clear All</AppText>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setUserDropdownVisible(false)}
                 style={[styles.modalButton, { backgroundColor: accentColor }]}
               >
-                <Text style={[styles.modalButtonText, { color: surfaceColor }]}>Done</Text>
+                <AppText style={[styles.modalButtonText, { color: surfaceColor }]}>Done</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -2008,22 +1995,22 @@ function OrdersScreen({ route }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.placeholderTitle,
                 { color: accentColor },
               ]}
             >
               Error loading orders
-            </Text>
-            <Text
+            </AppText>
+            <AppText
               style={[
                 styles.placeholderSubtitle,
                 { color: secondaryFontColor },
               ]}
             >
               {state.ordersError}
-            </Text>
+            </AppText>
             <TouchableOpacity
               onPress={() => {
                 if (state.currentUser) {
@@ -2035,9 +2022,9 @@ function OrdersScreen({ route }) {
                 { borderColor: accentColor },
               ]}
             >
-              <Text style={[styles.retryButtonText, { color: accentColor }]}>
+              <AppText style={[styles.retryButtonText, { color: accentColor }]}>
                 Retry
-              </Text>
+              </AppText>
             </TouchableOpacity>
           </View>
         ) : state.ordersLoading ? (
@@ -2050,14 +2037,14 @@ function OrdersScreen({ route }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.placeholderTitle,
                 { color: primaryFontColor },
               ]}
             >
               Loading orders...
-            </Text>
+            </AppText>
           </View>
         ) : filteredOrders.length ? (
           filteredOrders.map(renderOrderCard)
@@ -2071,7 +2058,7 @@ function OrdersScreen({ route }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.placeholderTitle,
                 { color: primaryFontColor },
@@ -2091,8 +2078,8 @@ function OrdersScreen({ route }) {
                     const displayName = tabDisplayNames[activeTab] || activeTab;
                     return `No ${displayName} yet`;
                   })()}
-            </Text>
-            <Text
+            </AppText>
+            <AppText
               style={[
                 styles.placeholderSubtitle,
                 { color: secondaryFontColor },
@@ -2103,7 +2090,7 @@ function OrdersScreen({ route }) {
                 : isAdmin
                 ? 'No orders found. Create a test order to verify the system is working.'
                 : 'Once you have orders in this category, they will appear here.'}
-            </Text>
+            </AppText>
           </View>
         )}
       </View>
@@ -2157,17 +2144,17 @@ function OrdersScreen({ route }) {
             },
           ]}
         >
-          <Text style={[styles.toastText, { color: accentContrastColor, flex: 1 }]}>
+          <AppText style={[styles.toastText, { color: accentContrastColor, flex: 1 }]}>
             {toastMessage}
-          </Text>
+          </AppText>
           <TouchableOpacity
             onPress={() => setToastMessage(null)}
             style={styles.toastCloseButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={[styles.toastCloseText, { color: accentContrastColor }]}>
+            <AppText style={[styles.toastCloseText, { color: accentContrastColor }]}>
               ×
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -2217,14 +2204,14 @@ function FeedbackChipComponent({ orderId, navigation, accentColor }) {
         accessibilityRole="button"
         accessibilityLabel="View your feedback"
       >
-        <Text
+        <AppText
           style={[
             styles.linkButtonText,
             { color: accentColor },
           ]}
         >
           View Feedback 💅
-        </Text>
+        </AppText>
       </TouchableOpacity>
     );
   }
@@ -2243,14 +2230,14 @@ function FeedbackChipComponent({ orderId, navigation, accentColor }) {
       accessibilityRole="button"
       accessibilityLabel="Leave a review"
     >
-      <Text
+      <AppText
         style={[
           styles.feedbackChipText,
           { color: accentColor },
         ]}
       >
         Leave a Review 💅
-      </Text>
+      </AppText>
     </TouchableOpacity>
   );
 }

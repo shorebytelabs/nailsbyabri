@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
@@ -8,6 +8,7 @@ import Icon from '../icons/Icon';
 import { login } from '../services/api';
 import { useTheme } from '../theme';
 import { withOpacity } from '../utils/color';
+import AppText from '../components/AppText';
 
 const LOGO_SOURCE = require('../../assets/images/NailsByAbriLogo.png');
 
@@ -99,7 +100,7 @@ function LoginScreen({
           accessibilityLabel="Go back to Home"
         >
           <Icon name="chevronRight" color={accentColor} style={styles.backIcon} size={20} />
-          <Text style={[styles.backLinkLabel, { color: accentColor }]}>Back to Home</Text>
+          <AppText variant="ui" style={[styles.backLinkLabel, { color: accentColor }]}>Back to Home</AppText>
         </Pressable>
 
         <View style={styles.formStack}>
@@ -125,23 +126,24 @@ function LoginScreen({
             ]}
           >
             <View style={styles.formIntro}>
-              <Text
+              <AppText
+                variant="ui"
                 style={[
                   styles.welcome,
                   { color: onSurfaceColor },
                 ]}
               >
                 Welcome!
-              </Text>
+              </AppText>
               {authMessage ? (
-                <Text
+                <AppText
                   style={[
                     styles.authContext,
                     { color: withOpacity(onSurfaceColor, 0.75) },
                   ]}
                 >
                   {authMessage}
-                </Text>
+                </AppText>
               ) : null}
             </View>
 
@@ -162,7 +164,7 @@ function LoginScreen({
               />
             </View>
 
-            {error ? <Text style={[styles.error, { color: errorColor }]}>{error}</Text> : null}
+            {error ? <AppText variant="small" style={[styles.error, { color: errorColor }]}>{error}</AppText> : null}
 
             <PrimaryButton
               label="Log In"
@@ -177,22 +179,23 @@ function LoginScreen({
               accessibilityRole="button"
               onPress={handleForgotPassword}
             >
-              <Text
+              <AppText
+                variant="ui"
                 style={[
                   styles.forgotText,
                   { color: withOpacity(primaryFontColor, 0.7) },
                 ]}
               >
                 Forgot password?
-              </Text>
+              </AppText>
             </TouchableOpacity>
 
             <View style={styles.switchRow}>
-              <Text style={[styles.switchText, { color: secondaryFontColor }]}>
+              <AppText variant="ui" style={[styles.switchText, { color: secondaryFontColor }]}>
                 Need an account?
-              </Text>
+              </AppText>
               <TouchableOpacity onPress={onSwitchToSignup} accessibilityRole="button">
-                <Text style={[styles.switchLink, { color: accentColor }]}> Sign up</Text>
+                <AppText variant="ui" style={[styles.switchLink, { color: accentColor }]}> Sign up</AppText>
               </TouchableOpacity>
             </View>
           </View>

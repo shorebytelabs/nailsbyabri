@@ -1,14 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {Alert, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import PrimaryButton from '../components/PrimaryButton';
@@ -151,19 +143,19 @@ function NailSetEditor({
 
   return (
     <View style={editorStyles.formContainer}>
-      <Text
+      <AppText
         style={[
           editorStyles.formTitle,
           { color: theme?.colors?.primaryFont || editorStyles.formTitle.color },
         ]}
       >
         {isNewSet ? 'Create Your Nail Set' : 'Edit Nail Set'}
-      </Text>
+      </AppText>
       <ScrollView
         style={editorStyles.formScroll}
         contentContainerStyle={editorStyles.formScrollContent}
       >
-        <Text style={editorStyles.label}>Set Name (optional)</Text>
+        <AppText style={editorStyles.label}>Set Name (optional)</AppText>
         <TextInput
           style={editorStyles.input}
           value={currentForm.name}
@@ -171,7 +163,7 @@ function NailSetEditor({
           onChangeText={(text) => setForm((prev) => ({ ...prev, name: text }))}
         />
 
-        <Text style={editorStyles.label}>Shape</Text>
+        <AppText style={editorStyles.label}>Shape</AppText>
         <View style={editorStyles.shapeGrid}>
           {shapes.map((shape) => {
             const selected = shape.id === currentForm.shapeId;
@@ -188,17 +180,17 @@ function NailSetEditor({
                   <Image source={{ uri: shape.imageUrl }} style={editorStyles.shapeImage} />
                 ) : (
                   <View style={editorStyles.shapePlaceholder}>
-                    <Text style={editorStyles.shapePlaceholderText}>{shape.name}</Text>
+                    <AppText style={editorStyles.shapePlaceholderText}>{shape.name}</AppText>
                   </View>
                 )}
-                <Text style={editorStyles.shapeName}>{shape.name}</Text>
-                <Text style={editorStyles.shapePrice}>{formatCurrency(shape.basePrice)}</Text>
+                <AppText style={editorStyles.shapeName}>{shape.name}</AppText>
+                <AppText style={editorStyles.shapePrice}>{formatCurrency(shape.basePrice)}</AppText>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <Text style={editorStyles.label}>Quantity</Text>
+        <AppText style={editorStyles.label}>Quantity</AppText>
         <TextInput
           style={editorStyles.input}
           keyboardType="number-pad"
@@ -206,14 +198,14 @@ function NailSetEditor({
           onChangeText={(text) => setForm((prev) => ({ ...prev, quantity: text }))}
           placeholder="1"
         />
-        <Text style={editorStyles.helperText}>One set = 10 nails (left & right hands).</Text>
+        <AppText style={editorStyles.helperText}>One set = 10 nails (left & right hands).</AppText>
 
-        <Text style={editorStyles.label}>Design Uploads</Text>
+        <AppText style={editorStyles.label}>Design Uploads</AppText>
         <PrimaryButton label="Add Inspiration Image" onPress={handleUploadDesign} />
         {currentForm.designUploads.length === 0 ? (
-          <Text style={editorStyles.helperText}>
+          <AppText style={editorStyles.helperText}>
             Upload photos of the design or describe it below. If neither, mark for follow-up.
-          </Text>
+          </AppText>
         ) : (
           <View style={editorStyles.uploadGrid}>
             {currentForm.designUploads.map((upload) => (
@@ -223,14 +215,14 @@ function NailSetEditor({
                   style={editorStyles.uploadPreview}
                 />
                 <TouchableOpacity onPress={() => handleRemoveUpload(upload.id)}>
-                  <Text style={editorStyles.removeLink}>Remove</Text>
+                  <AppText style={editorStyles.removeLink}>Remove</AppText>
                 </TouchableOpacity>
               </View>
             ))}
           </View>
         )}
 
-        <Text style={editorStyles.label}>Design Description</Text>
+        <AppText style={editorStyles.label}>Design Description</AppText>
         <TextInput
           style={[editorStyles.input, editorStyles.notesInput]}
           multiline
@@ -250,10 +242,10 @@ function NailSetEditor({
             currentForm.requiresFollowUp && { backgroundColor: accentColor },
           ]}
           />
-          <Text style={editorStyles.checkboxLabel}>We&apos;ll finalize design details later</Text>
+          <AppText style={editorStyles.checkboxLabel}>We&apos;ll finalize design details later</AppText>
         </TouchableOpacity>
 
-        <Text style={editorStyles.label}>Sizing</Text>
+        <AppText style={editorStyles.label}>Sizing</AppText>
         <View style={editorStyles.optionRow}>
           {['standard', 'perSet'].map((mode) => {
             const selected = currentForm.sizes.mode === mode;
@@ -266,11 +258,11 @@ function NailSetEditor({
                 ]}
                 onPress={() => toggleSizeMode(mode)}
               >
-                <Text
+                <AppText
                   style={[editorStyles.optionText, selected && editorStyles.optionTextSelected]}
                 >
                   {mode === 'standard' ? 'Standard Sizes' : 'Enter Sizes'}
-                </Text>
+                </AppText>
               </TouchableOpacity>
             );
           })}
@@ -280,7 +272,7 @@ function NailSetEditor({
           <View style={editorStyles.sizeGrid}>
             {SIZE_KEYS.map((finger) => (
               <View key={finger} style={editorStyles.sizeItem}>
-                <Text style={editorStyles.sizeLabel}>{finger.toUpperCase()}</Text>
+                <AppText style={editorStyles.sizeLabel}>{finger.toUpperCase()}</AppText>
                 <TextInput
                   style={editorStyles.input}
                   value={currentForm.sizes.values[finger]}
@@ -303,7 +295,7 @@ function NailSetEditor({
           </View>
         ) : null}
 
-        <Text style={editorStyles.label}>Set Notes</Text>
+        <AppText style={editorStyles.label}>Set Notes</AppText>
         <TextInput
           style={[editorStyles.input, editorStyles.notesInput]}
           value={currentForm.setNotes}
@@ -316,7 +308,7 @@ function NailSetEditor({
 
       <View style={editorStyles.formActions}>
         <TouchableOpacity onPress={onCancel}>
-          <Text style={editorStyles.secondaryAction}>Cancel</Text>
+          <AppText style={editorStyles.secondaryAction}>Cancel</AppText>
         </TouchableOpacity>
         <PrimaryButton
           label="Save Nail Set"
@@ -756,21 +748,21 @@ function OrderBuilderScreen({
   return (
     <ScreenContainer>
       <TouchableOpacity onPress={onClose}>
-        <Text style={styles.closeLink}>← Back</Text>
+        <AppText style={styles.closeLink}>← Back</AppText>
       </TouchableOpacity>
-      <Text style={[styles.pageTitle, { color: theme?.colors?.primaryFont || styles.pageTitle.color }]}>
+      <AppText style={[styles.pageTitle, { color: theme?.colors?.primaryFont || styles.pageTitle.color }]}>
         {step === 'summary' ? 'Build Your Order' : 'Complete Payment'}
-      </Text>
+      </AppText>
 
       {step === 'summary' ? (
         <>
           {nailSets.length === 0 ? (
             <View style={styles.section}>
               <View style={styles.emptyStateBox}>
-                <Text style={styles.emptyStateIcon}>💅</Text>
-                <Text style={styles.emptyStateText}>
+                <AppText style={styles.emptyStateIcon}>💅</AppText>
+                <AppText style={styles.emptyStateText}>
                   No nail sets added yet.{'\n'}Tap “Create Nail Set” to design your nail set!
-                </Text>
+                </AppText>
                 <PrimaryButton
                   label={addSetButtonLabel}
                   onPress={handleAddSet}
@@ -791,37 +783,37 @@ function OrderBuilderScreen({
               <View style={styles.summarySection}>
                 <View style={styles.summaryHeader}>
                   <View style={styles.summaryHeaderText}>
-                    <Text
+                    <AppText
                       style={[
                         styles.summaryTitle,
                         { color: theme?.colors?.primaryFont || styles.summaryTitle.color },
                       ]}
                     >
                       Nail Sets
-                    </Text>
-                    <Text
+                    </AppText>
+                    <AppText
                       style={[
                         styles.summarySubtitle,
                         { color: theme?.colors?.secondaryFont || styles.summarySubtitle.color },
                       ]}
                     >
                       {nailSetsSummary}
-                    </Text>
+                    </AppText>
                   </View>
                   <TouchableOpacity onPress={() => setNailSetsExpanded((prev) => !prev)}>
-                    <Text
+                    <AppText
                       style={[
                         styles.summaryAction,
                         { color: theme?.colors?.accent || styles.summaryAction.color },
                       ]}
                     >
                       {nailSetsExpanded ? 'Done' : 'Edit'}
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 </View>
                 {nailSetsExpanded ? (
                   <View style={[styles.editPanel, styles.section]}>
-                    <Text style={styles.sectionSubheader}>Your Nail Sets</Text>
+                    <AppText style={styles.sectionSubheader}>Your Nail Sets</AppText>
                     {nailSets.map((set, index) => {
                       const shape = shapes.find((item) => item.id === set.shapeId);
                       const warning = !validateNailSet(set);
@@ -837,37 +829,37 @@ function OrderBuilderScreen({
                                     style={styles.setThumbnailImage}
                                   />
                                 ) : (
-                                  <Text style={styles.setThumbnailPlaceholder}>
+                                  <AppText style={styles.setThumbnailPlaceholder}>
                                     {shape?.name?.charAt(0) || 'S'}
-                                  </Text>
+                                  </AppText>
                                 )}
                               </View>
                               <View style={styles.setTitleContent}>
-                                <Text style={styles.setTitle}>{set.name || `Set #${index + 1}`}</Text>
-                                <Text style={styles.setSubTitle}>
+                                <AppText style={styles.setTitle}>{set.name || `Set #${index + 1}`}</AppText>
+                                <AppText style={styles.setSubTitle}>
                                   {shape?.name || 'Shape'} • {set.quantity} set
                                   {Number(set.quantity) > 1 ? 's' : ''}
-                                </Text>
+                                </AppText>
                               </View>
                             </View>
                             <View style={styles.setActions}>
                               <TouchableOpacity onPress={() => handleDuplicateSet(set.id)}>
-                                <Text style={styles.secondaryAction}>Duplicate</Text>
+                                <AppText style={styles.secondaryAction}>Duplicate</AppText>
                               </TouchableOpacity>
                               <TouchableOpacity onPress={() => handleEditSet(set.id)}>
-                                <Text style={styles.secondaryAction}>Edit</Text>
+                                <AppText style={styles.secondaryAction}>Edit</AppText>
                               </TouchableOpacity>
                               <TouchableOpacity onPress={() => handleRemoveSet(set.id)}>
-                                <Text style={[styles.secondaryAction, styles.destructiveAction]}>Remove</Text>
+                                <AppText style={[styles.secondaryAction, styles.destructiveAction]}>Remove</AppText>
                               </TouchableOpacity>
                             </View>
                           </View>
                           {warning ? (
-                            <Text style={styles.warningText}>
+                            <AppText style={styles.warningText}>
                               No art uploaded — we&apos;ll contact you to clarify design.
-                            </Text>
+                            </AppText>
                           ) : null}
-                          {set.setNotes ? <Text style={styles.helperText}>Notes: {set.setNotes}</Text> : null}
+                          {set.setNotes ? <AppText style={styles.helperText}>Notes: {set.setNotes}</AppText> : null}
                         </View>
                       );
                     })}
@@ -890,37 +882,37 @@ function OrderBuilderScreen({
               >
                 <View style={styles.summaryHeader}>
                   <View style={styles.summaryHeaderText}>
-                    <Text
+                    <AppText
                       style={[
                         styles.summaryTitle,
                         { color: theme?.colors?.primaryFont || styles.summaryTitle.color },
                       ]}
                     >
                       Delivery Options
-                    </Text>
-                    <Text
+                    </AppText>
+                    <AppText
                       style={[
                         styles.summarySubtitle,
                         { color: theme?.colors?.secondaryFont || styles.summarySubtitle.color },
                       ]}
                     >
                       {deliverySummary}
-                    </Text>
+                    </AppText>
                   </View>
                   <TouchableOpacity onPress={() => setDeliveryExpanded((prev) => !prev)}>
-                    <Text
+                    <AppText
                       style={[
                         styles.summaryAction,
                         { color: theme?.colors?.accent || styles.summaryAction.color },
                       ]}
                     >
                       {deliveryExpanded ? 'Done' : 'Edit'}
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 </View>
                 {deliveryExpanded ? (
                   <View style={styles.editPanel}>
-                    <Text style={styles.stepLabel}>How you&apos;ll get your nails</Text>
+                    <AppText style={styles.stepLabel}>How you&apos;ll get your nails</AppText>
                     <View style={styles.methodGrid}>
                       {Object.values(deliveryMethodConfig).map((method) => {
                         const selected = selectedMethodConfig.id === method.id;
@@ -945,8 +937,8 @@ function OrderBuilderScreen({
                               }))
                             }
                           >
-                            <Text style={styles.methodTitle}>{method.label}</Text>
-                            <Text style={styles.methodDescription}>{method.description}</Text>
+                            <AppText style={styles.methodTitle}>{method.label}</AppText>
+                            <AppText style={styles.methodDescription}>{method.description}</AppText>
                           </TouchableOpacity>
                         );
                       })}
@@ -954,7 +946,7 @@ function OrderBuilderScreen({
 
                     {selectedMethodConfig.id === 'shipping' || selectedMethodConfig.id === 'delivery' ? (
                       <View style={styles.subSection}>
-                        <Text style={styles.label}>Shipping Address</Text>
+                        <AppText style={styles.label}>Shipping Address</AppText>
                         <TextInput
                           style={styles.input}
                           placeholder="Full Name"
@@ -1028,7 +1020,7 @@ function OrderBuilderScreen({
                       </View>
                     ) : null}
 
-                    <Text style={styles.stepLabel}>Delivery Timing</Text>
+                    <AppText style={styles.stepLabel}>Delivery Timing</AppText>
                     <View style={styles.speedList}>
                       {Object.values(selectedMethodConfig.speedOptions).map((option) => {
                         const selected = selectedSpeedConfig.id === option.id;
@@ -1050,11 +1042,11 @@ function OrderBuilderScreen({
                               }))
                             }
                           >
-                            <Text style={styles.speedTitle}>
+                            <AppText style={styles.speedTitle}>
                               {option.label} – {option.description} {costLabel}
-                            </Text>
+                            </AppText>
                             {option.tagline ? (
-                              <Text style={styles.speedTagline}>{option.tagline}</Text>
+                              <AppText style={styles.speedTagline}>{option.tagline}</AppText>
                             ) : null}
                           </TouchableOpacity>
                         );
@@ -1067,32 +1059,32 @@ function OrderBuilderScreen({
               <View style={styles.summarySection}>
                 <View style={styles.summaryHeader}>
                   <View style={styles.summaryHeaderText}>
-                    <Text
+                    <AppText
                       style={[
                         styles.summaryTitle,
                         { color: theme?.colors?.primaryFont || styles.summaryTitle.color },
                       ]}
                     >
                       Order Notes & Promo
-                    </Text>
-                    <Text
+                    </AppText>
+                    <AppText
                       style={[
                         styles.summarySubtitle,
                         { color: theme?.colors?.secondaryFont || styles.summarySubtitle.color },
                       ]}
                     >
                       {notesSummary}
-                    </Text>
+                    </AppText>
                   </View>
                   <TouchableOpacity onPress={notesExpanded ? handleCancelNotes : handleOpenNotes}>
-                    <Text
+                    <AppText
                       style={[
                         styles.summaryAction,
                         { color: theme?.colors?.accent || styles.summaryAction.color },
                       ]}
                     >
                       {notesExpanded ? 'Cancel' : orderNotes || promoCode ? 'Edit' : 'Add'}
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 </View>
                 {notesExpanded ? (
@@ -1114,7 +1106,7 @@ function OrderBuilderScreen({
                     />
                     <View style={styles.inlineActions}>
                       <TouchableOpacity onPress={handleCancelNotes}>
-                        <Text style={styles.secondaryAction}>Cancel</Text>
+                        <AppText style={styles.secondaryAction}>Cancel</AppText>
                       </TouchableOpacity>
                       <PrimaryButton label="Save" onPress={handleSaveNotes} />
                     </View>
@@ -1125,41 +1117,41 @@ function OrderBuilderScreen({
               <View style={styles.summarySection}>
                 <View style={styles.summaryHeader}>
                   <View style={styles.summaryHeaderText}>
-                    <Text
+                    <AppText
                       style={[
                         styles.summaryTitle,
                         { color: theme?.colors?.primaryFont || styles.summaryTitle.color },
                       ]}
                     >
                       Price Breakdown
-                    </Text>
-                    <Text
+                    </AppText>
+                    <AppText
                       style={[
                         styles.summarySubtitle,
                         { color: theme?.colors?.secondaryFont || styles.summarySubtitle.color },
                       ]}
                     >
                       {priceSummary}
-                    </Text>
+                    </AppText>
                   </View>
                 </View>
                 <View style={styles.section}>
                   {priceDetails.lineItems.map((item) => (
                     <View key={item.id} style={styles.breakdownRow}>
-                      <Text style={styles.breakdownLabel}>{item.label}</Text>
-                      <Text style={styles.breakdownAmount}>{formatCurrency(item.amount)}</Text>
+                      <AppText style={styles.breakdownLabel}>{item.label}</AppText>
+                      <AppText style={styles.breakdownAmount}>{formatCurrency(item.amount)}</AppText>
                     </View>
                   ))}
                   <View style={styles.breakdownTotalRow}>
-                    <Text style={styles.breakdownTotalLabel}>Total</Text>
-                    <Text style={styles.breakdownTotalAmount}>{formatCurrency(priceDetails.total)}</Text>
+                    <AppText style={styles.breakdownTotalLabel}>Total</AppText>
+                    <AppText style={styles.breakdownTotalAmount}>{formatCurrency(priceDetails.total)}</AppText>
                   </View>
-                  <Text style={styles.helperText}>
+                  <AppText style={styles.helperText}>
                       Estimated completion:{' '}
                       {estimatedCompletionLabel
                         ? `${estimatedCompletionLabel} (order today)`
                         : `${priceDetails.estimatedCompletionDays} business days after payment.`}
-                  </Text>
+                  </AppText>
                 </View>
               </View>
             </>
@@ -1169,7 +1161,7 @@ function OrderBuilderScreen({
             <>
               <View style={styles.actionRow}>
                 <TouchableOpacity onPress={handleSaveDraft} disabled={isSaving}>
-                  <Text style={styles.secondaryAction}>Save Draft</Text>
+                  <AppText style={styles.secondaryAction}>Save Draft</AppText>
                 </TouchableOpacity>
                 <PrimaryButton
                   label="Proceed to Payment"
@@ -1179,7 +1171,7 @@ function OrderBuilderScreen({
                 />
               </View>
               {proceedHelperText ? (
-                <Text
+                <AppText
                   style={[
                     styles.helperText,
                     styles.proceedHelper,
@@ -1187,16 +1179,16 @@ function OrderBuilderScreen({
                   ]}
                 >
                   {proceedHelperText}
-                </Text>
+                </AppText>
               ) : null}
             </>
           ) : null}
         </>
       ) : (
         <View style={styles.paymentSection}>
-          <Text style={styles.helperText}>
+          <AppText style={styles.helperText}>
             Total due {formatCurrency(priceDetails.total)}. Enter your payment details to finalize your order.
-          </Text>
+          </AppText>
           <CardField
             postalCodeEnabled
             placeholders={{ number: '4242 4242 4242 4242' }}
@@ -1210,7 +1202,7 @@ function OrderBuilderScreen({
             loading={isProcessingPayment}
           />
           <TouchableOpacity onPress={() => setStep('summary')} style={styles.backLink}>
-            <Text style={styles.secondaryAction}>← Back to order details</Text>
+            <AppText style={styles.secondaryAction}>← Back to order details</AppText>
           </TouchableOpacity>
         </View>
       )}

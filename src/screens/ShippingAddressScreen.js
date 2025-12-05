@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Modal, Alert, Switch, ActivityIndicator } from 'react-native';
+import {ScrollView, StyleSheet, TextInput, TouchableOpacity, View, Modal, Alert, Switch, ActivityIndicator} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenContainer from '../components/ScreenContainer';
 import Icon from '../icons/Icon';
@@ -196,7 +197,7 @@ function ShippingAddressScreen({ navigation }) {
         >
           <Icon name="chevronRight" color={primaryFont} style={styles.backIcon} size={24} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: primaryFont }]}>Shipping Addresses</Text>
+        <AppText style={[styles.headerTitle, { color: primaryFont }]}>Shipping Addresses</AppText>
         <View style={styles.placeholder} />
       </View>
 
@@ -206,22 +207,22 @@ function ShippingAddressScreen({ navigation }) {
         showsVerticalScrollIndicator={true}
       >
         <View style={styles.headerSection}>
-          <Text style={[styles.subtitle, { color: secondaryFont }]}>
+          <AppText style={[styles.subtitle, { color: secondaryFont }]}>
             Manage your saved shipping addresses for faster checkout.
-          </Text>
+          </AppText>
         </View>
 
         {loading ? (
           <View style={styles.emptyState}>
-            <Text style={[styles.emptyText, { color: secondaryFont }]}>Loading addresses...</Text>
+            <AppText style={[styles.emptyText, { color: secondaryFont }]}>Loading addresses...</AppText>
           </View>
         ) : addresses.length === 0 ? (
           <View style={styles.emptyState}>
             <Icon name="mapPin" color={withOpacity(secondaryFont, 0.4)} size={48} />
-            <Text style={[styles.emptyTitle, { color: primaryFont }]}>No saved addresses</Text>
-            <Text style={[styles.emptyText, { color: secondaryFont }]}>
+            <AppText style={[styles.emptyTitle, { color: primaryFont }]}>No saved addresses</AppText>
+            <AppText style={[styles.emptyText, { color: secondaryFont }]}>
               Add an address to use during checkout
-            </Text>
+            </AppText>
           </View>
         ) : (
           <>
@@ -237,7 +238,7 @@ function ShippingAddressScreen({ navigation }) {
                 ]}
               >
                 <Icon name="plus" color={accent} size={16} />
-                <Text style={[styles.addButtonTopText, { color: accent }]}>Add New Address</Text>
+                <AppText style={[styles.addButtonTopText, { color: accent }]}>Add New Address</AppText>
               </TouchableOpacity>
             </View>
             <View style={styles.addressList}>
@@ -254,12 +255,12 @@ function ShippingAddressScreen({ navigation }) {
               >
                 <View style={styles.addressCardHeader}>
                   <View style={styles.addressCardHeaderLeft}>
-                    <Text style={[styles.addressLabel, { color: accent }]}>
+                    <AppText style={[styles.addressLabel, { color: accent }]}>
                       {address.label || 'Home'}
-                    </Text>
+                    </AppText>
                     {address.isDefault && (
                       <View style={[styles.defaultBadge, { backgroundColor: accent }]}>
-                        <Text style={[styles.defaultBadgeText, { color: surface }]}>Default</Text>
+                        <AppText style={[styles.defaultBadgeText, { color: surface }]}>Default</AppText>
                       </View>
                     )}
                   </View>
@@ -282,29 +283,29 @@ function ShippingAddressScreen({ navigation }) {
                   </View>
                 </View>
                 <View style={styles.addressCardBody}>
-                  <Text style={[styles.addressName, { color: primaryFont }]}>
+                  <AppText style={[styles.addressName, { color: primaryFont }]}>
                     {address.name}
-                  </Text>
-                  <Text style={[styles.addressLine, { color: secondaryFont }]}>
+                  </AppText>
+                  <AppText style={[styles.addressLine, { color: secondaryFont }]}>
                     {address.line1}
-                  </Text>
+                  </AppText>
                   {address.line2 ? (
-                    <Text style={[styles.addressLine, { color: secondaryFont }]}>
+                    <AppText style={[styles.addressLine, { color: secondaryFont }]}>
                       {address.line2}
-                    </Text>
+                    </AppText>
                   ) : null}
-                  <Text style={[styles.addressLine, { color: secondaryFont }]}>
+                  <AppText style={[styles.addressLine, { color: secondaryFont }]}>
                     {[address.city, address.state, address.postalCode].filter(Boolean).join(', ')}
-                  </Text>
+                  </AppText>
                 </View>
                 {!address.isDefault && (
                   <TouchableOpacity
                     onPress={() => handleSetDefault(address.id)}
                     style={styles.setDefaultButton}
                   >
-                    <Text style={[styles.setDefaultText, { color: accent }]}>
+                    <AppText style={[styles.setDefaultText, { color: accent }]}>
                       Set as default
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 )}
               </View>
@@ -314,7 +315,7 @@ function ShippingAddressScreen({ navigation }) {
         )}
 
         {error && !showAddressForm ? (
-          <Text style={[styles.errorText, { color: errorColor }]}>{error}</Text>
+          <AppText style={[styles.errorText, { color: errorColor }]}>{error}</AppText>
         ) : null}
       </ScrollView>
 
@@ -328,9 +329,9 @@ function ShippingAddressScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: surface }]} collapsable={false}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: primaryFont }]}>
+              <AppText style={[styles.modalTitle, { color: primaryFont }]}>
                 {editingAddress ? 'Edit Address' : 'Add New Address'}
-              </Text>
+              </AppText>
               <TouchableOpacity
                 onPress={handleCancel}
                 style={styles.modalCloseButton}
@@ -346,7 +347,7 @@ function ShippingAddressScreen({ navigation }) {
               showsVerticalScrollIndicator={true}
               keyboardShouldPersistTaps="handled"
             >
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Label (e.g., Home, Work)</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Label (e.g., Home, Work)</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont, backgroundColor: surface }]}
                 value={addressForm.label}
@@ -358,7 +359,7 @@ function ShippingAddressScreen({ navigation }) {
                 placeholderTextColor={withOpacity(secondaryFont, 0.5)}
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Full Name *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Full Name *</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont, backgroundColor: surface }]}
                 value={addressForm.name}
@@ -370,7 +371,7 @@ function ShippingAddressScreen({ navigation }) {
                 placeholderTextColor={withOpacity(secondaryFont, 0.5)}
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Address Line 1 *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Address Line 1 *</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont, backgroundColor: surface }]}
                 value={addressForm.line1}
@@ -382,7 +383,7 @@ function ShippingAddressScreen({ navigation }) {
                 placeholderTextColor={withOpacity(secondaryFont, 0.5)}
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Address Line 2 (Optional)</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Address Line 2 (Optional)</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont, backgroundColor: surface }]}
                 value={addressForm.line2}
@@ -396,7 +397,7 @@ function ShippingAddressScreen({ navigation }) {
 
               <View style={styles.formRow}>
                 <View style={styles.formRowThird}>
-                  <Text style={[styles.formLabel, { color: primaryFont }]}>City *</Text>
+                  <AppText style={[styles.formLabel, { color: primaryFont }]}>City *</AppText>
                   <TextInput
                     style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont, backgroundColor: surface }]}
                     value={addressForm.city}
@@ -409,7 +410,7 @@ function ShippingAddressScreen({ navigation }) {
                   />
                 </View>
                 <View style={styles.formRowThird}>
-                  <Text style={[styles.formLabel, { color: primaryFont }]}>State *</Text>
+                  <AppText style={[styles.formLabel, { color: primaryFont }]}>State *</AppText>
                   <TextInput
                     style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont, backgroundColor: surface }]}
                     value={addressForm.state}
@@ -424,7 +425,7 @@ function ShippingAddressScreen({ navigation }) {
                   />
                 </View>
                 <View style={styles.formRowThird}>
-                  <Text style={[styles.formLabel, { color: primaryFont }]}>Postal Code *</Text>
+                  <AppText style={[styles.formLabel, { color: primaryFont }]}>Postal Code *</AppText>
                   <TextInput
                     style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont, backgroundColor: surface }]}
                     value={addressForm.postalCode}
@@ -441,9 +442,9 @@ function ShippingAddressScreen({ navigation }) {
 
               <View style={styles.defaultAddressRow}>
                 <View style={styles.defaultAddressLabel}>
-                  <Text style={[styles.defaultAddressLabelText, { color: primaryFont }]}>
+                  <AppText style={[styles.defaultAddressLabelText, { color: primaryFont }]}>
                     Set as default address
-                  </Text>
+                  </AppText>
                 </View>
                 <Switch
                   value={addressForm.isDefault}
@@ -460,7 +461,7 @@ function ShippingAddressScreen({ navigation }) {
               </View>
 
               {error ? (
-                <Text style={[styles.errorText, { color: errorColor }]}>{error}</Text>
+                <AppText style={[styles.errorText, { color: errorColor }]}>{error}</AppText>
               ) : null}
               </ScrollView>
 
@@ -469,7 +470,7 @@ function ShippingAddressScreen({ navigation }) {
                   onPress={handleCancel}
                   style={[styles.modalButton, { borderColor: withOpacity(borderColor, 0.5) }]}
                 >
-                  <Text style={[styles.modalButtonText, { color: primaryFont }]}>Cancel</Text>
+                  <AppText style={[styles.modalButtonText, { color: primaryFont }]}>Cancel</AppText>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleSaveAddress}
@@ -486,9 +487,9 @@ function ShippingAddressScreen({ navigation }) {
                   {saving ? (
                     <ActivityIndicator size="small" color={colors.accentContrast || '#FFFFFF'} />
                   ) : (
-                    <Text style={[styles.modalButtonText, styles.modalButtonPrimaryText, { color: colors.accentContrast || '#FFFFFF' }]}>
+                    <AppText style={[styles.modalButtonText, styles.modalButtonPrimaryText, { color: colors.accentContrast || '#FFFFFF' }]}>
                       {editingAddress ? 'Update Address' : 'Save Address'}
-                    </Text>
+                    </AppText>
                   )}
                 </TouchableOpacity>
               </View>

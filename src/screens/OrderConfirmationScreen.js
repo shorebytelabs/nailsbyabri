@@ -1,14 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Linking,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-  Image,
-} from 'react-native';
+import {Alert, Linking, Pressable, StyleSheet, View, useWindowDimensions, Image} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
 import PrimaryButton from '../components/PrimaryButton';
@@ -122,9 +114,9 @@ function OrderConfirmationScreen({ order, onDone, onViewOrder }) {
             message="We could not find the order details, but your confirmation is complete."
           />
           <View style={styles.card}>
-            <Text style={styles.bodyText}>
+            <AppText style={styles.bodyText}>
               Return to your profile to review recent orders or contact support if you need help.
-            </Text>
+            </AppText>
           </View>
           <PrimaryButton label="Back to Home" onPress={handleBackToProfile} />
         </View>
@@ -231,13 +223,13 @@ function OrderConfirmationScreen({ order, onDone, onViewOrder }) {
             accessibilityLabel="Back to Home"
             testID="back-to-home-cta"
           >
-            <Text style={styles.secondaryButtonLabel}>Back to Home</Text>
+            <AppText style={styles.secondaryButtonLabel}>Back to Home</AppText>
           </Pressable>
         </View>
 
           {copied ? (
             <View style={styles.toast}>
-              <Text style={styles.toastText}>Order ID copied</Text>
+              <AppText style={styles.toastText}>Order ID copied</AppText>
             </View>
           ) : null}
         </View>
@@ -254,11 +246,11 @@ function ConfirmationHeader({ styles, colors, title, message, timeline }) {
           <Icon name="checkCircle" color={colors.success || '#4B7A57'} />
         </View>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>{title}</Text>
-          {timeline ? <Text style={styles.headerTimeline}>{timeline}</Text> : null}
+          <AppText style={styles.headerTitle}>{title}</AppText>
+          {timeline ? <AppText style={styles.headerTimeline}>{timeline}</AppText> : null}
         </View>
       </View>
-      <Text style={styles.headerSubtitle}>{message}</Text>
+      <AppText style={styles.headerSubtitle}>{message}</AppText>
     </View>
   );
 }
@@ -274,13 +266,13 @@ function OrderSummaryCard({
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>Order Summary</Text>
+        <AppText style={styles.cardTitle}>Order Summary</AppText>
       </View>
 
       <View style={styles.orderIdContainer}>
-        <Text style={styles.orderIdLabel}>Order ID</Text>
+        <AppText style={styles.orderIdLabel}>Order ID</AppText>
         <View style={styles.orderIdValueRow}>
-          <Text style={styles.orderIdValue}>{displayOrderId}</Text>
+          <AppText style={styles.orderIdValue}>{displayOrderId}</AppText>
           <Pressable
             onPress={onCopy}
             style={({ pressed }) => [
@@ -292,19 +284,19 @@ function OrderSummaryCard({
             testID="order-copy-action"
           >
             <Icon name="copy" color={colors.accent} size={18} />
-            <Text style={styles.copyLabel}>Copy</Text>
+            <AppText style={styles.copyLabel}>Copy</AppText>
           </Pressable>
         </View>
         {orderId ? (
-          <Text style={styles.orderIdSubtitle}>Order ID: {orderId}</Text>
+          <AppText style={styles.orderIdSubtitle}>Order ID: {orderId}</AppText>
         ) : null}
       </View>
 
       <View style={styles.summaryGrid}>
         {summaryRows.map((row) => (
           <View key={row.label} style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>{row.label}</Text>
-            <Text style={styles.summaryValue}>{row.value || '—'}</Text>
+            <AppText style={styles.summaryLabel}>{row.label}</AppText>
+            <AppText style={styles.summaryValue}>{row.value || '—'}</AppText>
           </View>
         ))}
       </View>
@@ -323,12 +315,12 @@ function NextStepsCard({
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>Next Steps & Support</Text>
+        <AppText style={styles.cardTitle}>Next Steps & Support</AppText>
       </View>
-      <Text style={styles.bodyText}>
-        Email confirmation sent to <Text style={styles.emphasis}>{email}</Text>.
-      </Text>
-      <Text style={styles.timelineHighlight}>{timeline}</Text>
+      <AppText style={styles.bodyText}>
+        Email confirmation sent to <AppText style={styles.emphasis}>{email}</AppText>.
+      </AppText>
+      <AppText style={styles.timelineHighlight}>{timeline}</AppText>
       <View style={styles.supportList}>
         <Pressable
           onPress={onViewOrder}
@@ -342,7 +334,7 @@ function NextStepsCard({
           <View style={styles.supportIcon}>
             <Icon name="info" color={colors.accent} size={18} />
           </View>
-          <Text style={styles.supportLabel}>View order details</Text>
+          <AppText style={styles.supportLabel}>View order details</AppText>
           <Icon name="chevronRight" color={colors.secondaryFont} size={18} />
         </Pressable>
         <Pressable
@@ -357,7 +349,7 @@ function NextStepsCard({
           <View style={styles.supportIcon}>
             <Icon name="mail" color={colors.accent} size={18} />
           </View>
-          <Text style={styles.supportLabel}>Contact support</Text>
+          <AppText style={styles.supportLabel}>Contact support</AppText>
           <Icon name="chevronRight" color={colors.secondaryFont} size={18} />
         </Pressable>
       </View>

@@ -4,16 +4,8 @@
  */
 
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {ActivityIndicator, Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../icons/Icon';
 import { useTheme } from '../theme';
@@ -166,37 +158,37 @@ function ManageWorkloadScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="chevronRight" color={primaryFont} size={20} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: primaryFont }]}>Manage Workload</Text>
+        <AppText style={[styles.headerTitle, { color: primaryFont }]}>Manage Workload</AppText>
         <View style={styles.headerSpacer} />
       </View>
 
       {workloadLoading ? (
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color={accent} />
-          <Text style={[styles.loadingText, { color: secondaryFont }]}>Loading workload information...</Text>
+          <AppText style={[styles.loadingText, { color: secondaryFont }]}>Loading workload information...</AppText>
         </View>
       ) : (
         <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: primaryFont }]}>Weekly Capacity</Text>
+            <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Weekly Capacity</AppText>
 
             {workloadInfo ? (
               <View style={[styles.infoCard, { backgroundColor: surface, borderColor: withOpacity(borderColor, 0.5) }]}>
                 <View style={styles.statRow}>
-                  <Text style={[styles.statLabel, { color: secondaryFont }]}>Current Weekly Capacity:</Text>
-                  <Text style={[styles.statValue, { color: primaryFont }]}>
+                  <AppText style={[styles.statLabel, { color: secondaryFont }]}>Current Weekly Capacity:</AppText>
+                  <AppText style={[styles.statValue, { color: primaryFont }]}>
                     {workloadInfo.weeklyCapacity} orders
-                  </Text>
+                  </AppText>
                 </View>
                 <View style={styles.statRow}>
-                  <Text style={[styles.statLabel, { color: secondaryFont }]}>Orders Submitted This Week:</Text>
-                  <Text style={[styles.statValue, { color: primaryFont }]}>
+                  <AppText style={[styles.statLabel, { color: secondaryFont }]}>Orders Submitted This Week:</AppText>
+                  <AppText style={[styles.statValue, { color: primaryFont }]}>
                     {workloadInfo.ordersCount}
-                  </Text>
+                  </AppText>
                 </View>
                 <View style={styles.statRow}>
-                  <Text style={[styles.statLabel, { color: secondaryFont }]}>Remaining Capacity:</Text>
-                  <Text
+                  <AppText style={[styles.statLabel, { color: secondaryFont }]}>Remaining Capacity:</AppText>
+                  <AppText
                     style={[
                       styles.statValue,
                       {
@@ -211,29 +203,29 @@ function ManageWorkloadScreen({ navigation }) {
                     ]}
                   >
                     {workloadInfo.remaining} orders
-                  </Text>
+                  </AppText>
                 </View>
                 <View style={styles.statRow}>
-                  <Text style={[styles.statLabel, { color: secondaryFont }]}>Current Week Start:</Text>
-                  <Text style={[styles.statValue, { color: primaryFont }]}>
+                  <AppText style={[styles.statLabel, { color: secondaryFont }]}>Current Week Start:</AppText>
+                  <AppText style={[styles.statValue, { color: primaryFont }]}>
                     {workloadInfo.weekStart
                       ? new Date(workloadInfo.weekStart).toLocaleDateString() + ' at 9:00 AM PST'
                       : '—'}
-                  </Text>
+                  </AppText>
                 </View>
                 <View style={styles.statRow}>
-                  <Text style={[styles.statLabel, { color: secondaryFont }]}>Next Week Opens:</Text>
-                  <Text style={[styles.statValue, { color: primaryFont, fontWeight: '700' }]}>
+                  <AppText style={[styles.statLabel, { color: secondaryFont }]}>Next Week Opens:</AppText>
+                  <AppText style={[styles.statValue, { color: primaryFont, fontWeight: '700' }]}>
                     {workloadInfo.nextWeekStart
                       ? formatNextWeekStartForAdmin(getNextWeekStartDateTime())
                       : '—'}
-                  </Text>
+                  </AppText>
                 </View>
               </View>
             ) : null}
 
             <View style={[styles.editSection, { borderColor: withOpacity(borderColor, 0.3) }]}>
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Update Weekly Capacity</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Update Weekly Capacity</AppText>
               <View style={styles.capacityInputRow}>
                 <TextInput
                   style={[
@@ -256,19 +248,19 @@ function ManageWorkloadScreen({ navigation }) {
                   style={styles.saveButton}
                 />
               </View>
-              <Text style={[styles.helpText, { color: secondaryFont }]}>
+              <AppText style={[styles.helpText, { color: secondaryFont }]}>
                 Set how many orders can be accepted per week. Capacity resets automatically each Monday at 9:00 AM PST.
-              </Text>
+              </AppText>
             </View>
 
             {/* Testing/Admin Controls */}
             <View style={[styles.testingSection, { borderColor: withOpacity(borderColor, 0.3) }]}>
-              <Text style={[styles.testingSectionTitle, { color: primaryFont }]}>
+              <AppText style={[styles.testingSectionTitle, { color: primaryFont }]}>
                 Testing Controls
-              </Text>
-              <Text style={[styles.helpText, { color: secondaryFont, marginBottom: 12 }]}>
+              </AppText>
+              <AppText style={[styles.helpText, { color: secondaryFont, marginBottom: 12 }]}>
                 Use these controls to test weekly reset behavior without waiting for Monday.
-              </Text>
+              </AppText>
               <View style={styles.testingButtonsRow}>
                 <TouchableOpacity
                   onPress={handleResetWeekCount}
@@ -281,9 +273,9 @@ function ManageWorkloadScreen({ navigation }) {
                     },
                   ]}
                 >
-                  <Text style={[styles.testingButtonText, { color: warningColor }]}>
+                  <AppText style={[styles.testingButtonText, { color: warningColor }]}>
                     {resettingWeek ? 'Resetting...' : 'Reset Week Count'}
-                  </Text>
+                  </AppText>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleCreateNextWeek}
@@ -296,15 +288,15 @@ function ManageWorkloadScreen({ navigation }) {
                     },
                   ]}
                 >
-                  <Text style={[styles.testingButtonText, { color: accent }]}>
+                  <AppText style={[styles.testingButtonText, { color: accent }]}>
                     {resettingWeek ? 'Creating...' : 'Create Next Week'}
-                  </Text>
+                  </AppText>
                 </TouchableOpacity>
               </View>
-              <Text style={[styles.helpText, { color: secondaryFont, fontSize: 11, marginTop: 8 }]}>
+              <AppText style={[styles.helpText, { color: secondaryFont, fontSize: 11, marginTop: 8 }]}>
                 Reset Week Count: Sets current week's order count to 0.{'\n'}
                 Create Next Week: Creates next week's capacity record (simulates Monday reset).
-              </Text>
+              </AppText>
             </View>
           </View>
         </ScrollView>

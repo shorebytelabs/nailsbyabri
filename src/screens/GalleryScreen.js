@@ -1,18 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  Image,
-  TouchableOpacity,
-  Modal,
-  Dimensions,
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  useWindowDimensions,
-} from 'react-native';
+import {View, StyleSheet, FlatList, Image, TouchableOpacity, Modal, Dimensions, ActivityIndicator, Alert, ScrollView, useWindowDimensions} from 'react-native';
+import AppText from '../components/AppText';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useTheme } from '../theme';
 import { useAppState } from '../context/AppContext';
@@ -355,13 +343,13 @@ function GalleryScreen() {
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <Icon name="gallery" color={colors.secondaryFont || '#5C5F5D'} size={48} />
-      <Text style={[styles.emptyText, { color: colors.secondaryFont || '#5C5F5D' }]}>
+      <AppText style={[styles.emptyText, { color: colors.secondaryFont || '#5C5F5D' }]}>
         No images in gallery yet
-      </Text>
+      </AppText>
       {isAdmin && (
-        <Text style={[styles.emptySubtext, { color: colors.secondaryFont || '#5C5F5D' }]}>
+        <AppText style={[styles.emptySubtext, { color: colors.secondaryFont || '#5C5F5D' }]}>
           Tap the upload button to add photos
-        </Text>
+        </AppText>
       )}
     </View>
   );
@@ -402,10 +390,10 @@ function GalleryScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerText}>
-            <Text style={[styles.headerTitle, { color: primaryFont || '#220707' }]}>Gallery</Text>
-            <Text style={[styles.headerSubtitle, { color: secondaryFont || '#5C5F5D' }]}>
+            <AppText style={[styles.headerTitle, { color: primaryFont || '#220707' }]}>Gallery</AppText>
+            <AppText style={[styles.headerSubtitle, { color: secondaryFont || '#5C5F5D' }]}>
               Inspiration from our latest designs
-            </Text>
+            </AppText>
           </View>
           {isAdmin && (
             <TouchableOpacity
@@ -425,9 +413,9 @@ function GalleryScreen() {
               ) : (
                 <>
                   <Icon name="plus" color={colors.accent || '#6F171F'} size={16} />
-                  <Text style={[styles.uploadButtonLabel, { color: colors.accent || '#6F171F' }]}>
+                  <AppText style={[styles.uploadButtonLabel, { color: colors.accent || '#6F171F' }]}>
                     Add image
-                  </Text>
+                  </AppText>
                 </>
               )}
             </TouchableOpacity>
@@ -499,9 +487,9 @@ function GalleryScreen() {
           {/* Preview Indicator */}
           {galleryImages.length > 1 && (
             <View style={styles.previewIndicator}>
-              <Text style={styles.previewIndicatorText}>
+              <AppText style={styles.previewIndicatorText}>
                 {previewIndex + 1} / {galleryImages.length}
-              </Text>
+              </AppText>
             </View>
           )}
         </View>

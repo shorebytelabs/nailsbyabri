@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 import { useTheme } from '../../theme';
 import Icon from '../../icons/Icon';
 import { withOpacity } from '../../utils/color';
+import AppText from '../AppText';
 
 function FloatingCreateButton({
   onPress,
@@ -95,7 +96,8 @@ function FloatingCreateButton({
             },
           ]}
         >
-          <Text
+          <AppText
+            variant="ui"
             style={[
               styles.labelText,
               {
@@ -104,7 +106,7 @@ function FloatingCreateButton({
             ]}
           >
             {computedLabel}
-          </Text>
+          </AppText>
         </View>
       ) : null}
     </Animated.View>

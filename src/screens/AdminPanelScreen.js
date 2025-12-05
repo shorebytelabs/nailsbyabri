@@ -5,18 +5,8 @@
  */
 
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {ActivityIndicator, Alert, Modal, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Icon from '../icons/Icon';
@@ -1191,7 +1181,7 @@ function AdminPanelScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="chevronRight" color={primaryFont} size={20} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: primaryFont }]}>Admin Panel</Text>
+        <AppText style={[styles.headerTitle, { color: primaryFont }]}>Admin Panel</AppText>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -1212,9 +1202,9 @@ function AdminPanelScreen({ navigation }) {
                   <Icon name={item.icon} color={accent} />
                 </View>
                 <View style={styles.rowContent}>
-                  <Text style={[styles.rowTitle, { color: primaryFont }]}>{item.title}</Text>
+                  <AppText style={[styles.rowTitle, { color: primaryFont }]}>{item.title}</AppText>
                   {item.description ? (
-                    <Text style={[styles.rowDescription, { color: secondaryFont }]}>{item.description}</Text>
+                    <AppText style={[styles.rowDescription, { color: secondaryFont }]}>{item.description}</AppText>
                   ) : null}
                 </View>
                 <View
@@ -1232,24 +1222,24 @@ function AdminPanelScreen({ navigation }) {
                   {item.key === 'promoCodes' ? (
                     <View style={styles.promoCodesSection}>
                       <View style={styles.sectionHeaderRow}>
-                        <Text style={[styles.sectionTitle, { color: primaryFont }]}>Promo Codes</Text>
+                        <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Promo Codes</AppText>
                         <TouchableOpacity
                           onPress={handleCreatePromo}
                           style={[styles.addButton, { backgroundColor: accent }]}
                         >
                           <Icon name="plus" color={colors.accentContrast || '#FFFFFF'} size={16} />
-                          <Text style={[styles.addButtonText, { color: colors.accentContrast || '#FFFFFF' }]}>
+                          <AppText style={[styles.addButtonText, { color: colors.accentContrast || '#FFFFFF' }]}>
                             Create
-                          </Text>
+                          </AppText>
                         </TouchableOpacity>
                       </View>
 
                       {loading ? (
                         <ActivityIndicator size="large" color={accent} style={styles.loader} />
                       ) : promoCodes.length === 0 ? (
-                        <Text style={[styles.emptyText, { color: secondaryFont }]}>
+                        <AppText style={[styles.emptyText, { color: secondaryFont }]}>
                           No promo codes yet. Create one to get started.
-                        </Text>
+                        </AppText>
                       ) : (
                         <View style={styles.promoList}>
                           {promoCodes.map((promo) => (
@@ -1265,7 +1255,7 @@ function AdminPanelScreen({ navigation }) {
                             >
                               <View style={styles.promoCardHeader}>
                                 <View style={styles.promoCardTitleRow}>
-                                  <Text style={[styles.promoCode, { color: accent }]}>{promo.code}</Text>
+                                  <AppText style={[styles.promoCode, { color: accent }]}>{promo.code}</AppText>
                                   <TouchableOpacity
                                     onPress={() => handleToggleActive(promo)}
                                     style={[
@@ -1277,7 +1267,7 @@ function AdminPanelScreen({ navigation }) {
                                       },
                                     ]}
                                   >
-                                    <Text
+                                    <AppText
                                       style={[
                                         styles.toggleText,
                                         {
@@ -1286,18 +1276,18 @@ function AdminPanelScreen({ navigation }) {
                                       ]}
                                     >
                                       {promo.active ? 'Active' : 'Inactive'}
-                                    </Text>
+                                    </AppText>
                                   </TouchableOpacity>
                                 </View>
                                 {promo.description && (
-                                  <Text style={[styles.promoDescription, { color: secondaryFont }]}>
+                                  <AppText style={[styles.promoDescription, { color: secondaryFont }]}>
                                     {promo.description}
-                                  </Text>
+                                  </AppText>
                                 )}
                               </View>
 
                               <View style={styles.promoDetails}>
-                                <Text style={[styles.promoDetail, { color: secondaryFont }]}>
+                                <AppText style={[styles.promoDetail, { color: secondaryFont }]}>
                                   Type: {formatPromoType(promo.type)}
                                   {promo.value !== null && promo.value !== undefined && (
                                     <>
@@ -1307,12 +1297,12 @@ function AdminPanelScreen({ navigation }) {
                                         : `$${Number(promo.value).toFixed(2)}`}
                                     </>
                                   )}
-                                </Text>
+                                </AppText>
                                 {promo.uses_count !== undefined && (
-                                  <Text style={[styles.promoDetail, { color: secondaryFont }]}>
+                                  <AppText style={[styles.promoDetail, { color: secondaryFont }]}>
                                     Uses: {promo.uses_count}
                                     {promo.max_uses ? ` / ${promo.max_uses}` : ''}
-                                  </Text>
+                                  </AppText>
                                 )}
                               </View>
 
@@ -1321,15 +1311,15 @@ function AdminPanelScreen({ navigation }) {
                                   onPress={() => handleEditPromo(promo)}
                                   style={[styles.actionButton, { borderColor: withOpacity(borderColor, 0.5) }]}
                                 >
-                                  <Text style={[styles.actionButtonText, { color: primaryFont }]}>Edit</Text>
+                                  <AppText style={[styles.actionButtonText, { color: primaryFont }]}>Edit</AppText>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                   onPress={() => handleDeletePromo(promo)}
                                   style={[styles.actionButton, { borderColor: withOpacity(colors.error || '#B33A3A', 0.5) }]}
                                 >
-                                  <Text style={[styles.actionButtonText, { color: colors.error || '#B33A3A' }]}>
+                                  <AppText style={[styles.actionButtonText, { color: colors.error || '#B33A3A' }]}>
                                     Delete
-                                  </Text>
+                                  </AppText>
                                 </TouchableOpacity>
                               </View>
                             </View>
@@ -1342,7 +1332,7 @@ function AdminPanelScreen({ navigation }) {
                   {item.key === 'workload' ? (
                     <View style={styles.workloadSection}>
                       <View style={styles.sectionHeaderRow}>
-                        <Text style={[styles.sectionTitle, { color: primaryFont }]}>Weekly Capacity</Text>
+                        <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Weekly Capacity</AppText>
                       </View>
 
                       {workloadLoading ? (
@@ -1350,20 +1340,20 @@ function AdminPanelScreen({ navigation }) {
                       ) : workloadInfo ? (
                         <View style={styles.workloadInfo}>
                           <View style={styles.workloadStatRow}>
-                            <Text style={[styles.workloadLabel, { color: secondaryFont }]}>Current Weekly Capacity:</Text>
-                            <Text style={[styles.workloadValue, { color: primaryFont }]}>
+                            <AppText style={[styles.workloadLabel, { color: secondaryFont }]}>Current Weekly Capacity:</AppText>
+                            <AppText style={[styles.workloadValue, { color: primaryFont }]}>
                               {workloadInfo.weeklyCapacity} orders
-                            </Text>
+                            </AppText>
                           </View>
                           <View style={styles.workloadStatRow}>
-                            <Text style={[styles.workloadLabel, { color: secondaryFont }]}>Orders Submitted This Week:</Text>
-                            <Text style={[styles.workloadValue, { color: primaryFont }]}>
+                            <AppText style={[styles.workloadLabel, { color: secondaryFont }]}>Orders Submitted This Week:</AppText>
+                            <AppText style={[styles.workloadValue, { color: primaryFont }]}>
                               {workloadInfo.ordersCount}
-                            </Text>
+                            </AppText>
                           </View>
                           <View style={styles.workloadStatRow}>
-                            <Text style={[styles.workloadLabel, { color: secondaryFont }]}>Remaining Capacity:</Text>
-                            <Text
+                            <AppText style={[styles.workloadLabel, { color: secondaryFont }]}>Remaining Capacity:</AppText>
+                            <AppText
                               style={[
                                 styles.workloadValue,
                                 {
@@ -1378,29 +1368,29 @@ function AdminPanelScreen({ navigation }) {
                               ]}
                             >
                               {workloadInfo.remaining} orders
-                            </Text>
+                            </AppText>
                           </View>
                           <View style={styles.workloadStatRow}>
-                            <Text style={[styles.workloadLabel, { color: secondaryFont }]}>Current Week Start:</Text>
-                            <Text style={[styles.workloadValue, { color: primaryFont }]}>
+                            <AppText style={[styles.workloadLabel, { color: secondaryFont }]}>Current Week Start:</AppText>
+                            <AppText style={[styles.workloadValue, { color: primaryFont }]}>
                               {workloadInfo.weekStart
                                 ? new Date(workloadInfo.weekStart).toLocaleDateString() + ' at 9:00 AM PST'
                                 : '—'}
-                            </Text>
+                            </AppText>
                           </View>
                           <View style={styles.workloadStatRow}>
-                            <Text style={[styles.workloadLabel, { color: secondaryFont }]}>Next Week Opens:</Text>
-                            <Text style={[styles.workloadValue, { color: primaryFont, fontWeight: '700' }]}>
+                            <AppText style={[styles.workloadLabel, { color: secondaryFont }]}>Next Week Opens:</AppText>
+                            <AppText style={[styles.workloadValue, { color: primaryFont, fontWeight: '700' }]}>
                               {workloadInfo.nextWeekStart
                                 ? formatNextWeekStartForAdmin(getNextWeekStartDateTime())
                                 : '—'}
-                            </Text>
+                            </AppText>
                           </View>
                         </View>
                       ) : null}
 
                       <View style={styles.workloadEditSection}>
-                        <Text style={[styles.formLabel, { color: primaryFont }]}>Update Weekly Capacity</Text>
+                        <AppText style={[styles.formLabel, { color: primaryFont }]}>Update Weekly Capacity</AppText>
                         <View style={styles.capacityInputRow}>
                           <TextInput
                             style={[
@@ -1422,19 +1412,19 @@ function AdminPanelScreen({ navigation }) {
                             style={styles.saveCapacityButton}
                           />
                         </View>
-                        <Text style={[styles.helpText, { color: secondaryFont }]}>
+                        <AppText style={[styles.helpText, { color: secondaryFont }]}>
                           Set how many orders can be accepted per week. Capacity resets automatically each Monday at 9:00 AM PST.
-                        </Text>
+                        </AppText>
                       </View>
 
                       {/* Testing/Admin Controls */}
                       <View style={styles.workloadTestingSection}>
-                        <Text style={[styles.testingSectionTitle, { color: primaryFont }]}>
+                        <AppText style={[styles.testingSectionTitle, { color: primaryFont }]}>
                           Testing Controls
-                        </Text>
-                        <Text style={[styles.helpText, { color: secondaryFont, marginBottom: 12 }]}>
+                        </AppText>
+                        <AppText style={[styles.helpText, { color: secondaryFont, marginBottom: 12 }]}>
                           Use these controls to test weekly reset behavior without waiting for Monday.
-                        </Text>
+                        </AppText>
                         <View style={styles.testingButtonsRow}>
                           <TouchableOpacity
                             onPress={handleResetWeekCount}
@@ -1447,9 +1437,9 @@ function AdminPanelScreen({ navigation }) {
                               },
                             ]}
                           >
-                            <Text style={[styles.testingButtonText, { color: warningColor }]}>
+                            <AppText style={[styles.testingButtonText, { color: warningColor }]}>
                               {resettingWeek ? 'Resetting...' : 'Reset Week Count'}
-                            </Text>
+                            </AppText>
                           </TouchableOpacity>
                           <TouchableOpacity
                             onPress={handleCreateNextWeek}
@@ -1462,15 +1452,15 @@ function AdminPanelScreen({ navigation }) {
                               },
                             ]}
                           >
-                            <Text style={[styles.testingButtonText, { color: accent }]}>
+                            <AppText style={[styles.testingButtonText, { color: accent }]}>
                               {resettingWeek ? 'Creating...' : 'Create Next Week'}
-                            </Text>
+                            </AppText>
                           </TouchableOpacity>
                         </View>
-                        <Text style={[styles.helpText, { color: secondaryFont, fontSize: 11, marginTop: 8 }]}>
+                        <AppText style={[styles.helpText, { color: secondaryFont, fontSize: 11, marginTop: 8 }]}>
                           Reset Week Count: Sets current week's order count to 0.{'\n'}
                           Create Next Week: Creates next week's capacity record (simulates Monday reset).
-                        </Text>
+                        </AppText>
                       </View>
                     </View>
                   ) : null}
@@ -1478,24 +1468,24 @@ function AdminPanelScreen({ navigation }) {
                   {item.key === 'tips' ? (
                     <View style={styles.tipsSection}>
                       <View style={styles.sectionHeaderRow}>
-                        <Text style={[styles.sectionTitle, { color: primaryFont }]}>Tips</Text>
+                        <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Tips</AppText>
                         <TouchableOpacity
                           onPress={handleCreateTip}
                           style={[styles.addButton, { backgroundColor: accent }]}
                         >
                           <Icon name="plus" color={colors.accentContrast || '#FFFFFF'} size={16} />
-                          <Text style={[styles.addButtonText, { color: colors.accentContrast || '#FFFFFF' }]}>
+                          <AppText style={[styles.addButtonText, { color: colors.accentContrast || '#FFFFFF' }]}>
                             Create
-                          </Text>
+                          </AppText>
                         </TouchableOpacity>
                       </View>
 
                       {tipsLoading ? (
                         <ActivityIndicator size="large" color={accent} style={styles.loader} />
                       ) : tips.length === 0 ? (
-                        <Text style={[styles.emptyText, { color: secondaryFont }]}>
+                        <AppText style={[styles.emptyText, { color: secondaryFont }]}>
                           No tips yet. Create one to get started.
-                        </Text>
+                        </AppText>
                       ) : (
                         <View style={styles.tipsList}>
                           {tips.map((tip) => (
@@ -1511,7 +1501,7 @@ function AdminPanelScreen({ navigation }) {
                             >
                               <View style={styles.tipCardHeader}>
                                 <View style={styles.tipCardTitleRow}>
-                                  <Text style={[styles.tipTitle, { color: primaryFont }]}>{tip.title}</Text>
+                                  <AppText style={[styles.tipTitle, { color: primaryFont }]}>{tip.title}</AppText>
                                   <TouchableOpacity
                                     onPress={() => handleToggleTipEnabled(tip)}
                                     style={[
@@ -1523,7 +1513,7 @@ function AdminPanelScreen({ navigation }) {
                                       },
                                     ]}
                                   >
-                                    <Text
+                                    <AppText
                                       style={[
                                         styles.toggleText,
                                         {
@@ -1532,13 +1522,13 @@ function AdminPanelScreen({ navigation }) {
                                       ]}
                                     >
                                       {tip.enabled ? 'Enabled' : 'Disabled'}
-                                    </Text>
+                                    </AppText>
                                   </TouchableOpacity>
                                 </View>
                                 {tip.description && (
-                                  <Text style={[styles.tipDescription, { color: secondaryFont }]} numberOfLines={2}>
+                                  <AppText style={[styles.tipDescription, { color: secondaryFont }]} numberOfLines={2}>
                                     {tip.description}
-                                  </Text>
+                                  </AppText>
                                 )}
                                 {tip.image_url && (
                                   <View style={styles.tipImagePreview}>
@@ -1550,9 +1540,9 @@ function AdminPanelScreen({ navigation }) {
                                   </View>
                                 )}
                                 {tip.youtube_url && (
-                                  <Text style={[styles.tipYoutube, { color: accent }]} numberOfLines={1}>
+                                  <AppText style={[styles.tipYoutube, { color: accent }]} numberOfLines={1}>
                                     Video: {tip.youtube_url}
-                                  </Text>
+                                  </AppText>
                                 )}
                               </View>
 
@@ -1561,15 +1551,15 @@ function AdminPanelScreen({ navigation }) {
                                   onPress={() => handleEditTip(tip)}
                                   style={[styles.actionButton, { borderColor: withOpacity(borderColor, 0.5) }]}
                                 >
-                                  <Text style={[styles.actionButtonText, { color: primaryFont }]}>Edit</Text>
+                                  <AppText style={[styles.actionButtonText, { color: primaryFont }]}>Edit</AppText>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                   onPress={() => handleDeleteTip(tip)}
                                   style={[styles.actionButton, { borderColor: withOpacity(colors.error || '#B33A3A', 0.5) }]}
                                 >
-                                  <Text style={[styles.actionButtonText, { color: colors.error || '#B33A3A' }]}>
+                                  <AppText style={[styles.actionButtonText, { color: colors.error || '#B33A3A' }]}>
                                     Delete
-                                  </Text>
+                                  </AppText>
                                 </TouchableOpacity>
                               </View>
                             </View>
@@ -1582,24 +1572,24 @@ function AdminPanelScreen({ navigation }) {
                   {item.key === 'notifications' ? (
                     <View style={styles.notificationsSection}>
                       <View style={styles.sectionHeaderRow}>
-                        <Text style={[styles.sectionTitle, { color: primaryFont }]}>Global Notifications</Text>
+                        <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Global Notifications</AppText>
                         <TouchableOpacity
                           onPress={handleCreateNotification}
                           style={[styles.addButton, { backgroundColor: accent }]}
                         >
                           <Icon name="plus" color={colors.accentContrast || '#FFFFFF'} size={16} />
-                          <Text style={[styles.addButtonText, { color: colors.accentContrast || '#FFFFFF' }]}>
+                          <AppText style={[styles.addButtonText, { color: colors.accentContrast || '#FFFFFF' }]}>
                             Create
-                          </Text>
+                          </AppText>
                         </TouchableOpacity>
                       </View>
 
                       {notificationsLoading ? (
                         <ActivityIndicator size="large" color={accent} style={styles.loader} />
                       ) : notifications.length === 0 ? (
-                        <Text style={[styles.emptyText, { color: secondaryFont }]}>
+                        <AppText style={[styles.emptyText, { color: secondaryFont }]}>
                           No notifications yet. Create one to get started.
-                        </Text>
+                        </AppText>
                       ) : (
                         <View style={styles.notificationsList}>
                           {notifications.map((notification) => (
@@ -1615,9 +1605,9 @@ function AdminPanelScreen({ navigation }) {
                             >
                               <View style={styles.notificationCardHeader}>
                                 <View style={styles.notificationCardTitleRow}>
-                                  <Text style={[styles.notificationTitle, { color: primaryFont }]}>
+                                  <AppText style={[styles.notificationTitle, { color: primaryFont }]}>
                                     {notification.title}
-                                  </Text>
+                                  </AppText>
                                   <View style={styles.notificationStatusRow}>
                                     <TouchableOpacity
                                       onPress={() => {
@@ -1633,7 +1623,7 @@ function AdminPanelScreen({ navigation }) {
                                         },
                                       ]}
                                     >
-                                      <Text
+                                      <AppText
                                         style={[
                                           styles.statusButtonText,
                                           {
@@ -1642,32 +1632,32 @@ function AdminPanelScreen({ navigation }) {
                                         ]}
                                       >
                                         {formatStatus(notification.status)}
-                                      </Text>
+                                      </AppText>
                                     </TouchableOpacity>
                                   </View>
                                 </View>
-                                <Text style={[styles.notificationMessage, { color: secondaryFont }]} numberOfLines={2}>
+                                <AppText style={[styles.notificationMessage, { color: secondaryFont }]} numberOfLines={2}>
                                   {notification.message}
-                                </Text>
+                                </AppText>
                                 <View style={styles.notificationMeta}>
-                                  <Text style={[styles.notificationMetaText, { color: secondaryFont }]}>
+                                  <AppText style={[styles.notificationMetaText, { color: secondaryFont }]}>
                                     Audience: {formatAudience(notification.audience)}
-                                  </Text>
+                                  </AppText>
                                   {notification.send_at && (
-                                    <Text style={[styles.notificationMetaText, { color: secondaryFont }]}>
+                                    <AppText style={[styles.notificationMetaText, { color: secondaryFont }]}>
                                       Send: {formatCaliforniaDateTime(notification.send_at)}
-                                    </Text>
+                                    </AppText>
                                   )}
                                   {notification.expire_at && (
-                                    <Text style={[styles.notificationMetaText, { color: secondaryFont }]}>
+                                    <AppText style={[styles.notificationMetaText, { color: secondaryFont }]}>
                                       Expire: {formatCaliforniaDateTime(notification.expire_at)}
-                                    </Text>
+                                    </AppText>
                                   )}
                                   {notification.is_sticky && (
-                                    <Text style={[styles.notificationMetaText, { color: accent }]}>📌 Sticky</Text>
+                                    <AppText style={[styles.notificationMetaText, { color: accent }]}>📌 Sticky</AppText>
                                   )}
                                   {!notification.allow_dismiss && (
-                                    <Text style={[styles.notificationMetaText, { color: warningColor }]}>🔒 No dismiss</Text>
+                                    <AppText style={[styles.notificationMetaText, { color: warningColor }]}>🔒 No dismiss</AppText>
                                   )}
                                 </View>
                               </View>
@@ -1677,15 +1667,15 @@ function AdminPanelScreen({ navigation }) {
                                   onPress={() => handleEditNotification(notification)}
                                   style={[styles.actionButton, { borderColor: withOpacity(borderColor, 0.5) }]}
                                 >
-                                  <Text style={[styles.actionButtonText, { color: primaryFont }]}>Edit</Text>
+                                  <AppText style={[styles.actionButtonText, { color: primaryFont }]}>Edit</AppText>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                   onPress={() => handleDeleteNotification(notification)}
                                   style={[styles.actionButton, { borderColor: withOpacity(colors.error || '#B33A3A', 0.5) }]}
                                 >
-                                  <Text style={[styles.actionButtonText, { color: colors.error || '#B33A3A' }]}>
+                                  <AppText style={[styles.actionButtonText, { color: colors.error || '#B33A3A' }]}>
                                     Delete
-                                  </Text>
+                                  </AppText>
                                 </TouchableOpacity>
                               </View>
                             </View>
@@ -1703,7 +1693,7 @@ function AdminPanelScreen({ navigation }) {
 
       {confirmation ? (
         <View style={[styles.toast, { backgroundColor: withOpacity(accent, 0.92) }]}>
-          <Text style={[styles.toastText, { color: colors.accentContrast || '#FFFFFF' }]}>{confirmation}</Text>
+          <AppText style={[styles.toastText, { color: colors.accentContrast || '#FFFFFF' }]}>{confirmation}</AppText>
         </View>
       ) : null}
 
@@ -1712,16 +1702,16 @@ function AdminPanelScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: primaryFont }]}>
+              <AppText style={[styles.modalTitle, { color: primaryFont }]}>
                 {editingPromo ? 'Edit Promo Code' : 'Create Promo Code'}
-              </Text>
+              </AppText>
               <TouchableOpacity onPress={() => setShowPromoForm(false)}>
                 <Icon name="close" color={primaryFont} size={24} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.formContent}>
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Code *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Code *</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
                 value={formData.code}
@@ -1730,7 +1720,7 @@ function AdminPanelScreen({ navigation }) {
                 autoCapitalize="characters"
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Description</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Description</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
                 value={formData.description}
@@ -1738,7 +1728,7 @@ function AdminPanelScreen({ navigation }) {
                 placeholder="10% off order"
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Type *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Type *</AppText>
               <View style={styles.typeButtons}>
                 {['percentage', 'fixed_amount', 'free_shipping', 'free_order'].map((type) => (
                   <TouchableOpacity
@@ -1756,7 +1746,7 @@ function AdminPanelScreen({ navigation }) {
                       },
                     ]}
                   >
-                    <Text
+                    <AppText
                       style={[
                         styles.typeButtonText,
                         {
@@ -1765,16 +1755,16 @@ function AdminPanelScreen({ navigation }) {
                       ]}
                     >
                       {formatPromoType(type)}
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 ))}
               </View>
 
               {(formData.type === 'percentage' || formData.type === 'fixed_amount' || formData.type === 'fixed_price_item') && (
                 <>
-                  <Text style={[styles.formLabel, { color: primaryFont }]}>
+                  <AppText style={[styles.formLabel, { color: primaryFont }]}>
                     Value {formData.type === 'percentage' ? '(0-100)' : '($)'} *
-                  </Text>
+                  </AppText>
                   <TextInput
                     style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
                     value={formData.value}
@@ -1785,7 +1775,7 @@ function AdminPanelScreen({ navigation }) {
                 </>
               )}
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Min Order Amount ($)</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Min Order Amount ($)</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
                 value={formData.min_order_amount}
@@ -1794,7 +1784,7 @@ function AdminPanelScreen({ navigation }) {
                 keyboardType="numeric"
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Start Date</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Start Date</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
                 value={formData.start_date}
@@ -1802,7 +1792,7 @@ function AdminPanelScreen({ navigation }) {
                 placeholder="YYYY-MM-DD"
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>End Date</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>End Date</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
                 value={formData.end_date}
@@ -1810,7 +1800,7 @@ function AdminPanelScreen({ navigation }) {
                 placeholder="YYYY-MM-DD"
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Max Uses</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Max Uses</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
                 value={formData.max_uses}
@@ -1819,7 +1809,7 @@ function AdminPanelScreen({ navigation }) {
                 keyboardType="numeric"
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Per User Limit</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Per User Limit</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
                 value={formData.per_user_limit}
@@ -1844,7 +1834,7 @@ function AdminPanelScreen({ navigation }) {
                   >
                     {formData.combinable && <Icon name="check" color={colors.accentContrast || '#FFFFFF'} size={14} />}
                   </View>
-                  <Text style={[styles.checkboxLabel, { color: primaryFont }]}>Combinable</Text>
+                  <AppText style={[styles.checkboxLabel, { color: primaryFont }]}>Combinable</AppText>
                 </TouchableOpacity>
               </View>
 
@@ -1864,7 +1854,7 @@ function AdminPanelScreen({ navigation }) {
                   >
                     {formData.active && <Icon name="check" color={colors.accentContrast || '#FFFFFF'} size={14} />}
                   </View>
-                  <Text style={[styles.checkboxLabel, { color: primaryFont }]}>Active</Text>
+                  <AppText style={[styles.checkboxLabel, { color: primaryFont }]}>Active</AppText>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -1874,7 +1864,7 @@ function AdminPanelScreen({ navigation }) {
                 onPress={() => setShowPromoForm(false)}
                 style={[styles.cancelButton, { borderColor: withOpacity(borderColor, 0.5) }]}
               >
-                <Text style={[styles.cancelButtonText, { color: primaryFont }]}>Cancel</Text>
+                <AppText style={[styles.cancelButtonText, { color: primaryFont }]}>Cancel</AppText>
               </TouchableOpacity>
               <PrimaryButton
                 label={editingPromo ? 'Update' : 'Create'}
@@ -1891,16 +1881,16 @@ function AdminPanelScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: primaryFont }]}>
+              <AppText style={[styles.modalTitle, { color: primaryFont }]}>
                 {editingTip ? 'Edit Tip' : 'Create Tip'}
-              </Text>
+              </AppText>
               <TouchableOpacity onPress={() => setShowTipForm(false)}>
                 <Icon name="close" color={primaryFont} size={24} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.formContent}>
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Title *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Title *</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
                 value={tipFormData.title}
@@ -1908,7 +1898,7 @@ function AdminPanelScreen({ navigation }) {
                 placeholder="How to prep your nails"
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Description *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Description *</AppText>
               <TextInput
                 style={[styles.formInput, styles.formTextArea, { borderColor: withOpacity(borderColor, 0.5) }]}
                 value={tipFormData.description}
@@ -1918,7 +1908,7 @@ function AdminPanelScreen({ navigation }) {
                 numberOfLines={3}
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Photo</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Photo</AppText>
               {tipFormData.image_url ? (
                 <View style={styles.imagePreviewContainer}>
                   <Image
@@ -1952,14 +1942,14 @@ function AdminPanelScreen({ navigation }) {
                 ) : (
                   <>
                     <Icon name="image" color={accent} size={18} />
-                    <Text style={[styles.uploadButtonText, { color: accent }]}>
+                    <AppText style={[styles.uploadButtonText, { color: accent }]}>
                       {tipFormData.image_url ? 'Change Photo' : 'Upload Photo'}
-                    </Text>
+                    </AppText>
                   </>
                 )}
               </TouchableOpacity>
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>YouTube Video URL (Optional)</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>YouTube Video URL (Optional)</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
                 value={tipFormData.youtube_url}
@@ -1969,7 +1959,7 @@ function AdminPanelScreen({ navigation }) {
                 keyboardType="url"
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Display Order</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Display Order</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
                 value={String(tipFormData.display_order)}
@@ -1997,7 +1987,7 @@ function AdminPanelScreen({ navigation }) {
                   >
                     {tipFormData.enabled && <Icon name="check" color={colors.accentContrast || '#FFFFFF'} size={14} />}
                   </View>
-                  <Text style={[styles.checkboxLabel, { color: primaryFont }]}>Enabled</Text>
+                  <AppText style={[styles.checkboxLabel, { color: primaryFont }]}>Enabled</AppText>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -2007,7 +1997,7 @@ function AdminPanelScreen({ navigation }) {
                 onPress={() => setShowTipForm(false)}
                 style={[styles.cancelButton, { borderColor: withOpacity(borderColor, 0.5) }]}
               >
-                <Text style={[styles.cancelButtonText, { color: primaryFont }]}>Cancel</Text>
+                <AppText style={[styles.cancelButtonText, { color: primaryFont }]}>Cancel</AppText>
               </TouchableOpacity>
               <PrimaryButton
                 label={editingTip ? 'Update' : 'Create'}
@@ -2024,16 +2014,16 @@ function AdminPanelScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: primaryFont }]}>
+              <AppText style={[styles.modalTitle, { color: primaryFont }]}>
                 {editingNotification ? 'Edit Notification' : 'Create Notification'}
-              </Text>
+              </AppText>
               <TouchableOpacity onPress={() => setShowNotificationForm(false)}>
                 <Icon name="close" color={primaryFont} size={24} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.formContent}>
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Title *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Title *</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
                 value={notificationFormData.title}
@@ -2041,7 +2031,7 @@ function AdminPanelScreen({ navigation }) {
                 placeholder="New promotion available"
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Message *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Message *</AppText>
               <TextInput
                 style={[styles.formInput, styles.formTextArea, { borderColor: withOpacity(borderColor, 0.5) }]}
                 value={notificationFormData.message}
@@ -2051,7 +2041,7 @@ function AdminPanelScreen({ navigation }) {
                 numberOfLines={4}
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>YouTube URL (optional)</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>YouTube URL (optional)</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5) }]}
                 value={notificationFormData.youtube_url}
@@ -2061,7 +2051,7 @@ function AdminPanelScreen({ navigation }) {
                 keyboardType="url"
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Audience *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Audience *</AppText>
               <View style={styles.typeButtons}>
                 {[
                   { value: 'all', label: 'All users' },
@@ -2083,7 +2073,7 @@ function AdminPanelScreen({ navigation }) {
                       },
                     ]}
                   >
-                    <Text
+                    <AppText
                       style={[
                         styles.typeButtonText,
                         {
@@ -2092,21 +2082,21 @@ function AdminPanelScreen({ navigation }) {
                       ]}
                     >
                       {audience.label}
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Send At (optional)</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Send At (optional)</AppText>
               <TouchableOpacity
                 onPress={() => setShowSendAtPicker(true)}
                 style={[styles.formInput, styles.datePickerButton, { borderColor: withOpacity(borderColor, 0.5) }]}
               >
-                <Text style={[styles.datePickerText, { color: notificationFormData.send_at ? primaryFont : secondaryFont }]}>
+                <AppText style={[styles.datePickerText, { color: notificationFormData.send_at ? primaryFont : secondaryFont }]}>
                   {notificationFormData.send_at
                     ? formatCaliforniaDateTime(notificationFormData.send_at)
                     : 'Select date and time'}
-                </Text>
+                </AppText>
                 <Icon name="note" color={secondaryFont} size={20} />
               </TouchableOpacity>
               {Platform.OS === 'android' && showSendAtPicker && (
@@ -2134,9 +2124,9 @@ function AdminPanelScreen({ navigation }) {
                       onPress={() => setShowSendAtPicker(false)}
                       style={styles.iosPickerButton}
                     >
-                      <Text style={[styles.iosPickerButtonText, { color: primaryFont }]}>Cancel</Text>
+                      <AppText style={[styles.iosPickerButtonText, { color: primaryFont }]}>Cancel</AppText>
                     </TouchableOpacity>
-                    <Text style={[styles.iosPickerTitle, { color: primaryFont }]}>Select Date & Time</Text>
+                    <AppText style={[styles.iosPickerTitle, { color: primaryFont }]}>Select Date & Time</AppText>
                     <TouchableOpacity
                       onPress={() => {
                         setNotificationFormData((prev) => ({
@@ -2147,7 +2137,7 @@ function AdminPanelScreen({ navigation }) {
                       }}
                       style={styles.iosPickerButton}
                     >
-                      <Text style={[styles.iosPickerButtonText, { color: accent }]}>Done</Text>
+                      <AppText style={[styles.iosPickerButtonText, { color: accent }]}>Done</AppText>
                     </TouchableOpacity>
                   </View>
                   <DateTimePicker
@@ -2165,16 +2155,16 @@ function AdminPanelScreen({ navigation }) {
                 </View>
               )}
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Expire At (optional)</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Expire At (optional)</AppText>
               <TouchableOpacity
                 onPress={() => setShowExpireAtPicker(true)}
                 style={[styles.formInput, styles.datePickerButton, { borderColor: withOpacity(borderColor, 0.5) }]}
               >
-                <Text style={[styles.datePickerText, { color: notificationFormData.expire_at ? primaryFont : secondaryFont }]}>
+                <AppText style={[styles.datePickerText, { color: notificationFormData.expire_at ? primaryFont : secondaryFont }]}>
                   {notificationFormData.expire_at
                     ? formatCaliforniaDateTime(notificationFormData.expire_at)
                     : 'Select date and time'}
-                </Text>
+                </AppText>
                 <Icon name="note" color={secondaryFont} size={20} />
               </TouchableOpacity>
               {Platform.OS === 'android' && showExpireAtPicker && (
@@ -2202,9 +2192,9 @@ function AdminPanelScreen({ navigation }) {
                       onPress={() => setShowExpireAtPicker(false)}
                       style={styles.iosPickerButton}
                     >
-                      <Text style={[styles.iosPickerButtonText, { color: primaryFont }]}>Cancel</Text>
+                      <AppText style={[styles.iosPickerButtonText, { color: primaryFont }]}>Cancel</AppText>
                     </TouchableOpacity>
-                    <Text style={[styles.iosPickerTitle, { color: primaryFont }]}>Select Date & Time</Text>
+                    <AppText style={[styles.iosPickerTitle, { color: primaryFont }]}>Select Date & Time</AppText>
                     <TouchableOpacity
                       onPress={() => {
                         setNotificationFormData((prev) => ({
@@ -2215,7 +2205,7 @@ function AdminPanelScreen({ navigation }) {
                       }}
                       style={styles.iosPickerButton}
                     >
-                      <Text style={[styles.iosPickerButtonText, { color: accent }]}>Done</Text>
+                      <AppText style={[styles.iosPickerButtonText, { color: accent }]}>Done</AppText>
                     </TouchableOpacity>
                   </View>
                   <DateTimePicker
@@ -2233,7 +2223,7 @@ function AdminPanelScreen({ navigation }) {
                 </View>
               )}
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Status *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Status *</AppText>
               <View style={styles.typeButtons}>
                 {['draft', 'scheduled', 'published', 'paused', 'archived'].map((status) => (
                   <TouchableOpacity
@@ -2251,7 +2241,7 @@ function AdminPanelScreen({ navigation }) {
                       },
                     ]}
                   >
-                    <Text
+                    <AppText
                       style={[
                         styles.typeButtonText,
                         {
@@ -2260,7 +2250,7 @@ function AdminPanelScreen({ navigation }) {
                       ]}
                     >
                       {formatStatus(status)}
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -2283,7 +2273,7 @@ function AdminPanelScreen({ navigation }) {
                       <Icon name="check" color={colors.accentContrast || '#FFFFFF'} size={14} />
                     )}
                   </View>
-                  <Text style={[styles.checkboxLabel, { color: primaryFont }]}>Sticky (pin to top)</Text>
+                  <AppText style={[styles.checkboxLabel, { color: primaryFont }]}>Sticky (pin to top)</AppText>
                 </TouchableOpacity>
               </View>
 
@@ -2307,7 +2297,7 @@ function AdminPanelScreen({ navigation }) {
                       <Icon name="check" color={colors.accentContrast || '#FFFFFF'} size={14} />
                     )}
                   </View>
-                  <Text style={[styles.checkboxLabel, { color: primaryFont }]}>Allow dismiss</Text>
+                  <AppText style={[styles.checkboxLabel, { color: primaryFont }]}>Allow dismiss</AppText>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -2317,7 +2307,7 @@ function AdminPanelScreen({ navigation }) {
                 onPress={() => setShowNotificationForm(false)}
                 style={[styles.cancelButton, { borderColor: withOpacity(borderColor, 0.5) }]}
               >
-                <Text style={[styles.cancelButtonText, { color: primaryFont }]}>Cancel</Text>
+                <AppText style={[styles.cancelButtonText, { color: primaryFont }]}>Cancel</AppText>
               </TouchableOpacity>
               <PrimaryButton
                 label={editingNotification ? 'Update' : 'Create'}

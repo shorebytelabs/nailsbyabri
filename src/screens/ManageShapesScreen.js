@@ -4,20 +4,8 @@
  */
 
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {ActivityIndicator, Alert, FlatList, Image, Modal, ScrollView, StyleSheet, Switch, TextInput, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from '../icons/Icon';
@@ -245,13 +233,13 @@ function ManageShapesScreen({ navigation }) {
             </View>
           )}
           <View style={styles.shapeInfo}>
-            <Text style={[styles.shapeName, { color: colors.primaryFont }]}>{shape.display_name}</Text>
-            <Text style={[styles.shapeDetails, { color: colors.secondaryFont }]}>
+            <AppText style={[styles.shapeName, { color: colors.primaryFont }]}>{shape.display_name}</AppText>
+            <AppText style={[styles.shapeDetails, { color: colors.secondaryFont }]}>
               ID: {shape.name} • ${finalPrice.toFixed(2)}
-            </Text>
-            <Text style={[styles.shapeDetails, { color: colors.secondaryFont }]}>
+            </AppText>
+            <AppText style={[styles.shapeDetails, { color: colors.secondaryFont }]}>
               Order: {shape.display_order} • {shape.is_visible ? 'Visible' : 'Hidden'}
-            </Text>
+            </AppText>
           </View>
           <View style={styles.shapeActions}>
             <Switch
@@ -285,7 +273,7 @@ function ManageShapesScreen({ navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Icon name="chevronLeft" color={colors.primaryFont} size={24} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.primaryFont }]}>Manage Shapes</Text>
+          <AppText style={[styles.headerTitle, { color: colors.primaryFont }]}>Manage Shapes</AppText>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
@@ -301,20 +289,20 @@ function ManageShapesScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="chevronLeft" color={colors.primaryFont} size={24} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.primaryFont }]}>Manage Shapes</Text>
+        <AppText style={[styles.headerTitle, { color: colors.primaryFont }]}>Manage Shapes</AppText>
         <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.contentHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.primaryFont }]}>Shapes</Text>
+        <AppText style={[styles.sectionTitle, { color: colors.primaryFont }]}>Shapes</AppText>
         <TouchableOpacity
           onPress={handleCreateShape}
           style={[styles.addButton, { backgroundColor: colors.accent }]}
         >
           <Icon name="plus" color={colors.accentContrast || '#FFFFFF'} size={16} />
-          <Text style={[styles.addButtonText, { color: colors.accentContrast || '#FFFFFF' }]}>
+          <AppText style={[styles.addButtonText, { color: colors.accentContrast || '#FFFFFF' }]}>
             Create
-          </Text>
+          </AppText>
         </TouchableOpacity>
       </View>
 
@@ -327,7 +315,7 @@ function ManageShapesScreen({ navigation }) {
         onRefresh={handleRefresh}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: colors.secondaryFont }]}>No shapes found</Text>
+            <AppText style={[styles.emptyText, { color: colors.secondaryFont }]}>No shapes found</AppText>
           </View>
         }
       />
@@ -344,14 +332,14 @@ function ManageShapesScreen({ navigation }) {
             <TouchableOpacity onPress={() => setShowShapeForm(false)} style={styles.modalCloseButton}>
               <Icon name="close" color={colors.primaryFont} size={24} />
             </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: colors.primaryFont }]}>
+            <AppText style={[styles.modalTitle, { color: colors.primaryFont }]}>
               {editingShape ? 'Edit Shape' : 'Create Shape'}
-            </Text>
+            </AppText>
             <View style={styles.modalSpacer} />
           </View>
 
           <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalScrollContent}>
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Name (Internal ID)</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Name (Internal ID)</AppText>
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.primaryFont, borderColor: colors.border }]}
               value={shapeFormData.name}
@@ -361,12 +349,12 @@ function ManageShapesScreen({ navigation }) {
               editable={!editingShape} // Can't change name when editing
             />
             {editingShape && (
-              <Text style={[styles.hint, { color: colors.secondaryFont }]}>
+              <AppText style={[styles.hint, { color: colors.secondaryFont }]}>
                 Name cannot be changed after creation
-              </Text>
+              </AppText>
             )}
 
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Display Name</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Display Name</AppText>
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.primaryFont, borderColor: colors.border }]}
               value={shapeFormData.display_name}
@@ -375,7 +363,7 @@ function ManageShapesScreen({ navigation }) {
               placeholderTextColor={colors.secondaryFont}
             />
 
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Image URL</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Image URL</AppText>
             <View style={styles.imageSection}>
               {shapeFormData.image_url ? (
                 <Image source={{ uri: shapeFormData.image_url }} style={styles.previewImage} />
@@ -388,14 +376,14 @@ function ManageShapesScreen({ navigation }) {
                 {uploadingImage ? (
                   <ActivityIndicator color={colors.accentContrast} />
                 ) : (
-                  <Text style={[styles.uploadButtonText, { color: colors.accentContrast }]}>
+                  <AppText style={[styles.uploadButtonText, { color: colors.accentContrast }]}>
                     {shapeFormData.image_url ? 'Change Image' : 'Upload Image'}
-                  </Text>
+                  </AppText>
                 )}
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Base Price ($)</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Base Price ($)</AppText>
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.primaryFont, borderColor: colors.border }]}
               value={shapeFormData.base_price}
@@ -405,7 +393,7 @@ function ManageShapesScreen({ navigation }) {
               keyboardType="decimal-pad"
             />
 
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Price Adjustment ($)</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Price Adjustment ($)</AppText>
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.primaryFont, borderColor: colors.border }]}
               value={shapeFormData.price_adjustment}
@@ -414,11 +402,11 @@ function ManageShapesScreen({ navigation }) {
               placeholderTextColor={colors.secondaryFont}
               keyboardType="decimal-pad"
             />
-            <Text style={[styles.hint, { color: colors.secondaryFont }]}>
+            <AppText style={[styles.hint, { color: colors.secondaryFont }]}>
               Final price = Base Price + Adjustment (can be negative)
-            </Text>
+            </AppText>
 
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Display Order</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Display Order</AppText>
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.primaryFont, borderColor: colors.border }]}
               value={String(shapeFormData.display_order)}
@@ -429,7 +417,7 @@ function ManageShapesScreen({ navigation }) {
             />
 
             <View style={styles.switchRow}>
-              <Text style={[styles.label, { color: colors.primaryFont }]}>Visible to Customers</Text>
+              <AppText style={[styles.label, { color: colors.primaryFont }]}>Visible to Customers</AppText>
               <Switch
                 value={shapeFormData.is_visible}
                 onValueChange={(value) => setShapeFormData((prev) => ({ ...prev, is_visible: value }))}
@@ -444,7 +432,7 @@ function ManageShapesScreen({ navigation }) {
               onPress={() => setShowShapeForm(false)}
               style={[styles.cancelButton, { borderColor: colors.border }]}
             >
-              <Text style={[styles.cancelButtonText, { color: colors.secondaryFont }]}>Cancel</Text>
+              <AppText style={[styles.cancelButtonText, { color: colors.secondaryFont }]}>Cancel</AppText>
             </TouchableOpacity>
             <PrimaryButton
               label={editingShape ? 'Update Shape' : 'Create Shape'}

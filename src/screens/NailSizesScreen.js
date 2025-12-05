@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Modal, Alert, Switch, ActivityIndicator } from 'react-native';
+import {ScrollView, StyleSheet, TextInput, TouchableOpacity, View, Modal, Alert, Switch, ActivityIndicator} from 'react-native';
+import AppText from '../components/AppText';
 import ScreenContainer from '../components/ScreenContainer';
 import Icon from '../icons/Icon';
 import { useTheme } from '../theme';
@@ -487,12 +488,12 @@ function NailSizesScreen({ navigation }) {
       >
         <View style={styles.sizeProfileHeader}>
           <View style={styles.sizeProfileHeaderLeft}>
-            <Text style={[styles.sizeProfileLabel, { color: accent }]}>
+            <AppText style={[styles.sizeProfileLabel, { color: accent }]}>
               {profile.label || (isDefault ? 'My default sizes' : 'Profile name')}
-            </Text>
+            </AppText>
             {isDefault && (
               <View style={[styles.defaultBadge, { backgroundColor: accent }]}>
-                <Text style={[styles.defaultBadgeText, { color: surface }]}>Default</Text>
+                <AppText style={[styles.defaultBadgeText, { color: surface }]}>Default</AppText>
               </View>
             )}
           </View>
@@ -519,18 +520,18 @@ function NailSizesScreen({ navigation }) {
             <View style={styles.sizeLabelsRow}>
               {FINGER_DISPLAY.map(({ key, label }) => (
                 <View key={`${profile.id}_${key}_label`} style={styles.sizeLabelCell}>
-                  <Text style={[styles.sizeLabel, { color: primaryFont }]}>
+                  <AppText style={[styles.sizeLabel, { color: primaryFont }]}>
                     {label}
-                  </Text>
+                  </AppText>
                 </View>
               ))}
             </View>
             <View style={styles.sizeInputsRow}>
               {FINGER_DISPLAY.map(({ key, label }) => (
                 <View key={`${profile.id}_${key}_value`} style={styles.sizeValueCell}>
-                  <Text style={[styles.sizeValue, { color: secondaryFont }]}>
+                  <AppText style={[styles.sizeValue, { color: secondaryFont }]}>
                     {profile.sizes?.[key] || '-'}
-                  </Text>
+                  </AppText>
                 </View>
               ))}
             </View>
@@ -541,9 +542,9 @@ function NailSizesScreen({ navigation }) {
             onPress={() => handleSetDefault(profile.id)}
             style={styles.setDefaultButton}
           >
-            <Text style={[styles.setDefaultText, { color: accent }]}>
+            <AppText style={[styles.setDefaultText, { color: accent }]}>
               Set as default
-            </Text>
+            </AppText>
           </TouchableOpacity>
         )}
       </View>
@@ -561,7 +562,7 @@ function NailSizesScreen({ navigation }) {
         >
           <Icon name="chevronRight" color={primaryFont} style={styles.backIcon} size={20} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: primaryFont }]}>Nail Sizes</Text>
+        <AppText style={[styles.headerTitle, { color: primaryFont }]}>Nail Sizes</AppText>
         <View style={styles.placeholder} />
       </View>
 
@@ -572,9 +573,9 @@ function NailSizesScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.headerSection}>
-          <Text style={[styles.subtitle, { color: secondaryFont }]}>
+          <AppText style={[styles.subtitle, { color: secondaryFont }]}>
             Manage your nail sizes and create additional profiles for different sets.
-          </Text>
+          </AppText>
         </View>
 
         <View style={styles.sizesSection}>
@@ -590,16 +591,16 @@ function NailSizesScreen({ navigation }) {
               ]}
             >
               <Icon name="plus" color={accent} size={16} />
-              <Text style={[styles.addButtonTopText, { color: accent }]}>Add Size Profile</Text>
+              <AppText style={[styles.addButtonTopText, { color: accent }]}>Add Size Profile</AppText>
             </TouchableOpacity>
           </View>
           {allProfiles.length === 0 ? (
             <View style={styles.emptyState}>
               <Icon name="settings" color={withOpacity(secondaryFont, 0.4)} size={48} />
-              <Text style={[styles.emptyTitle, { color: primaryFont }]}>No saved nail sizes</Text>
-              <Text style={[styles.emptyText, { color: secondaryFont }]}>
+              <AppText style={[styles.emptyTitle, { color: primaryFont }]}>No saved nail sizes</AppText>
+              <AppText style={[styles.emptyText, { color: secondaryFont }]}>
                 Add a profile to save your nail sizes
-              </Text>
+              </AppText>
             </View>
           ) : (
             <View style={styles.profileList}>
@@ -608,7 +609,7 @@ function NailSizesScreen({ navigation }) {
           )}
 
           {error && !showProfileForm ? (
-            <Text style={[styles.errorText, { color: errorColor }]}>{error}</Text>
+            <AppText style={[styles.errorText, { color: errorColor }]}>{error}</AppText>
           ) : null}
         </View>
       </ScrollView>
@@ -623,9 +624,9 @@ function NailSizesScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: surface }]} collapsable={false}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: primaryFont }]}>
+              <AppText style={[styles.modalTitle, { color: primaryFont }]}>
                 {editingProfile ? 'Edit Profile' : 'Add Size Profile'}
-              </Text>
+              </AppText>
               <TouchableOpacity
                 onPress={handleCancel}
                 style={styles.modalCloseButton}
@@ -641,7 +642,7 @@ function NailSizesScreen({ navigation }) {
               showsVerticalScrollIndicator={true}
               keyboardShouldPersistTaps="handled"
             >
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Profile Name *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Profile Name *</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont, backgroundColor: surface }]}
                 value={profileForm.label}
@@ -653,14 +654,14 @@ function NailSizesScreen({ navigation }) {
                 placeholderTextColor={withOpacity(secondaryFont, 0.5)}
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Nail Sizes *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Nail Sizes *</AppText>
               <View style={styles.sizeContainer}>
                 <View style={styles.sizeLabelsRow}>
                   {FINGER_DISPLAY.map(({ key, label }) => (
                     <View key={`form_${key}_label`} style={styles.sizeLabelCell}>
-                      <Text style={[styles.sizeLabel, { color: primaryFont }]}>
+                      <AppText style={[styles.sizeLabel, { color: primaryFont }]}>
                         {label}
-                      </Text>
+                      </AppText>
                     </View>
                   ))}
                 </View>
@@ -698,9 +699,9 @@ function NailSizesScreen({ navigation }) {
 
               <View style={styles.defaultProfileRow}>
                 <View style={styles.defaultProfileLabel}>
-                  <Text style={[styles.defaultProfileLabelText, { color: primaryFont }]}>
+                  <AppText style={[styles.defaultProfileLabelText, { color: primaryFont }]}>
                     Set as default profile
-                  </Text>
+                  </AppText>
                 </View>
                 <Switch
                   value={profileForm.isDefault}
@@ -717,7 +718,7 @@ function NailSizesScreen({ navigation }) {
               </View>
 
               {error ? (
-                <Text style={[styles.errorText, { color: errorColor }]}>{error}</Text>
+                <AppText style={[styles.errorText, { color: errorColor }]}>{error}</AppText>
               ) : null}
             </ScrollView>
 
@@ -726,7 +727,7 @@ function NailSizesScreen({ navigation }) {
                 onPress={handleCancel}
                 style={[styles.modalButton, { borderColor: withOpacity(borderColor, 0.5) }]}
               >
-                <Text style={[styles.modalButtonText, { color: primaryFont }]}>Cancel</Text>
+                <AppText style={[styles.modalButtonText, { color: primaryFont }]}>Cancel</AppText>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleSaveProfile}
@@ -743,9 +744,9 @@ function NailSizesScreen({ navigation }) {
                 {saving ? (
                   <ActivityIndicator size="small" color={colors.accentContrast || '#FFFFFF'} />
                 ) : (
-                  <Text style={[styles.modalButtonText, styles.modalButtonPrimaryText, { color: colors.accentContrast || '#FFFFFF' }]}>
+                  <AppText style={[styles.modalButtonText, styles.modalButtonPrimaryText, { color: colors.accentContrast || '#FFFFFF' }]}>
                     {editingProfile ? 'Update Profile' : 'Save Profile'}
-                  </Text>
+                  </AppText>
                 )}
               </TouchableOpacity>
             </View>

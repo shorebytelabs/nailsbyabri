@@ -4,19 +4,8 @@
  */
 
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {ActivityIndicator, Alert, FlatList, Modal, ScrollView, StyleSheet, Switch, TextInput, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../icons/Icon';
 import { useTheme } from '../theme';
@@ -336,26 +325,26 @@ function ManageDeliveryMethodsScreen({ navigation }) {
       <View key={tier.id} style={[styles.tierItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.tierContent}>
           <View style={styles.tierInfo}>
-            <Text style={[styles.tierName, { color: colors.primaryFont }]}>{tier.display_name}</Text>
+            <AppText style={[styles.tierName, { color: colors.primaryFont }]}>{tier.display_name}</AppText>
             {tier.description && (
-              <Text style={[styles.tierDescription, { color: colors.secondaryFont }]}>{tier.description}</Text>
+              <AppText style={[styles.tierDescription, { color: colors.secondaryFont }]}>{tier.description}</AppText>
             )}
             <View style={styles.tierDetailsRow}>
-              <Text style={[styles.tierDetailLabel, { color: colors.secondaryFont }]}>Price:</Text>
-              <Text style={[styles.tierDetailValue, { color: colors.primaryFont }]}>${Number(tier.price).toFixed(2)}</Text>
+              <AppText style={[styles.tierDetailLabel, { color: colors.secondaryFont }]}>Price:</AppText>
+              <AppText style={[styles.tierDetailValue, { color: colors.primaryFont }]}>${Number(tier.price).toFixed(2)}</AppText>
             </View>
             <View style={styles.tierDetailsRow}>
-              <Text style={[styles.tierDetailLabel, { color: colors.secondaryFont }]}>Days:</Text>
-              <Text style={[styles.tierDetailValue, { color: colors.primaryFont }]}>{tier.days}</Text>
+              <AppText style={[styles.tierDetailLabel, { color: colors.secondaryFont }]}>Days:</AppText>
+              <AppText style={[styles.tierDetailValue, { color: colors.primaryFont }]}>{tier.days}</AppText>
             </View>
             <View style={styles.tierDetailsRow}>
-              <Text style={[styles.tierDetailLabel, { color: colors.secondaryFont }]}>Display Order:</Text>
-              <Text style={[styles.tierDetailValue, { color: colors.primaryFont }]}>{tier.display_order}</Text>
+              <AppText style={[styles.tierDetailLabel, { color: colors.secondaryFont }]}>Display Order:</AppText>
+              <AppText style={[styles.tierDetailValue, { color: colors.primaryFont }]}>{tier.display_order}</AppText>
             </View>
             <View style={styles.tierMetaRow}>
-              <Text style={[styles.tierMeta, { color: colors.secondaryFont }]}>
+              <AppText style={[styles.tierMeta, { color: colors.secondaryFont }]}>
                 {tier.is_visible ? 'Visible' : 'Hidden'} • {tier.is_default ? 'Default' : 'Not default'}
-              </Text>
+              </AppText>
             </View>
           </View>
           <View style={styles.tierActions}>
@@ -397,17 +386,17 @@ function ManageDeliveryMethodsScreen({ navigation }) {
         >
           <View style={styles.methodHeaderContent}>
             <View style={styles.methodInfo}>
-              <Text style={[styles.methodName, { color: colors.primaryFont }]}>{method.display_name}</Text>
-              <Text style={[styles.methodDetails, { color: colors.secondaryFont }]}>
+              <AppText style={[styles.methodName, { color: colors.primaryFont }]}>{method.display_name}</AppText>
+              <AppText style={[styles.methodDetails, { color: colors.secondaryFont }]}>
                 {allTiers.length} tier{allTiers.length !== 1 ? 's' : ''} • {method.is_visible ? 'Visible' : 'Hidden'}
-              </Text>
+              </AppText>
               {allTiers.length > 0 && (
                 <View style={styles.tierNamesRow}>
                   {allTiers.map((tier) => (
                     <View key={tier.id} style={styles.tierNameChip}>
-                      <Text style={[styles.tierNameChipText, { color: colors.primaryFont }]}>
+                      <AppText style={[styles.tierNameChipText, { color: colors.primaryFont }]}>
                         {tier.display_name}
-                      </Text>
+                      </AppText>
                     </View>
                   ))}
                 </View>
@@ -433,17 +422,17 @@ function ManageDeliveryMethodsScreen({ navigation }) {
         {isExpanded && (
           <View style={styles.methodTiers}>
             <View style={styles.tiersHeader}>
-              <Text style={[styles.tiersTitle, { color: colors.primaryFont }]}>Delivery Tiers</Text>
+              <AppText style={[styles.tiersTitle, { color: colors.primaryFont }]}>Delivery Tiers</AppText>
               <TouchableOpacity
                 onPress={() => handleCreateTier(method)}
                 style={[styles.addTierButton, { backgroundColor: withOpacity(colors.accent, 0.1) }]}
               >
                 <Icon name="add" color={colors.accent} size={18} />
-                <Text style={[styles.addTierText, { color: colors.accent }]}>Add Tier</Text>
+                <AppText style={[styles.addTierText, { color: colors.accent }]}>Add Tier</AppText>
               </TouchableOpacity>
             </View>
             {allTiers.length === 0 ? (
-              <Text style={[styles.emptyTiers, { color: colors.secondaryFont }]}>No tiers yet</Text>
+              <AppText style={[styles.emptyTiers, { color: colors.secondaryFont }]}>No tiers yet</AppText>
             ) : (
               allTiers.map((tier) => renderTierItem(tier, method))
             )}
@@ -453,14 +442,14 @@ function ManageDeliveryMethodsScreen({ navigation }) {
                 style={[styles.actionButton, { backgroundColor: withOpacity(colors.accent, 0.1) }]}
               >
                 <Icon name="edit" color={colors.accent} size={18} />
-                <Text style={[styles.actionButtonText, { color: colors.accent }]}>Edit Method</Text>
+                <AppText style={[styles.actionButtonText, { color: colors.accent }]}>Edit Method</AppText>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => handleDeleteMethod(method)}
                 style={[styles.actionButton, { backgroundColor: withOpacity(colors.error, 0.1) }]}
               >
                 <Icon name="trash" color={colors.error} size={18} />
-                <Text style={[styles.actionButtonText, { color: colors.error }]}>Delete Method</Text>
+                <AppText style={[styles.actionButtonText, { color: colors.error }]}>Delete Method</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -476,7 +465,7 @@ function ManageDeliveryMethodsScreen({ navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Icon name="chevronRight" color={colors.primaryFont} size={24} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.primaryFont }]}>Manage Delivery Methods</Text>
+          <AppText style={[styles.headerTitle, { color: colors.primaryFont }]}>Manage Delivery Methods</AppText>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
@@ -492,7 +481,7 @@ function ManageDeliveryMethodsScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="chevronLeft" color={colors.primaryFont} size={24} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.primaryFont }]}>Manage Delivery Methods</Text>
+        <AppText style={[styles.headerTitle, { color: colors.primaryFont }]}>Manage Delivery Methods</AppText>
         <TouchableOpacity onPress={handleCreateMethod} style={styles.addButton}>
           <Icon name="add" color={colors.accent} size={24} />
         </TouchableOpacity>
@@ -507,7 +496,7 @@ function ManageDeliveryMethodsScreen({ navigation }) {
         onRefresh={handleRefresh}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: colors.secondaryFont }]}>No delivery methods found</Text>
+            <AppText style={[styles.emptyText, { color: colors.secondaryFont }]}>No delivery methods found</AppText>
           </View>
         }
       />
@@ -524,14 +513,14 @@ function ManageDeliveryMethodsScreen({ navigation }) {
             <TouchableOpacity onPress={() => setShowMethodForm(false)} style={styles.modalCloseButton}>
               <Icon name="close" color={colors.primaryFont} size={24} />
             </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: colors.primaryFont }]}>
+            <AppText style={[styles.modalTitle, { color: colors.primaryFont }]}>
               {editingMethod ? 'Edit Method' : 'Create Method'}
-            </Text>
+            </AppText>
             <View style={styles.modalSpacer} />
           </View>
 
           <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalScrollContent}>
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Name (Internal ID)</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Name (Internal ID)</AppText>
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.primaryFont, borderColor: colors.border }]}
               value={methodFormData.name}
@@ -541,10 +530,10 @@ function ManageDeliveryMethodsScreen({ navigation }) {
               editable={!editingMethod}
             />
             {editingMethod && (
-              <Text style={[styles.hint, { color: colors.secondaryFont }]}>Name cannot be changed after creation</Text>
+              <AppText style={[styles.hint, { color: colors.secondaryFont }]}>Name cannot be changed after creation</AppText>
             )}
 
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Display Name</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Display Name</AppText>
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.primaryFont, borderColor: colors.border }]}
               value={methodFormData.display_name}
@@ -553,7 +542,7 @@ function ManageDeliveryMethodsScreen({ navigation }) {
               placeholderTextColor={colors.secondaryFont}
             />
 
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Description</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Description</AppText>
             <TextInput
               style={[styles.input, styles.textArea, { backgroundColor: colors.surface, color: colors.primaryFont, borderColor: colors.border }]}
               value={methodFormData.description}
@@ -564,7 +553,7 @@ function ManageDeliveryMethodsScreen({ navigation }) {
               numberOfLines={2}
             />
 
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Display Order</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Display Order</AppText>
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.primaryFont, borderColor: colors.border }]}
               value={String(methodFormData.display_order)}
@@ -575,7 +564,7 @@ function ManageDeliveryMethodsScreen({ navigation }) {
             />
 
             <View style={styles.switchRow}>
-              <Text style={[styles.label, { color: colors.primaryFont }]}>Visible to Customers</Text>
+              <AppText style={[styles.label, { color: colors.primaryFont }]}>Visible to Customers</AppText>
               <Switch
                 value={methodFormData.is_visible}
                 onValueChange={(value) => setMethodFormData((prev) => ({ ...prev, is_visible: value }))}
@@ -590,7 +579,7 @@ function ManageDeliveryMethodsScreen({ navigation }) {
               onPress={() => setShowMethodForm(false)}
               style={[styles.cancelButton, { borderColor: colors.border }]}
             >
-              <Text style={[styles.cancelButtonText, { color: colors.secondaryFont }]}>Cancel</Text>
+              <AppText style={[styles.cancelButtonText, { color: colors.secondaryFont }]}>Cancel</AppText>
             </TouchableOpacity>
             <PrimaryButton
               label={editingMethod ? 'Update Method' : 'Create Method'}
@@ -612,14 +601,14 @@ function ManageDeliveryMethodsScreen({ navigation }) {
             <TouchableOpacity onPress={() => setShowTierForm(false)} style={styles.modalCloseButton}>
               <Icon name="close" color={colors.primaryFont} size={24} />
             </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: colors.primaryFont }]}>
+            <AppText style={[styles.modalTitle, { color: colors.primaryFont }]}>
               {editingTier ? 'Edit Tier' : 'Create Tier'}
-            </Text>
+            </AppText>
             <View style={styles.modalSpacer} />
           </View>
 
           <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalScrollContent}>
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Name (Internal ID)</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Name (Internal ID)</AppText>
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.primaryFont, borderColor: colors.border }]}
               value={tierFormData.name}
@@ -629,10 +618,10 @@ function ManageDeliveryMethodsScreen({ navigation }) {
               editable={!editingTier}
             />
             {editingTier && (
-              <Text style={[styles.hint, { color: colors.secondaryFont }]}>Name cannot be changed after creation</Text>
+              <AppText style={[styles.hint, { color: colors.secondaryFont }]}>Name cannot be changed after creation</AppText>
             )}
 
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Display Name</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Display Name</AppText>
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.primaryFont, borderColor: colors.border }]}
               value={tierFormData.display_name}
@@ -641,7 +630,7 @@ function ManageDeliveryMethodsScreen({ navigation }) {
               placeholderTextColor={colors.secondaryFont}
             />
 
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Description</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Description</AppText>
             <TextInput
               style={[styles.input, styles.textArea, { backgroundColor: colors.surface, color: colors.primaryFont, borderColor: colors.border }]}
               value={tierFormData.description}
@@ -652,7 +641,7 @@ function ManageDeliveryMethodsScreen({ navigation }) {
               numberOfLines={2}
             />
 
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Tagline</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Tagline</AppText>
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.primaryFont, borderColor: colors.border }]}
               value={tierFormData.tagline}
@@ -661,7 +650,7 @@ function ManageDeliveryMethodsScreen({ navigation }) {
               placeholderTextColor={colors.secondaryFont}
             />
 
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Price ($)</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Price ($)</AppText>
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.primaryFont, borderColor: colors.border }]}
               value={tierFormData.price}
@@ -671,7 +660,7 @@ function ManageDeliveryMethodsScreen({ navigation }) {
               keyboardType="decimal-pad"
             />
 
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Days</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Days</AppText>
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.primaryFont, borderColor: colors.border }]}
               value={tierFormData.days}
@@ -681,7 +670,7 @@ function ManageDeliveryMethodsScreen({ navigation }) {
               keyboardType="number-pad"
             />
 
-            <Text style={[styles.label, { color: colors.primaryFont }]}>Display Order</Text>
+            <AppText style={[styles.label, { color: colors.primaryFont }]}>Display Order</AppText>
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.primaryFont, borderColor: colors.border }]}
               value={String(tierFormData.display_order)}
@@ -692,7 +681,7 @@ function ManageDeliveryMethodsScreen({ navigation }) {
             />
 
             <View style={styles.switchRow}>
-              <Text style={[styles.label, { color: colors.primaryFont }]}>Visible to Customers</Text>
+              <AppText style={[styles.label, { color: colors.primaryFont }]}>Visible to Customers</AppText>
               <Switch
                 value={tierFormData.is_visible}
                 onValueChange={(value) => setTierFormData((prev) => ({ ...prev, is_visible: value }))}
@@ -702,7 +691,7 @@ function ManageDeliveryMethodsScreen({ navigation }) {
             </View>
 
             <View style={styles.switchRow}>
-              <Text style={[styles.label, { color: colors.primaryFont }]}>Default Tier</Text>
+              <AppText style={[styles.label, { color: colors.primaryFont }]}>Default Tier</AppText>
               <Switch
                 value={tierFormData.is_default}
                 onValueChange={(value) => setTierFormData((prev) => ({ ...prev, is_default: value }))}
@@ -710,9 +699,9 @@ function ManageDeliveryMethodsScreen({ navigation }) {
                 thumbColor={colors.surface}
               />
             </View>
-            <Text style={[styles.hint, { color: colors.secondaryFont }]}>
+            <AppText style={[styles.hint, { color: colors.secondaryFont }]}>
               Only one tier per method can be the default
-            </Text>
+            </AppText>
           </ScrollView>
 
           <View style={[styles.modalFooter, { borderTopColor: colors.border }]}>
@@ -720,7 +709,7 @@ function ManageDeliveryMethodsScreen({ navigation }) {
               onPress={() => setShowTierForm(false)}
               style={[styles.cancelButton, { borderColor: colors.border }]}
             >
-              <Text style={[styles.cancelButtonText, { color: colors.secondaryFont }]}>Cancel</Text>
+              <AppText style={[styles.cancelButtonText, { color: colors.secondaryFont }]}>Cancel</AppText>
             </TouchableOpacity>
             <PrimaryButton
               label={editingTier ? 'Update Tier' : 'Create Tier'}

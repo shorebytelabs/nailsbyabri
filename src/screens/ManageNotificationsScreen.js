@@ -4,19 +4,8 @@
  */
 
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {ActivityIndicator, Alert, FlatList, Modal, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Icon from '../icons/Icon';
@@ -416,9 +405,9 @@ function ManageNotificationsScreen({ navigation }) {
     >
       <View style={styles.notificationCardHeader}>
         <View style={styles.notificationCardTitleRow}>
-          <Text style={[styles.notificationTitle, { color: primaryFont }]}>
+          <AppText style={[styles.notificationTitle, { color: primaryFont }]}>
             {notification.title}
-          </Text>
+          </AppText>
           <TouchableOpacity
             onPress={() => {
               const statuses = ['draft', 'scheduled', 'published', 'paused', 'archived'];
@@ -433,7 +422,7 @@ function ManageNotificationsScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.statusButtonText,
                 {
@@ -442,31 +431,31 @@ function ManageNotificationsScreen({ navigation }) {
               ]}
             >
               {formatStatus(notification.status)}
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </View>
-        <Text style={[styles.notificationMessage, { color: secondaryFont }]} numberOfLines={2}>
+        <AppText style={[styles.notificationMessage, { color: secondaryFont }]} numberOfLines={2}>
           {notification.message}
-        </Text>
+        </AppText>
         <View style={styles.notificationMeta}>
-          <Text style={[styles.notificationMetaText, { color: secondaryFont }]}>
+          <AppText style={[styles.notificationMetaText, { color: secondaryFont }]}>
             Audience: {formatAudience(notification.audience)}
-          </Text>
+          </AppText>
           {notification.send_at && (
-            <Text style={[styles.notificationMetaText, { color: secondaryFont }]}>
+            <AppText style={[styles.notificationMetaText, { color: secondaryFont }]}>
               Send: {formatCaliforniaDateTime(notification.send_at)}
-            </Text>
+            </AppText>
           )}
           {notification.expire_at && (
-            <Text style={[styles.notificationMetaText, { color: secondaryFont }]}>
+            <AppText style={[styles.notificationMetaText, { color: secondaryFont }]}>
               Expire: {formatCaliforniaDateTime(notification.expire_at)}
-            </Text>
+            </AppText>
           )}
           {notification.is_sticky && (
-            <Text style={[styles.notificationMetaText, { color: accent }]}>📌 Sticky</Text>
+            <AppText style={[styles.notificationMetaText, { color: accent }]}>📌 Sticky</AppText>
           )}
           {!notification.allow_dismiss && (
-            <Text style={[styles.notificationMetaText, { color: warningColor }]}>🔒 No dismiss</Text>
+            <AppText style={[styles.notificationMetaText, { color: warningColor }]}>🔒 No dismiss</AppText>
           )}
         </View>
       </View>
@@ -476,15 +465,15 @@ function ManageNotificationsScreen({ navigation }) {
           onPress={() => handleEditNotification(notification)}
           style={[styles.actionButton, { borderColor: withOpacity(borderColor, 0.5) }]}
         >
-          <Text style={[styles.actionButtonText, { color: primaryFont }]}>Edit</Text>
+          <AppText style={[styles.actionButtonText, { color: primaryFont }]}>Edit</AppText>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => handleDeleteNotification(notification)}
           style={[styles.actionButton, { borderColor: withOpacity(colors.error || '#B33A3A', 0.5) }]}
         >
-          <Text style={[styles.actionButtonText, { color: colors.error || '#B33A3A' }]}>
+          <AppText style={[styles.actionButtonText, { color: colors.error || '#B33A3A' }]}>
             Delete
-          </Text>
+          </AppText>
         </TouchableOpacity>
       </View>
     </View>
@@ -496,7 +485,7 @@ function ManageNotificationsScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="chevronRight" color={primaryFont} size={20} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: primaryFont }]}>Manage Notifications</Text>
+        <AppText style={[styles.headerTitle, { color: primaryFont }]}>Manage Notifications</AppText>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -530,7 +519,7 @@ function ManageNotificationsScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.filterChipText,
                 {
@@ -539,7 +528,7 @@ function ManageNotificationsScreen({ navigation }) {
               ]}
             >
               Published/Active
-            </Text>
+            </AppText>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleStatusFilter('paused')}
@@ -551,7 +540,7 @@ function ManageNotificationsScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.filterChipText,
                 {
@@ -560,7 +549,7 @@ function ManageNotificationsScreen({ navigation }) {
               ]}
             >
               Paused
-            </Text>
+            </AppText>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleStatusFilter('archived')}
@@ -572,7 +561,7 @@ function ManageNotificationsScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.filterChipText,
                 {
@@ -581,7 +570,7 @@ function ManageNotificationsScreen({ navigation }) {
               ]}
             >
               Archived
-            </Text>
+            </AppText>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleStatusFilter(null)}
@@ -593,7 +582,7 @@ function ManageNotificationsScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.filterChipText,
                 {
@@ -602,28 +591,28 @@ function ManageNotificationsScreen({ navigation }) {
               ]}
             >
               All
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </ScrollView>
       </View>
 
       <View style={styles.contentHeader}>
-        <Text style={[styles.sectionTitle, { color: primaryFont }]}>Global Notifications</Text>
+        <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Global Notifications</AppText>
         <TouchableOpacity
           onPress={handleCreateNotification}
           style={[styles.addButton, { backgroundColor: accent }]}
         >
           <Icon name="plus" color={colors.accentContrast || '#FFFFFF'} size={16} />
-          <Text style={[styles.addButtonText, { color: colors.accentContrast || '#FFFFFF' }]}>
+          <AppText style={[styles.addButtonText, { color: colors.accentContrast || '#FFFFFF' }]}>
             Create
-          </Text>
+          </AppText>
         </TouchableOpacity>
       </View>
 
       {loading ? (
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color={accent} />
-          <Text style={[styles.loadingText, { color: secondaryFont }]}>Loading notifications...</Text>
+          <AppText style={[styles.loadingText, { color: secondaryFont }]}>Loading notifications...</AppText>
         </View>
       ) : (
         <FlatList
@@ -636,11 +625,11 @@ function ManageNotificationsScreen({ navigation }) {
           ListEmptyComponent={
             !loading ? (
               <View style={styles.emptyContainer}>
-                <Text style={[styles.emptyText, { color: secondaryFont }]}>
+                <AppText style={[styles.emptyText, { color: secondaryFont }]}>
                   {searchQuery || statusFilter !== null
                     ? 'No notifications match your filters'
                     : 'No notifications yet. Create one to get started.'}
-                </Text>
+                </AppText>
               </View>
             ) : null
           }
@@ -652,16 +641,16 @@ function ManageNotificationsScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: primaryFont }]}>
+              <AppText style={[styles.modalTitle, { color: primaryFont }]}>
                 {editingNotification ? 'Edit Notification' : 'Create Notification'}
-              </Text>
+              </AppText>
               <TouchableOpacity onPress={() => setShowNotificationForm(false)}>
                 <Icon name="close" color={primaryFont} size={24} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.formContent}>
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Title *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Title *</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont, backgroundColor: surface }]}
                 value={notificationFormData.title}
@@ -670,7 +659,7 @@ function ManageNotificationsScreen({ navigation }) {
                 placeholderTextColor={withOpacity(secondaryFont, 0.5)}
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Message *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Message *</AppText>
               <TextInput
                 style={[styles.formInput, styles.formTextArea, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont, backgroundColor: surface }]}
                 value={notificationFormData.message}
@@ -681,7 +670,7 @@ function ManageNotificationsScreen({ navigation }) {
                 numberOfLines={4}
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>YouTube URL (optional)</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>YouTube URL (optional)</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont, backgroundColor: surface }]}
                 value={notificationFormData.youtube_url}
@@ -692,7 +681,7 @@ function ManageNotificationsScreen({ navigation }) {
                 keyboardType="url"
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Audience *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Audience *</AppText>
               <View style={styles.typeButtons}>
                 {[
                   { value: 'all', label: 'All users' },
@@ -714,7 +703,7 @@ function ManageNotificationsScreen({ navigation }) {
                       },
                     ]}
                   >
-                    <Text
+                    <AppText
                       style={[
                         styles.typeButtonText,
                         {
@@ -723,21 +712,21 @@ function ManageNotificationsScreen({ navigation }) {
                       ]}
                     >
                       {audience.label}
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Send At (optional)</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Send At (optional)</AppText>
               <TouchableOpacity
                 onPress={() => setShowSendAtPicker(true)}
                 style={[styles.formInput, styles.datePickerButton, { borderColor: withOpacity(borderColor, 0.5), backgroundColor: surface }]}
               >
-                <Text style={[styles.datePickerText, { color: notificationFormData.send_at ? primaryFont : secondaryFont }]}>
+                <AppText style={[styles.datePickerText, { color: notificationFormData.send_at ? primaryFont : secondaryFont }]}>
                   {notificationFormData.send_at
                     ? formatCaliforniaDateTime(notificationFormData.send_at)
                     : 'Select date and time'}
-                </Text>
+                </AppText>
                 <Icon name="note" color={secondaryFont} size={20} />
               </TouchableOpacity>
               {Platform.OS === 'android' && showSendAtPicker && (
@@ -765,9 +754,9 @@ function ManageNotificationsScreen({ navigation }) {
                       onPress={() => setShowSendAtPicker(false)}
                       style={styles.iosPickerButton}
                     >
-                      <Text style={[styles.iosPickerButtonText, { color: primaryFont }]}>Cancel</Text>
+                      <AppText style={[styles.iosPickerButtonText, { color: primaryFont }]}>Cancel</AppText>
                     </TouchableOpacity>
-                    <Text style={[styles.iosPickerTitle, { color: primaryFont }]}>Select Date & Time</Text>
+                    <AppText style={[styles.iosPickerTitle, { color: primaryFont }]}>Select Date & Time</AppText>
                     <TouchableOpacity
                       onPress={() => {
                         setNotificationFormData((prev) => ({
@@ -778,7 +767,7 @@ function ManageNotificationsScreen({ navigation }) {
                       }}
                       style={styles.iosPickerButton}
                     >
-                      <Text style={[styles.iosPickerButtonText, { color: accent }]}>Done</Text>
+                      <AppText style={[styles.iosPickerButtonText, { color: accent }]}>Done</AppText>
                     </TouchableOpacity>
                   </View>
                   <DateTimePicker
@@ -796,16 +785,16 @@ function ManageNotificationsScreen({ navigation }) {
                 </View>
               )}
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Expire At (optional)</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Expire At (optional)</AppText>
               <TouchableOpacity
                 onPress={() => setShowExpireAtPicker(true)}
                 style={[styles.formInput, styles.datePickerButton, { borderColor: withOpacity(borderColor, 0.5), backgroundColor: surface }]}
               >
-                <Text style={[styles.datePickerText, { color: notificationFormData.expire_at ? primaryFont : secondaryFont }]}>
+                <AppText style={[styles.datePickerText, { color: notificationFormData.expire_at ? primaryFont : secondaryFont }]}>
                   {notificationFormData.expire_at
                     ? formatCaliforniaDateTime(notificationFormData.expire_at)
                     : 'Select date and time'}
-                </Text>
+                </AppText>
                 <Icon name="note" color={secondaryFont} size={20} />
               </TouchableOpacity>
               {Platform.OS === 'android' && showExpireAtPicker && (
@@ -833,9 +822,9 @@ function ManageNotificationsScreen({ navigation }) {
                       onPress={() => setShowExpireAtPicker(false)}
                       style={styles.iosPickerButton}
                     >
-                      <Text style={[styles.iosPickerButtonText, { color: primaryFont }]}>Cancel</Text>
+                      <AppText style={[styles.iosPickerButtonText, { color: primaryFont }]}>Cancel</AppText>
                     </TouchableOpacity>
-                    <Text style={[styles.iosPickerTitle, { color: primaryFont }]}>Select Date & Time</Text>
+                    <AppText style={[styles.iosPickerTitle, { color: primaryFont }]}>Select Date & Time</AppText>
                     <TouchableOpacity
                       onPress={() => {
                         setNotificationFormData((prev) => ({
@@ -846,7 +835,7 @@ function ManageNotificationsScreen({ navigation }) {
                       }}
                       style={styles.iosPickerButton}
                     >
-                      <Text style={[styles.iosPickerButtonText, { color: accent }]}>Done</Text>
+                      <AppText style={[styles.iosPickerButtonText, { color: accent }]}>Done</AppText>
                     </TouchableOpacity>
                   </View>
                   <DateTimePicker
@@ -864,7 +853,7 @@ function ManageNotificationsScreen({ navigation }) {
                 </View>
               )}
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Status *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Status *</AppText>
               <View style={styles.typeButtons}>
                 {['draft', 'scheduled', 'published', 'paused', 'archived'].map((status) => (
                   <TouchableOpacity
@@ -882,7 +871,7 @@ function ManageNotificationsScreen({ navigation }) {
                       },
                     ]}
                   >
-                    <Text
+                    <AppText
                       style={[
                         styles.typeButtonText,
                         {
@@ -891,7 +880,7 @@ function ManageNotificationsScreen({ navigation }) {
                       ]}
                     >
                       {formatStatus(status)}
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -914,7 +903,7 @@ function ManageNotificationsScreen({ navigation }) {
                       <Icon name="check" color={colors.accentContrast || '#FFFFFF'} size={14} />
                     )}
                   </View>
-                  <Text style={[styles.checkboxLabel, { color: primaryFont }]}>Sticky (pin to top)</Text>
+                  <AppText style={[styles.checkboxLabel, { color: primaryFont }]}>Sticky (pin to top)</AppText>
                 </TouchableOpacity>
               </View>
 
@@ -938,7 +927,7 @@ function ManageNotificationsScreen({ navigation }) {
                       <Icon name="check" color={colors.accentContrast || '#FFFFFF'} size={14} />
                     )}
                   </View>
-                  <Text style={[styles.checkboxLabel, { color: primaryFont }]}>Allow dismiss</Text>
+                  <AppText style={[styles.checkboxLabel, { color: primaryFont }]}>Allow dismiss</AppText>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -948,7 +937,7 @@ function ManageNotificationsScreen({ navigation }) {
                 onPress={() => setShowNotificationForm(false)}
                 style={[styles.modalButton, { borderColor: withOpacity(borderColor, 0.5) }]}
               >
-                <Text style={[styles.modalButtonText, { color: primaryFont }]}>Cancel</Text>
+                <AppText style={[styles.modalButtonText, { color: primaryFont }]}>Cancel</AppText>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleSaveNotification}
@@ -962,9 +951,9 @@ function ManageNotificationsScreen({ navigation }) {
                   },
                 ]}
               >
-                <Text style={[styles.modalButtonText, styles.modalButtonPrimaryText, { color: colors.accentContrast || '#FFFFFF' }]}>
+                <AppText style={[styles.modalButtonText, styles.modalButtonPrimaryText, { color: colors.accentContrast || '#FFFFFF' }]}>
                   {editingNotification ? 'Update' : 'Create'}
-                </Text>
+                </AppText>
               </TouchableOpacity>
             </View>
           </View>

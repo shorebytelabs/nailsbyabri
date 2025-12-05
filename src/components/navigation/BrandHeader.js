@@ -1,10 +1,11 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
 import Icon from '../../icons/Icon';
 import { withOpacity } from '../../utils/color';
 import { useAppState } from '../../context/AppContext';
+import AppText from '../AppText';
 
 const LOGO_SOURCE = require('../../../assets/images/NailsByAbriLogo.png');
 
@@ -109,9 +110,9 @@ function BrandHeader({
                   },
                 ]}
               >
-                <Text style={[styles.badgeText, { color: colors.accentContrast || '#FFFFFF' }]}>
+                <AppText variant="small" style={[styles.badgeText, { color: colors.accentContrast || '#FFFFFF' }]}>
                   {notificationBadgeCount}
-                </Text>
+                </AppText>
               </View>
             )}
           </View>

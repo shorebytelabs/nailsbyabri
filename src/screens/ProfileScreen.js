@@ -1,13 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {Alert, Linking, ScrollView, StyleSheet, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import { useNavigation } from '@react-navigation/native';
 import PrimaryButton from '../components/PrimaryButton';
 import Icon from '../icons/Icon';
@@ -224,8 +217,8 @@ function ProfileScreen() {
         !isLast && styles.detailRowDivider,
       ]}
     >
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value || '—'}</Text>
+      <AppText style={styles.detailLabel}>{label}</AppText>
+      <AppText style={styles.detailValue}>{value || '—'}</AppText>
     </View>
   );
 
@@ -237,10 +230,10 @@ function ProfileScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.pageHeader}>
-          <Text style={styles.pageTitle}>My Profile</Text>
-          <Text style={styles.pageSubtitle}>
+          <AppText style={styles.pageTitle}>My Profile</AppText>
+          <AppText style={styles.pageSubtitle}>
             Manage your account, nail sizes, and history
-          </Text>
+          </AppText>
         </View>
 
         <View style={styles.card}>
@@ -249,18 +242,18 @@ function ProfileScreen() {
               <Icon name="profile" color={colors.accent} size={28} />
             </View>
             <View style={styles.cardHeaderContent}>
-              <Text style={styles.accountName}>{user.name}</Text>
-              <Text style={styles.accountEmail}>{user.email}</Text>
-              <Text style={styles.accountMetaText}>
+              <AppText style={styles.accountName}>{user.name}</AppText>
+              <AppText style={styles.accountEmail}>{user.email}</AppText>
+              <AppText style={styles.accountMetaText}>
                 Member since {memberSince}
-              </Text>
+              </AppText>
             </View>
           </View>
         </View>
 
         <View style={styles.listCard}>
           <View style={styles.listHeader}>
-            <Text style={styles.sectionTitle}>Manage Account</Text>
+            <AppText style={styles.sectionTitle}>Manage Account</AppText>
           </View>
           {manageRows.map((item, index) => (
             <View key={item.key}>
@@ -285,9 +278,9 @@ function ProfileScreen() {
                   <Icon name={item.icon} color={colors.accent} />
                 </View>
                 <View style={styles.rowContent}>
-                  <Text style={styles.rowTitle}>{item.title}</Text>
+                  <AppText style={styles.rowTitle}>{item.title}</AppText>
                   {item.description ? (
-                    <Text style={styles.rowDescription}>{item.description}</Text>
+                    <AppText style={styles.rowDescription}>{item.description}</AppText>
                   ) : null}
                 </View>
                 <View style={styles.rowAccessory}>
@@ -316,9 +309,9 @@ function ProfileScreen() {
             { backgroundColor: withOpacity(colors.accent || '#6F171F', 0.92) },
           ]}
         >
-          <Text style={[styles.toastText, { color: colors.accentContrast || '#FFFFFF' }]}>
+          <AppText style={[styles.toastText, { color: colors.accentContrast || '#FFFFFF' }]}>
             {confirmation}
-          </Text>
+          </AppText>
         </View>
       ) : null}
     </View>

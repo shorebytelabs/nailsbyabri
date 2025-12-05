@@ -9,13 +9,13 @@ import {
   Linking,
   Pressable,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import { useTheme } from '../theme';
 import { formatCurrency } from '../utils/pricing';
 import { withOpacity } from '../utils/color';
 import Icon from '../icons/Icon';
+import AppText from './AppText';
 
 const VENMO_HANDLE = '@Arlene-AldayChheng';
 const VENMO_URL = 'https://venmo.com/u/Arlene-AldayChheng';
@@ -75,24 +75,24 @@ function VenmoPaymentInfo({
       {showPaymentNeeded && (
         <View style={styles.paymentNeededBanner}>
           <Icon name="info" color={colors.warning || '#FF9800'} size={16} />
-          <Text style={styles.paymentNeededText}>Payment Needed</Text>
+          <AppText variant="ui" style={styles.paymentNeededText}>Payment Needed</AppText>
         </View>
       )}
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Pay with Venmo</Text>
+          <AppText variant="ui" style={styles.title}>Pay with Venmo</AppText>
         </View>
 
         {totalAmount && (
           <View style={styles.amountRow}>
-            <Text style={styles.amountLabel}>Total Amount:</Text>
-            <Text style={styles.amountValue}>{formatCurrency(totalAmount)}</Text>
+            <AppText variant="ui" style={styles.amountLabel}>Total Amount:</AppText>
+            <AppText variant="ui" style={styles.amountValue}>{formatCurrency(totalAmount)}</AppText>
           </View>
         )}
 
         <View style={styles.venmoHandleRow}>
-          <Text style={styles.venmoLabel}>Venmo Handle:</Text>
+          <AppText variant="ui" style={styles.venmoLabel}>Venmo Handle:</AppText>
           <Pressable
             onPress={handleCopyVenmoHandle}
             style={({ pressed }) => [
@@ -100,7 +100,7 @@ function VenmoPaymentInfo({
               { opacity: pressed ? 0.8 : 1 },
             ]}
           >
-            <Text style={styles.venmoHandle}>{VENMO_HANDLE}</Text>
+            <AppText variant="ui" style={styles.venmoHandle}>{VENMO_HANDLE}</AppText>
             <Icon name="copy" color={colors.accent} size={14} />
           </Pressable>
         </View>
@@ -118,25 +118,25 @@ function VenmoPaymentInfo({
                     console.error('[VenmoPaymentInfo] Error loading QR code image:', error);
                   }}
                 />
-                <Text style={styles.qrCodeHint}>Scan to pay</Text>
+                <AppText variant="small" style={styles.qrCodeHint}>Scan to pay</AppText>
               </>
             ) : (
               <View style={styles.qrCodePlaceholder}>
                 <Icon name="image" color={colors.secondaryFont} size={32} />
-                <Text style={styles.qrCodePlaceholderText}>
+                <AppText variant="small" style={styles.qrCodePlaceholderText}>
                   QR code image not found.{'\n'}Add venmo-qr.png to assets/images/{'\n'}Then restart Metro bundler
-                </Text>
+                </AppText>
               </View>
             )}
           </View>
         )}
 
         <View style={styles.instructionsContainer}>
-          <Text style={styles.instructionsText}>
+          <AppText style={styles.instructionsText}>
             {orderNumber
               ? `Please include your order number "${orderNumber}" in the Venmo note when sending payment.`
               : 'Please include your order number in the Venmo note when sending payment.'}
-          </Text>
+          </AppText>
         </View>
 
         <Pressable
@@ -146,7 +146,7 @@ function VenmoPaymentInfo({
             { opacity: pressed ? 0.9 : 1 },
           ]}
         >
-          <Text style={styles.venmoButtonText}>Open Venmo</Text>
+          <AppText variant="ui" style={styles.venmoButtonText}>Open Venmo</AppText>
           <Icon name="chevronRight" color={colors.accentContrast || '#FFFFFF'} size={16} />
         </Pressable>
       </View>

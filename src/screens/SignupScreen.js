@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View, Linking } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, TouchableOpacity, View, Linking } from 'react-native';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
@@ -7,6 +7,7 @@ import Icon from '../icons/Icon';
 import { signup } from '../services/api';
 import { useTheme } from '../theme';
 import { withOpacity } from '../utils/color';
+import AppText from '../components/AppText';
 
 const LOGO_SOURCE = require('../../assets/images/NailsByAbriLogo.png');
 
@@ -151,7 +152,7 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
           accessibilityLabel="Go back to Home"
         >
           <Icon name="chevronRight" color={accentColor} style={styles.backIcon} size={20} />
-          <Text style={[styles.backLinkLabel, { color: accentColor }]}>Back to Home</Text>
+          <AppText variant="ui" style={[styles.backLinkLabel, { color: accentColor }]}>Back to Home</AppText>
         </Pressable>
 
         <View style={styles.formStack}>
@@ -177,8 +178,8 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
             ]}
           >
             <View style={styles.formIntro}>
-              <Text style={[styles.title, { color: onSurfaceColor }]}>Create Your Account</Text>
-              <Text style={[styles.subtitle, { color: withOpacity(onSurfaceColor, 0.75) }]}>Your perfect nails, your way.</Text>
+              <AppText variant="ui" style={[styles.title, { color: onSurfaceColor }]}>Create Your Account</AppText>
+              <AppText style={[styles.subtitle, { color: withOpacity(onSurfaceColor, 0.75) }]}>Your perfect nails, your way.</AppText>
             </View>
 
             <View style={styles.formSection}>
@@ -210,7 +211,7 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
                 secureTextEntry
               />
               <View style={styles.ageGroupContainer}>
-                <Text style={[styles.ageGroupLabel, { color: onSurfaceColor }]}>Age Group</Text>
+                <AppText variant="ui" style={[styles.ageGroupLabel, { color: onSurfaceColor }]}>Age Group</AppText>
                 <View style={styles.ageGroupOptions}>
                   {AGE_GROUPS.map((group) => (
                     <TouchableOpacity
@@ -226,7 +227,8 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
                       accessibilityRole="button"
                       accessibilityLabel={`Select age group ${group.label}`}
                     >
-                      <Text
+                      <AppText
+                        variant="ui"
                         style={[
                           styles.ageGroupOptionText,
                           {
@@ -235,13 +237,13 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
                         ]}
                       >
                         {group.label}
-                      </Text>
+                      </AppText>
                     </TouchableOpacity>
                   ))}
                 </View>
-                <Text style={[styles.helperText, { color: withOpacity(primaryFontColor, 0.65) }]}>
+                <AppText variant="small" style={[styles.helperText, { color: withOpacity(primaryFontColor, 0.65) }]}>
                   You must be 13 years or older to create an account.
-                </Text>
+                </AppText>
               </View>
 
               {/* Legal Consent Checkbox */}
@@ -268,9 +270,9 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
                     )}
                   </View>
                   <View style={styles.consentTextContainer}>
-                    <Text style={[styles.consentText, { color: primaryFontColor }]}>
+                    <AppText style={[styles.consentText, { color: primaryFontColor }]}>
                       I agree to the{' '}
-                      <Text
+                      <AppText
                         style={[styles.consentLink, { color: accentColor }]}
                         onPress={(e) => {
                           e.stopPropagation();
@@ -282,9 +284,9 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
                         accessibilityLabel="View Terms & Conditions"
                       >
                         Terms & Conditions
-                      </Text>
+                      </AppText>
                       {' '}and{' '}
-                      <Text
+                      <AppText
                         style={[styles.consentLink, { color: accentColor }]}
                         onPress={(e) => {
                           e.stopPropagation();
@@ -296,14 +298,14 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
                         accessibilityLabel="View Privacy Policy"
                       >
                         Privacy Policy
-                      </Text>
-                    </Text>
+                      </AppText>
+                    </AppText>
                   </View>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {error ? <Text style={[styles.error, { color: errorColor }]}>{error}</Text> : null}
+            {error ? <AppText variant="small" style={[styles.error, { color: errorColor }]}>{error}</AppText> : null}
 
             <PrimaryButton
               label="Sign Up"
@@ -314,9 +316,9 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
             />
 
             <View style={styles.switchRow}>
-              <Text style={[styles.switchText, { color: secondaryFontColor }]}>Already have an account?</Text>
+              <AppText variant="ui" style={[styles.switchText, { color: secondaryFontColor }]}>Already have an account?</AppText>
               <TouchableOpacity onPress={onSwitchToLogin} accessibilityRole="button">
-                <Text style={[styles.switchLink, { color: accentColor }]}> Log in</Text>
+                <AppText variant="ui" style={[styles.switchLink, { color: accentColor }]}> Log in</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -334,14 +336,14 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
               },
             ]}
           >
-            <Text style={[styles.successTitle, { color: colors.success || '#4B7A57' }]}>Account Created!</Text>
-            <Text style={[styles.successMessage, { color: withOpacity(primaryFontColor, 0.85) }]}>
+            <AppText variant="ui" style={[styles.successTitle, { color: colors.success || '#4B7A57' }]}>Account Created!</AppText>
+            <AppText style={[styles.successMessage, { color: withOpacity(primaryFontColor, 0.85) }]}>
               We've sent a verification email to {successPayload?.user?.email || 'your email address'}.
               {'\n\n'}
               Please check your inbox and click the verification link from Supabase to activate your account.
               {'\n\n'}
               Once verified, you can log in to start placing orders.
-            </Text>
+            </AppText>
             <PrimaryButton
               label="Go to Login"
               onPress={() => {

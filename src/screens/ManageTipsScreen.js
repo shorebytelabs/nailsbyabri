@@ -4,19 +4,8 @@
  */
 
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {ActivityIndicator, Alert, FlatList, Image, Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from '../icons/Icon';
@@ -319,7 +308,7 @@ function ManageTipsScreen({ navigation }) {
     >
       <View style={styles.tipCardHeader}>
         <View style={styles.tipCardTitleRow}>
-          <Text style={[styles.tipTitle, { color: primaryFont }]}>{tip.title}</Text>
+          <AppText style={[styles.tipTitle, { color: primaryFont }]}>{tip.title}</AppText>
           <TouchableOpacity
             onPress={() => handleToggleTipEnabled(tip)}
             style={[
@@ -331,7 +320,7 @@ function ManageTipsScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.toggleText,
                 {
@@ -340,13 +329,13 @@ function ManageTipsScreen({ navigation }) {
               ]}
             >
               {tip.enabled ? 'Active' : 'Inactive'}
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </View>
         {tip.description && (
-          <Text style={[styles.tipDescription, { color: secondaryFont }]} numberOfLines={2}>
+          <AppText style={[styles.tipDescription, { color: secondaryFont }]} numberOfLines={2}>
             {tip.description}
-          </Text>
+          </AppText>
         )}
         {tip.image_url && (
           <View style={styles.tipImagePreview}>
@@ -358,9 +347,9 @@ function ManageTipsScreen({ navigation }) {
           </View>
         )}
         {tip.youtube_url && (
-          <Text style={[styles.tipYoutube, { color: accent }]} numberOfLines={1}>
+          <AppText style={[styles.tipYoutube, { color: accent }]} numberOfLines={1}>
             Video: {tip.youtube_url}
-          </Text>
+          </AppText>
         )}
       </View>
 
@@ -369,15 +358,15 @@ function ManageTipsScreen({ navigation }) {
           onPress={() => handleEditTip(tip)}
           style={[styles.actionButton, { borderColor: withOpacity(borderColor, 0.5) }]}
         >
-          <Text style={[styles.actionButtonText, { color: primaryFont }]}>Edit</Text>
+          <AppText style={[styles.actionButtonText, { color: primaryFont }]}>Edit</AppText>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => handleDeleteTip(tip)}
           style={[styles.actionButton, { borderColor: withOpacity(colors.error || '#B33A3A', 0.5) }]}
         >
-          <Text style={[styles.actionButtonText, { color: colors.error || '#B33A3A' }]}>
+          <AppText style={[styles.actionButtonText, { color: colors.error || '#B33A3A' }]}>
             Delete
-          </Text>
+          </AppText>
         </TouchableOpacity>
       </View>
     </View>
@@ -389,7 +378,7 @@ function ManageTipsScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="chevronRight" color={primaryFont} size={20} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: primaryFont }]}>Manage Tips</Text>
+        <AppText style={[styles.headerTitle, { color: primaryFont }]}>Manage Tips</AppText>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -423,7 +412,7 @@ function ManageTipsScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.filterChipText,
                 {
@@ -432,7 +421,7 @@ function ManageTipsScreen({ navigation }) {
               ]}
             >
               Active
-            </Text>
+            </AppText>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleEnabledFilter(false)}
@@ -444,7 +433,7 @@ function ManageTipsScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.filterChipText,
                 {
@@ -453,7 +442,7 @@ function ManageTipsScreen({ navigation }) {
               ]}
             >
               Inactive
-            </Text>
+            </AppText>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleEnabledFilter(null)}
@@ -465,7 +454,7 @@ function ManageTipsScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.filterChipText,
                 {
@@ -474,28 +463,28 @@ function ManageTipsScreen({ navigation }) {
               ]}
             >
               All
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </ScrollView>
       </View>
 
       <View style={styles.contentHeader}>
-        <Text style={[styles.sectionTitle, { color: primaryFont }]}>Tips</Text>
+        <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Tips</AppText>
         <TouchableOpacity
           onPress={handleCreateTip}
           style={[styles.addButton, { backgroundColor: accent }]}
         >
           <Icon name="plus" color={colors.accentContrast || '#FFFFFF'} size={16} />
-          <Text style={[styles.addButtonText, { color: colors.accentContrast || '#FFFFFF' }]}>
+          <AppText style={[styles.addButtonText, { color: colors.accentContrast || '#FFFFFF' }]}>
             Create
-          </Text>
+          </AppText>
         </TouchableOpacity>
       </View>
 
       {loading ? (
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color={accent} />
-          <Text style={[styles.loadingText, { color: secondaryFont }]}>Loading tips...</Text>
+          <AppText style={[styles.loadingText, { color: secondaryFont }]}>Loading tips...</AppText>
         </View>
       ) : (
         <FlatList
@@ -508,11 +497,11 @@ function ManageTipsScreen({ navigation }) {
           ListEmptyComponent={
             !loading ? (
               <View style={styles.emptyContainer}>
-                <Text style={[styles.emptyText, { color: secondaryFont }]}>
+                <AppText style={[styles.emptyText, { color: secondaryFont }]}>
                   {searchQuery || enabledFilter !== null
                     ? 'No tips match your filters'
                     : 'No tips yet. Create one to get started.'}
-                </Text>
+                </AppText>
               </View>
             ) : null
           }
@@ -524,16 +513,16 @@ function ManageTipsScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: primaryFont }]}>
+              <AppText style={[styles.modalTitle, { color: primaryFont }]}>
                 {editingTip ? 'Edit Tip' : 'Create Tip'}
-              </Text>
+              </AppText>
               <TouchableOpacity onPress={() => setShowTipForm(false)}>
                 <Icon name="close" color={primaryFont} size={24} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.formContent}>
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Title *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Title *</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont, backgroundColor: surface }]}
                 value={tipFormData.title}
@@ -542,7 +531,7 @@ function ManageTipsScreen({ navigation }) {
                 placeholderTextColor={withOpacity(secondaryFont, 0.5)}
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Description *</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Description *</AppText>
               <TextInput
                 style={[styles.formInput, styles.formTextArea, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont, backgroundColor: surface }]}
                 value={tipFormData.description}
@@ -553,7 +542,7 @@ function ManageTipsScreen({ navigation }) {
                 numberOfLines={3}
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Photo</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Photo</AppText>
               {tipFormData.image_url ? (
                 <View style={styles.imagePreviewContainer}>
                   <Image
@@ -587,14 +576,14 @@ function ManageTipsScreen({ navigation }) {
                 ) : (
                   <>
                     <Icon name="image" color={accent} size={18} />
-                    <Text style={[styles.uploadButtonText, { color: accent }]}>
+                    <AppText style={[styles.uploadButtonText, { color: accent }]}>
                       {tipFormData.image_url ? 'Change Photo' : 'Upload Photo'}
-                    </Text>
+                    </AppText>
                   </>
                 )}
               </TouchableOpacity>
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>YouTube Video URL (Optional)</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>YouTube Video URL (Optional)</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont, backgroundColor: surface }]}
                 value={tipFormData.youtube_url}
@@ -605,7 +594,7 @@ function ManageTipsScreen({ navigation }) {
                 keyboardType="url"
               />
 
-              <Text style={[styles.formLabel, { color: primaryFont }]}>Display Order</Text>
+              <AppText style={[styles.formLabel, { color: primaryFont }]}>Display Order</AppText>
               <TextInput
                 style={[styles.formInput, { borderColor: withOpacity(borderColor, 0.5), color: primaryFont, backgroundColor: surface }]}
                 value={String(tipFormData.display_order)}
@@ -620,7 +609,7 @@ function ManageTipsScreen({ navigation }) {
 
               {/* Active Toggle */}
               <View style={styles.switchRow}>
-                <Text style={[styles.formLabel, { color: primaryFont }]}>Active</Text>
+                <AppText style={[styles.formLabel, { color: primaryFont }]}>Active</AppText>
                 <TouchableOpacity
                   onPress={() => setTipFormData((prev) => ({ ...prev, enabled: !prev.enabled }))}
                   style={[
@@ -649,7 +638,7 @@ function ManageTipsScreen({ navigation }) {
                 onPress={() => setShowTipForm(false)}
                 style={[styles.modalButton, { borderColor: withOpacity(borderColor, 0.5) }]}
               >
-                <Text style={[styles.modalButtonText, { color: primaryFont }]}>Cancel</Text>
+                <AppText style={[styles.modalButtonText, { color: primaryFont }]}>Cancel</AppText>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleSaveTip}
@@ -663,9 +652,9 @@ function ManageTipsScreen({ navigation }) {
                   },
                 ]}
               >
-                <Text style={[styles.modalButtonText, styles.modalButtonPrimaryText, { color: colors.accentContrast || '#FFFFFF' }]}>
+                <AppText style={[styles.modalButtonText, styles.modalButtonPrimaryText, { color: colors.accentContrast || '#FFFFFF' }]}>
                   {editingTip ? 'Update' : 'Create'}
-                </Text>
+                </AppText>
               </TouchableOpacity>
             </View>
           </View>

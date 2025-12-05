@@ -3,18 +3,8 @@
  * Allows customers to submit feedback/reviews for completed orders
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  ActivityIndicator,
-  Image,
-  FlatList,
-} from 'react-native';
+import {Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity, View, ActivityIndicator, Image, FlatList} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from '../icons/Icon';
@@ -256,9 +246,9 @@ function FeedbackScreen({ navigation, route }) {
                 />
                 {isSelected && rating === star && (
                   <View style={[styles.ratingLabel, { backgroundColor: withOpacity(ratingInfo.color, 0.15) }]}>
-                    <Text style={[styles.ratingLabelText, { color: ratingInfo.color }]}>
+                    <AppText style={[styles.ratingLabelText, { color: ratingInfo.color }]}>
                       {ratingInfo.emoji} {ratingInfo.label}
-                    </Text>
+                    </AppText>
                   </View>
                 )}
               </View>
@@ -289,7 +279,7 @@ function FeedbackScreen({ navigation, route }) {
         )}
         {image.error && (
           <View style={styles.errorOverlay}>
-            <Text style={styles.errorText}>Error</Text>
+            <AppText style={styles.errorText}>Error</AppText>
           </View>
         )}
       </View>
@@ -303,7 +293,7 @@ function FeedbackScreen({ navigation, route }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Icon name="chevronLeft" color={colors.primaryFont} size={24} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.primaryFont }]}>Review Your Order</Text>
+          <AppText style={[styles.headerTitle, { color: colors.primaryFont }]}>Review Your Order</AppText>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
@@ -319,9 +309,9 @@ function FeedbackScreen({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="chevronLeft" color={colors.primaryFont} size={24} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.primaryFont }]}>
+        <AppText style={[styles.headerTitle, { color: colors.primaryFont }]}>
           {viewOnly || submitted ? 'Your Feedback' : 'Review Your Order'}
-        </Text>
+        </AppText>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -334,17 +324,17 @@ function FeedbackScreen({ navigation, route }) {
           <View style={styles.submittedContainer}>
             <View style={styles.successHeader}>
               <Icon name="checkCircle" color={colors.success || '#4B7A57'} size={64} />
-              <Text style={[styles.successTitle, { color: colors.primaryFont }]}>
+              <AppText style={[styles.successTitle, { color: colors.primaryFont }]}>
                 Thank You! 💅
-              </Text>
-              <Text style={[styles.successMessage, { color: colors.secondaryFont }]}>
+              </AppText>
+              <AppText style={[styles.successMessage, { color: colors.secondaryFont }]}>
                 Your feedback has been submitted. We appreciate your input!
-              </Text>
+              </AppText>
             </View>
 
             <View style={styles.feedbackDisplay}>
               <View style={styles.ratingDisplay}>
-                <Text style={[styles.ratingDisplayLabel, { color: colors.secondaryFont }]}>Your Rating:</Text>
+                <AppText style={[styles.ratingDisplayLabel, { color: colors.secondaryFont }]}>Your Rating:</AppText>
                 <View style={styles.ratingStarsDisplay}>
                   {[1, 2, 3, 4, 5].map((star) => (
                     <Icon
@@ -354,22 +344,22 @@ function FeedbackScreen({ navigation, route }) {
                       size={24}
                     />
                   ))}
-                  <Text style={[styles.ratingText, { color: colors.primaryFont }]}>
+                  <AppText style={[styles.ratingText, { color: colors.primaryFont }]}>
                     {RATING_INFO[rating].emoji} {RATING_INFO[rating].label}
-                  </Text>
+                  </AppText>
                 </View>
               </View>
 
               {comment ? (
                 <View style={styles.commentDisplay}>
-                  <Text style={[styles.commentDisplayLabel, { color: colors.secondaryFont }]}>Your Comment:</Text>
-                  <Text style={[styles.commentDisplayText, { color: colors.primaryFont }]}>{comment}</Text>
+                  <AppText style={[styles.commentDisplayLabel, { color: colors.secondaryFont }]}>Your Comment:</AppText>
+                  <AppText style={[styles.commentDisplayText, { color: colors.primaryFont }]}>{comment}</AppText>
                 </View>
               ) : null}
 
               {images.length > 0 ? (
                 <View style={styles.imagesDisplay}>
-                  <Text style={[styles.imagesDisplayLabel, { color: colors.secondaryFont }]}>Your Photos:</Text>
+                  <AppText style={[styles.imagesDisplayLabel, { color: colors.secondaryFont }]}>Your Photos:</AppText>
                   <FlatList
                     data={images}
                     renderItem={renderImageThumbnail}
@@ -385,19 +375,19 @@ function FeedbackScreen({ navigation, route }) {
         ) : (
           <>
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.primaryFont }]}>
+              <AppText style={[styles.sectionTitle, { color: colors.primaryFont }]}>
                 Tell us what you think of your new look!
-              </Text>
-              <Text style={[styles.sectionSubtitle, { color: colors.secondaryFont }]}>
+              </AppText>
+              <AppText style={[styles.sectionSubtitle, { color: colors.secondaryFont }]}>
                 Rate your order from 1 to 5 stars
-              </Text>
+              </AppText>
               {renderStars()}
             </View>
 
             <View style={styles.section}>
-              <Text style={[styles.label, { color: colors.primaryFont }]}>
+              <AppText style={[styles.label, { color: colors.primaryFont }]}>
                 Comments (Optional)
-              </Text>
+              </AppText>
               <TextInput
                 style={[
                   styles.commentInput,
@@ -416,18 +406,18 @@ function FeedbackScreen({ navigation, route }) {
                 maxLength={500}
                 editable={!submitted && !viewOnly}
               />
-              <Text style={[styles.charCount, { color: colors.secondaryFont }]}>
+              <AppText style={[styles.charCount, { color: colors.secondaryFont }]}>
                 {comment.length}/500 characters
-              </Text>
+              </AppText>
             </View>
 
             <View style={styles.section}>
-              <Text style={[styles.label, { color: colors.primaryFont }]}>
+              <AppText style={[styles.label, { color: colors.primaryFont }]}>
                 Photos (Optional)
-              </Text>
-              <Text style={[styles.sectionSubtitle, { color: colors.secondaryFont, marginBottom: 12 }]}>
+              </AppText>
+              <AppText style={[styles.sectionSubtitle, { color: colors.secondaryFont, marginBottom: 12 }]}>
                 Upload your finished look
-              </Text>
+              </AppText>
               
               {images.length > 0 && (
                 <FlatList
@@ -453,9 +443,9 @@ function FeedbackScreen({ navigation, route }) {
                 disabled={submitted || viewOnly}
               >
                 <Icon name="image" color={colors.accent} size={20} />
-                <Text style={[styles.addImageButtonText, { color: colors.accent }]}>
+                <AppText style={[styles.addImageButtonText, { color: colors.accent }]}>
                   {images.length > 0 ? 'Add More Photos' : 'Add Photos'}
-                </Text>
+                </AppText>
               </TouchableOpacity>
             </View>
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {Image, Linking, Pressable, ScrollView, StyleSheet, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
@@ -215,7 +216,7 @@ function ResetPasswordScreen({ initialToken, onSuccess, onCancel = () => {} }) {
           accessibilityLabel="Cancel"
         >
           <Icon name="chevronRight" color={accentColor} style={styles.backIcon} size={20} />
-          <Text style={[styles.backLinkLabel, { color: accentColor }]}>Cancel</Text>
+          <AppText style={[styles.backLinkLabel, { color: accentColor }]}>Cancel</AppText>
         </Pressable>
 
         <View style={styles.formStack}>
@@ -251,36 +252,36 @@ function ResetPasswordScreen({ initialToken, onSuccess, onCancel = () => {} }) {
                     },
                   ]}
                 >
-                  <Text
+                  <AppText
                     style={[
                       styles.successTitle,
                       { color: accentColor },
                     ]}
                   >
                     Password Reset Successful
-                  </Text>
-                  <Text
+                  </AppText>
+                  <AppText
                     style={[
                       styles.successMessage,
                       { color: primaryFontColor },
                     ]}
                   >
                     Your password has been reset successfully. You can now log in with your new password.
-                  </Text>
+                  </AppText>
                 </View>
               </View>
             ) : (
               <>
                 <View style={styles.formIntro}>
-                  <Text
+                  <AppText
                     style={[
                       styles.title,
                       { color: primaryFontColor },
                     ]}
                   >
                     Reset Password
-                  </Text>
-                  <Text
+                  </AppText>
+                  <AppText
                     style={[
                       styles.subtitle,
                       { color: withOpacity(primaryFontColor, 0.75) },
@@ -289,33 +290,33 @@ function ResetPasswordScreen({ initialToken, onSuccess, onCancel = () => {} }) {
                     {error && error.includes('No reset') 
                       ? 'Please click the link from your password reset email to continue.'
                       : 'Enter your new password below.'}
-                  </Text>
+                  </AppText>
                 </View>
 
                 {error && !error.includes('No reset') ? (
                   <View style={[styles.errorBox, { backgroundColor: withOpacity(errorColor, 0.1), borderColor: withOpacity(errorColor, 0.3) }]}>
-                    <Text style={[styles.error, { color: errorColor }]}>{error}</Text>
+                    <AppText style={[styles.error, { color: errorColor }]}>{error}</AppText>
                   </View>
                 ) : null}
 
                 {error && error.includes('No reset') ? (
                   <View style={styles.helpBox}>
-                    <Text style={[styles.helpText, { color: primaryFontColor }]}>
+                    <AppText style={[styles.helpText, { color: primaryFontColor }]}>
                       To reset your password:
-                    </Text>
-                    <Text style={[styles.helpText, { color: secondaryFontColor, marginTop: 8 }]}>
+                    </AppText>
+                    <AppText style={[styles.helpText, { color: secondaryFontColor, marginTop: 8 }]}>
                       1. Go to the Login screen{'\n'}
                       2. Tap "Forgot password?"{'\n'}
                       3. Enter your email address{'\n'}
                       4. Click the link in the email you receive
-                    </Text>
+                    </AppText>
                     <TouchableOpacity
                       onPress={onCancel}
                       style={[styles.helpButton, { borderColor: accentColor }]}
                     >
-                      <Text style={[styles.helpButtonText, { color: accentColor }]}>
+                      <AppText style={[styles.helpButtonText, { color: accentColor }]}>
                         Go to Login
-                      </Text>
+                      </AppText>
                     </TouchableOpacity>
                   </View>
                 ) : (

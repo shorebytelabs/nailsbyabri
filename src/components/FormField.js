@@ -1,7 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 import { useTheme } from '../theme';
 import { withOpacity } from '../utils/color';
+import AppText from './AppText';
 
 function FormField({
   label,
@@ -26,7 +27,7 @@ function FormField({
 
   return (
     <View style={styles.wrapper}>
-      <Text style={[styles.label, { color: onSurface }]}>{label}</Text>
+      <AppText variant="ui" style={[styles.label, { color: onSurface }]}>{label}</AppText>
       <TextInput
         style={[
           styles.input,
@@ -50,7 +51,7 @@ function FormField({
         placeholderTextColor={withOpacity(secondaryFont, 0.6)}
       />
       {errorMessage ? (
-        <Text style={[styles.error, { color: errorColor }]}>{errorMessage}</Text>
+        <AppText variant="small" style={[styles.error, { color: errorColor }]}>{errorMessage}</AppText>
       ) : null}
     </View>
   );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {ScrollView, StyleSheet, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import ScreenContainer from '../components/ScreenContainer';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
@@ -79,7 +80,7 @@ function AccountDetailsScreen({ navigation }) {
         >
           <Icon name="chevronRight" color={primaryFont} style={styles.backIcon} size={24} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: primaryFont }]}>Account Details</Text>
+        <AppText style={[styles.headerTitle, { color: primaryFont }]}>Account Details</AppText>
         <View style={styles.placeholder} />
       </View>
 
@@ -89,9 +90,9 @@ function AccountDetailsScreen({ navigation }) {
         showsVerticalScrollIndicator={true}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.subtitle, { color: secondaryFont }]}>
+        <AppText style={[styles.subtitle, { color: secondaryFont }]}>
           Update how your name and email appear across the app.
-        </Text>
+        </AppText>
 
         <View style={styles.formSection}>
           <FormField
@@ -122,17 +123,17 @@ function AccountDetailsScreen({ navigation }) {
 
           {/* Age Group Display (read-only) */}
           <View style={styles.readOnlyField}>
-            <Text style={[styles.readOnlyLabel, { color: secondaryFont }]}>Age group</Text>
-            <Text style={[styles.readOnlyValue, { color: primaryFont }]}>
+            <AppText style={[styles.readOnlyLabel, { color: secondaryFont }]}>Age group</AppText>
+            <AppText style={[styles.readOnlyValue, { color: primaryFont }]}>
               {user?.age_group || '—'}
-            </Text>
-            <Text style={[styles.readOnlyHint, { color: secondaryFont }]}>
+            </AppText>
+            <AppText style={[styles.readOnlyHint, { color: secondaryFont }]}>
               Age group cannot be changed
-            </Text>
+            </AppText>
           </View>
 
           {confirmation ? (
-            <Text style={[styles.successText, { color: successColor }]}>{confirmation}</Text>
+            <AppText style={[styles.successText, { color: successColor }]}>{confirmation}</AppText>
           ) : null}
         </View>
 

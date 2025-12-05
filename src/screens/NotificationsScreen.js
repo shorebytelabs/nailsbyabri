@@ -1,14 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme';
@@ -221,11 +213,11 @@ function NotificationsScreen() {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Icon name="chevronRight" color={primaryFont} size={20} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: primaryFont }]}>Notifications</Text>
+          <AppText style={[styles.headerTitle, { color: primaryFont }]}>Notifications</AppText>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.emptyContainer}>
-          <Text style={[styles.emptyText, { color: secondaryFont }]}>Please log in to view notifications</Text>
+          <AppText style={[styles.emptyText, { color: secondaryFont }]}>Please log in to view notifications</AppText>
         </View>
       </SafeAreaView>
     );
@@ -237,7 +229,7 @@ function NotificationsScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="chevronRight" color={primaryFont} size={20} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: primaryFont }]}>Notifications</Text>
+        <AppText style={[styles.headerTitle, { color: primaryFont }]}>Notifications</AppText>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -247,9 +239,9 @@ function NotificationsScreen() {
           {unreadCount === 0 ? (
             // Show message when all are read
             <View style={styles.catchUpMessage}>
-              <Text style={[styles.catchUpText, { color: secondaryFont }]}>
+              <AppText style={[styles.catchUpText, { color: secondaryFont }]}>
                 You're all caught up - no new notifications
-              </Text>
+              </AppText>
             </View>
           ) : (
             // Show toggle button when there are unread notifications
@@ -260,14 +252,14 @@ function NotificationsScreen() {
               }}
               style={styles.controlButton}
             >
-              <Text style={[styles.controlText, { color: accentColor }]}>
+              <AppText style={[styles.controlText, { color: accentColor }]}>
                 {showOnlyUnread ? 'Show All' : 'Show Only Unread'}
-              </Text>
+              </AppText>
             </TouchableOpacity>
           )}
           {unreadCount > 0 && (
             <TouchableOpacity onPress={handleMarkAllRead} style={styles.controlButton}>
-              <Text style={[styles.controlText, { color: accentColor }]}>Mark All Read</Text>
+              <AppText style={[styles.controlText, { color: accentColor }]}>Mark All Read</AppText>
             </TouchableOpacity>
           )}
         </View>
@@ -283,14 +275,14 @@ function NotificationsScreen() {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={accentColor} />
-            <Text style={[styles.loadingText, { color: secondaryFont }]}>Loading notifications...</Text>
+            <AppText style={[styles.loadingText, { color: secondaryFont }]}>Loading notifications...</AppText>
           </View>
         ) : displayedNotifications.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Icon name="bell" color={secondaryFont} size={48} />
-            <Text style={[styles.emptyText, { color: secondaryFont }]}>
+            <AppText style={[styles.emptyText, { color: secondaryFont }]}>
               {showOnlyUnread ? 'No unread notifications' : 'No notifications yet'}
-            </Text>
+            </AppText>
           </View>
         ) : (
           <View style={styles.notificationList}>
@@ -320,9 +312,9 @@ function NotificationsScreen() {
                   </View>
                   <View style={styles.notificationContent}>
                     <View style={styles.notificationHeader}>
-                      <Text style={[styles.notificationTitle, { color: primaryFont }]}>
+                      <AppText style={[styles.notificationTitle, { color: primaryFont }]}>
                         {notification.title}
-                      </Text>
+                      </AppText>
                       {notification.allowDismiss !== false && (
                         <TouchableOpacity
                           onPress={(e) => {
@@ -336,9 +328,9 @@ function NotificationsScreen() {
                         </TouchableOpacity>
                       )}
                     </View>
-                    <Text style={[styles.notificationMessage, { color: secondaryFont }]}>
+                    <AppText style={[styles.notificationMessage, { color: secondaryFont }]}>
                       {notification.message}
-                    </Text>
+                    </AppText>
                     {notification.youtubeUrl && (
                       <TouchableOpacity
                         onPress={(e) => {
@@ -347,12 +339,12 @@ function NotificationsScreen() {
                         }}
                         style={styles.youtubeLink}
                       >
-                        <Text style={[styles.youtubeLinkText, { color: accentColor }]}>
+                        <AppText style={[styles.youtubeLinkText, { color: accentColor }]}>
                           Watch this video
-                        </Text>
+                        </AppText>
                       </TouchableOpacity>
                     )}
-                    <Text style={[styles.notificationTime, { color: secondaryFont }]}>
+                    <AppText style={[styles.notificationTime, { color: secondaryFont }]}>
                       {new Date(notification.createdAt).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric',
@@ -360,7 +352,7 @@ function NotificationsScreen() {
                         hour: 'numeric',
                         minute: '2-digit',
                       })}
-                    </Text>
+                    </AppText>
                   </View>
                 </TouchableOpacity>
               );

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {Linking, ScrollView, StyleSheet, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
@@ -125,9 +126,9 @@ function ConsentScreen({
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text style={[styles.backText, { color: withOpacity(primaryFontColor, 0.7) }]}>← Back</Text>
+          <AppText style={[styles.backText, { color: withOpacity(primaryFontColor, 0.7) }]}>← Back</AppText>
         </TouchableOpacity>
-        <Text style={[styles.pageTitle, { color: primaryFontColor }]}>Parent or Guardian Approval</Text>
+        <AppText style={[styles.pageTitle, { color: primaryFontColor }]}>Parent or Guardian Approval</AppText>
       </View>
 
       <ScreenContainer scroll={false} style={[styles.screen, { backgroundColor }]}>
@@ -142,13 +143,13 @@ function ConsentScreen({
               },
             ]}
           >
-            <Text style={[styles.bannerText, { color: colors.warning || '#C27A3B' }]}>{pendingMessage}</Text>
+            <AppText style={[styles.bannerText, { color: colors.warning || '#C27A3B' }]}>{pendingMessage}</AppText>
             <View style={styles.bannerActions}>
               <TouchableOpacity onPress={handleResendToken} accessibilityRole="button">
-                <Text style={[styles.bannerAction, { color: accentColor }]}>Resend token</Text>
+                <AppText style={[styles.bannerAction, { color: accentColor }]}>Resend token</AppText>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleContactSupport} accessibilityRole="button">
-                <Text style={[styles.bannerAction, { color: accentColor }]}>Contact support</Text>
+                <AppText style={[styles.bannerAction, { color: accentColor }]}>Contact support</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -164,14 +165,14 @@ function ConsentScreen({
               },
             ]}
           >
-            <Text style={[styles.bannerText, { color: colors.success || '#4B7A57' }]}>Consent approved successfully — you’re now signed in.</Text>
+            <AppText style={[styles.bannerText, { color: colors.success || '#4B7A57' }]}>Consent approved successfully — you’re now signed in.</AppText>
             <TouchableOpacity onPress={handleDismissSuccess} accessibilityRole="button">
-              <Text style={[styles.bannerAction, { color: accentColor }]}>Dismiss</Text>
+              <AppText style={[styles.bannerAction, { color: accentColor }]}>Dismiss</AppText>
             </TouchableOpacity>
           </View>
         ) : null}
 
-        <Text style={[styles.subtitle, { color: withOpacity(primaryFontColor, 0.75) }]}>Please review the child&apos;s account information and confirm consent using the secure token we sent.</Text>
+        <AppText style={[styles.subtitle, { color: withOpacity(primaryFontColor, 0.75) }]}>Please review the child&apos;s account information and confirm consent using the secure token we sent.</AppText>
 
         <View
           style={[
@@ -183,7 +184,7 @@ function ConsentScreen({
             },
           ]}
         >
-          <Text style={[styles.cardTitle, { color: primaryFontColor }]}>Child Account</Text>
+          <AppText style={[styles.cardTitle, { color: primaryFontColor }]}>Child Account</AppText>
           <InfoRow label="Name" value={user.name} />
           <InfoRow label="Email" value={user.email} />
           <InfoRow label="Date of Birth" value={user.dob} />
@@ -202,7 +203,7 @@ function ConsentScreen({
             },
           ]}
         >
-          <Text style={[styles.cardTitle, { color: primaryFontColor }]}>Consent Request</Text>
+          <AppText style={[styles.cardTitle, { color: primaryFontColor }]}>Consent Request</AppText>
           <InfoRow label="Channel" value={consentLog.channel.toUpperCase()} />
           {consentLog.contact ? <InfoRow label="Sent To" value={consentLog.contact} /> : null}
           <InfoRow label="Request Date" value={formatDate(consentLog.createdAt)} />
@@ -219,7 +220,7 @@ function ConsentScreen({
             },
           ]}
         >
-          <Text style={[styles.cardTitle, { color: primaryFontColor }]}>Consent Approval</Text>
+          <AppText style={[styles.cardTitle, { color: primaryFontColor }]}>Consent Approval</AppText>
           <FormField
             label="Consent token (sent to parent/guardian email)"
             value={token}
@@ -228,7 +229,7 @@ function ConsentScreen({
             placeholder="Paste the secure token"
             accessibilityLabel="Consent token"
           />
-          <Text style={[styles.helperText, { color: withOpacity(primaryFontColor, 0.65) }]}>A one-time code sent to the parent or guardian. Ask them to forward it to you or enter it here.</Text>
+          <AppText style={[styles.helperText, { color: withOpacity(primaryFontColor, 0.65) }]}>A one-time code sent to the parent or guardian. Ask them to forward it to you or enter it here.</AppText>
           <FormField
             label="Approver Name"
             value={approverName}
@@ -237,8 +238,8 @@ function ConsentScreen({
             autoCapitalize="words"
             accessibilityLabel="Approver name"
           />
-          <Text style={[styles.helperText, { color: withOpacity(primaryFontColor, 0.65) }]}>Full name of the parent/guardian who approved.</Text>
-          {error ? <Text style={[styles.error, { color: errorColor }]}>{error}</Text> : null}
+          <AppText style={[styles.helperText, { color: withOpacity(primaryFontColor, 0.65) }]}>Full name of the parent/guardian who approved.</AppText>
+          {error ? <AppText style={[styles.error, { color: errorColor }]}>{error}</AppText> : null}
           <PrimaryButton
             label="Approve Consent"
             onPress={handleSubmit}
@@ -249,8 +250,8 @@ function ConsentScreen({
         </View>
 
           <View style={styles.footerRow}>
-            <Text style={[styles.footerText, { color: secondaryFontColor }]}>Consent granted already?</Text>
-            <Text style={[styles.footerLink, { color: accentColor }]} onPress={onBackToLogin}> Return to Log In</Text>
+            <AppText style={[styles.footerText, { color: secondaryFontColor }]}>Consent granted already?</AppText>
+            <AppText style={[styles.footerLink, { color: accentColor }]} onPress={onBackToLogin}> Return to Log In</AppText>
           </View>
         </ScrollView>
 
@@ -265,7 +266,7 @@ function ConsentScreen({
               },
             ]}
           >
-            <Text style={[styles.toastText, { color: primaryFontColor }]}>{toastMessage}</Text>
+            <AppText style={[styles.toastText, { color: primaryFontColor }]}>{toastMessage}</AppText>
           </View>
         ) : null}
       </ScreenContainer>
@@ -281,8 +282,8 @@ function InfoRow({ label, value }) {
 
   return (
     <View style={styles.infoRow}>
-      <Text style={[styles.infoLabel, { color: labelColor }]}>{label}</Text>
-      <Text style={[styles.infoValue, { color: valueColor }]}>{value || '—'}</Text>
+      <AppText style={[styles.infoLabel, { color: labelColor }]}>{label}</AppText>
+      <AppText style={[styles.infoValue, { color: valueColor }]}>{value || '—'}</AppText>
     </View>
   );
 }

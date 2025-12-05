@@ -1,15 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Image,
-  Linking,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import {Alert, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, View} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
 import PrimaryButton from '../components/PrimaryButton';
@@ -781,10 +772,10 @@ function OrderDetailsScreen({ navigation, route }) {
         </SafeAreaView>
         <ScreenContainer scroll={false}>
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>Order not found</Text>
-            <Text style={styles.emptySubtitle}>
+            <AppText style={styles.emptyTitle}>Order not found</AppText>
+            <AppText style={styles.emptySubtitle}>
               We couldn’t load the order details. Return to your profile or contact support for help.
-            </Text>
+            </AppText>
             <PrimaryButton label="Back to Home" onPress={() => navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] })} />
           </View>
         </ScreenContainer>
@@ -826,23 +817,23 @@ function OrderDetailsScreen({ navigation, route }) {
               accessibilityLabel={fromOrders ? 'Back to orders' : 'Back to order confirmation'}
             >
               <Icon name="chevronRight" color={colors.accent} style={styles.backIcon} size={20} />
-              <Text style={styles.backLinkLabel}>
+              <AppText style={styles.backLinkLabel}>
                 {fromOrders ? 'Back to Orders' : 'Back to Order Confirmation'}
-              </Text>
+              </AppText>
             </Pressable>
-            <Text style={styles.pageTitle}>Order #{displayOrderId}</Text>
+            <AppText style={styles.pageTitle}>Order #{displayOrderId}</AppText>
           </View>
 
           <View style={styles.cardsColumn}>
             <View style={styles.card}>
               <View style={styles.cardHeaderRow}>
-                <Text style={styles.cardTitle}>Order Summary</Text>
+                <AppText style={styles.cardTitle}>Order Summary</AppText>
               </View>
 
               <View style={styles.summaryOrderIdContainer}>
-                <Text style={styles.summaryOrderIdLabel}>Order ID</Text>
+                <AppText style={styles.summaryOrderIdLabel}>Order ID</AppText>
                 <View style={styles.summaryOrderIdRow}>
-                  <Text style={styles.summaryOrderIdValue}>{displayOrderId}</Text>
+                  <AppText style={styles.summaryOrderIdValue}>{displayOrderId}</AppText>
                   <Pressable
                     onPress={handleCopyOrderId}
                     style={({ pressed }) => [
@@ -854,25 +845,25 @@ function OrderDetailsScreen({ navigation, route }) {
                     testID="order-details-copy-action"
                   >
                     <Icon name="copy" color={colors.accent} size={18} />
-                    <Text style={styles.summaryCopyLabel}>Copy</Text>
+                    <AppText style={styles.summaryCopyLabel}>Copy</AppText>
                   </Pressable>
                 </View>
-                <Text style={styles.summaryOrderIdSubtitle}>Order ID: {orderId}</Text>
+                <AppText style={styles.summaryOrderIdSubtitle}>Order ID: {orderId}</AppText>
               </View>
 
               <View style={styles.summarySection}>
                 <View style={styles.summaryRowCompact}>
-                  <Text style={styles.summaryLabelCompact}>Placed on</Text>
-                  <Text style={styles.summaryValueCompact}>
+                  <AppText style={styles.summaryLabelCompact}>Placed on</AppText>
+                  <AppText style={styles.summaryValueCompact}>
                     {orderTimestamp ? formatDateTime(orderTimestamp) : '—'}
-                  </Text>
+                  </AppText>
                 </View>
                 <View style={styles.summaryRowCompact}>
-                  <Text style={styles.summaryLabelCompact}>Status</Text>
+                  <AppText style={styles.summaryLabelCompact}>Status</AppText>
                   <View
                     style={[styles.statusBadge, getStatusPillColors(status, colors)]}
                   >
-                    <Text style={styles.statusText}>{status}</Text>
+                    <AppText style={styles.statusText}>{status}</AppText>
                   </View>
                 </View>
               </View>
@@ -898,9 +889,9 @@ function OrderDetailsScreen({ navigation, route }) {
                       disabled={markingPaid}
                       style={styles.markPaidButton}
                     />
-                    <Text style={styles.adminPaymentHint}>
+                    <AppText style={styles.adminPaymentHint}>
                       Click this button after confirming payment has been received via Venmo.
-                    </Text>
+                    </AppText>
                   </View>
                 )}
               </View>
@@ -908,17 +899,17 @@ function OrderDetailsScreen({ navigation, route }) {
               <View style={styles.paymentReceivedCard}>
                 <View style={styles.paymentReceivedHeader}>
                   <Icon name="checkCircle" color={colors.success || '#4B7A57'} size={24} />
-                  <Text style={styles.paymentReceivedTitle}>Payment Received</Text>
+                  <AppText style={styles.paymentReceivedTitle}>Payment Received</AppText>
                 </View>
-                <Text style={styles.paymentReceivedText}>
+                <AppText style={styles.paymentReceivedText}>
                   Payment was received on {(order.paid_at || order.paidAt) ? new Date(order.paid_at || order.paidAt).toLocaleDateString() : '—'}
-                </Text>
+                </AppText>
               </View>
             )}
 
             <View style={styles.card}>
               <View style={styles.cardHeaderRow}>
-                <Text style={styles.cardTitle}>Items Ordered</Text>
+                <AppText style={styles.cardTitle}>Items Ordered</AppText>
               </View>
               <View style={styles.itemsList}>
                 {items.length ? (
@@ -937,69 +928,69 @@ function OrderDetailsScreen({ navigation, route }) {
                       >
                         <View style={styles.itemHeaderRow}>
                           <View style={styles.itemHeaderText}>
-                            <Text style={styles.itemHeading}>Nail Set #{index + 1}</Text>
-                            <Text style={styles.itemSubHeading}>
+                            <AppText style={styles.itemHeading}>Nail Set #{index + 1}</AppText>
+                            <AppText style={styles.itemSubHeading}>
                               {item.name ? item.name : formatTitleCase(item.shapeName || item.shapeId || 'Custom')}
-                            </Text>
-                            <Text style={styles.itemMetaLine}>
+                            </AppText>
+                            <AppText style={styles.itemMetaLine}>
                               Shape: {formatTitleCase(item.shapeName || item.shapeId || 'Custom')}
-                            </Text>
+                            </AppText>
                           </View>
                           {item.unitPrice ? (
                             <View style={styles.itemQuantityPill}>
-                              <Text style={styles.itemQuantityValue}>{formatCurrency(item.unitPrice)}</Text>
+                              <AppText style={styles.itemQuantityValue}>{formatCurrency(item.unitPrice)}</AppText>
                             </View>
                           ) : null}
                         </View>
 
                         <View style={styles.itemSection}>
-                          <Text style={styles.sectionLabel}>Custom Sizes</Text>
+                          <AppText style={styles.sectionLabel}>Custom Sizes</AppText>
                           {sizePairs.length ? (
                             <View style={styles.sizeChipRow}>
                               {sizePairs.map((pair) => (
                                 <View key={`${pair.finger}-${pair.value}`} style={styles.sizeChip}>
-                                  <Text style={styles.sizeChipText}>
+                                  <AppText style={styles.sizeChipText}>
                                     {pair.finger}: {pair.value || '?'}
-                                  </Text>
+                                  </AppText>
                                 </View>
                               ))}
                             </View>
                           ) : (
-                            <Text style={styles.secondaryText}>Standard set</Text>
+                            <AppText style={styles.secondaryText}>Standard set</AppText>
                           )}
                         </View>
 
                         <View style={styles.itemSection}>
-                          <Text style={styles.sectionLabel}>Design Assistance</Text>
-                          <Text style={styles.itemBodyCopy}>{designRequested ? 'Yes' : 'No'}</Text>
+                          <AppText style={styles.sectionLabel}>Design Assistance</AppText>
+                          <AppText style={styles.itemBodyCopy}>{designRequested ? 'Yes' : 'No'}</AppText>
                           {item.designAssistanceNotes ? (
-                            <Text style={styles.secondaryText}>{item.designAssistanceNotes}</Text>
+                            <AppText style={styles.secondaryText}>{item.designAssistanceNotes}</AppText>
                           ) : null}
                         </View>
 
                         {item.description ? (
                           <View style={styles.itemSection}>
-                            <Text style={styles.sectionLabel}>Description</Text>
-                            <Text style={styles.itemBodyCopy}>{item.description}</Text>
+                            <AppText style={styles.sectionLabel}>Description</AppText>
+                            <AppText style={styles.itemBodyCopy}>{item.description}</AppText>
                           </View>
                         ) : null}
 
                         {item.setNotes ? (
                           <View style={styles.itemSection}>
-                            <Text style={styles.sectionLabel}>Notes</Text>
-                            <Text style={styles.itemBodyCopy}>{item.setNotes}</Text>
+                            <AppText style={styles.sectionLabel}>Notes</AppText>
+                            <AppText style={styles.itemBodyCopy}>{item.setNotes}</AppText>
                           </View>
                         ) : null}
 
                         {item.specialRequests ? (
                           <View style={styles.itemSection}>
-                            <Text style={styles.sectionLabel}>Special Requests</Text>
-                            <Text style={styles.itemBodyCopy}>{item.specialRequests}</Text>
+                            <AppText style={styles.sectionLabel}>Special Requests</AppText>
+                            <AppText style={styles.itemBodyCopy}>{item.specialRequests}</AppText>
                           </View>
                         ) : null}
 
                         <View style={styles.itemSection}>
-                          <Text style={styles.sectionLabel}>Design Images</Text>
+                          <AppText style={styles.sectionLabel}>Design Images</AppText>
                           {uploads.length ? (
                             <View style={styles.uploadsRow}>
                               {uploads.map((upload, uploadIndex) => {
@@ -1024,12 +1015,12 @@ function OrderDetailsScreen({ navigation, route }) {
                               })}
                             </View>
                           ) : (
-                            <Text style={styles.secondaryText}>No design images provided.</Text>
+                            <AppText style={styles.secondaryText}>No design images provided.</AppText>
                           )}
                         </View>
 
                         <View style={styles.itemSection}>
-                          <Text style={styles.sectionLabel}>Sizing Images</Text>
+                          <AppText style={styles.sectionLabel}>Sizing Images</AppText>
                           {(() => {
                             const sizingUploads = Array.isArray(item.sizingUploads) ? item.sizingUploads : [];
                             return sizingUploads.length ? (
@@ -1056,7 +1047,7 @@ function OrderDetailsScreen({ navigation, route }) {
                                 })}
                               </View>
                             ) : (
-                              <Text style={styles.secondaryText}>No sizing images provided.</Text>
+                              <AppText style={styles.secondaryText}>No sizing images provided.</AppText>
                             );
                           })()}
                         </View>
@@ -1064,49 +1055,49 @@ function OrderDetailsScreen({ navigation, route }) {
                     );
                   })
                 ) : (
-                  <Text style={styles.placeholderText}>No items found for this order.</Text>
+                  <AppText style={styles.placeholderText}>No items found for this order.</AppText>
                 )}
               </View>
             </View>
 
             <View style={styles.card}>
               <View style={styles.cardHeaderRow}>
-                <Text style={styles.cardTitle}>Delivery Details</Text>
+                <AppText style={styles.cardTitle}>Delivery Details</AppText>
               </View>
               <View style={styles.itemSection}>
-                <Text style={styles.inlineLabelText}>
+                <AppText style={styles.inlineLabelText}>
                   Estimated ready date:{' '}
-                  <Text style={styles.inlineValueText}>
+                  <AppText style={styles.inlineValueText}>
                     {order?.pricing?.estimatedCompletionDate
                       ? formatDeliveryWindow(order.pricing.estimatedCompletionDate)
                       : deliveryTiming
                       ? formatDeliveryWindow(deliveryTiming)
                       : 'Pending'}
-                  </Text>
-                </Text>
+                  </AppText>
+                </AppText>
               </View>
               <View style={styles.itemSection}>
-                <Text style={styles.sectionLabel}>Delivery Method</Text>
-                <Text style={styles.itemBodyCopy}>{formatTitleCase(deliveryMethod)}</Text>
+                <AppText style={styles.sectionLabel}>Delivery Method</AppText>
+                <AppText style={styles.itemBodyCopy}>{formatTitleCase(deliveryMethod)}</AppText>
               </View>
               <View style={styles.itemSection}>
-                <Text style={styles.sectionLabel}>Delivery Timing</Text>
-                <Text style={styles.itemBodyCopy}>{`${formatTitleCase(deliveryOptionLabel)} (${deliveryDays})`}</Text>
+                <AppText style={styles.sectionLabel}>Delivery Timing</AppText>
+                <AppText style={styles.itemBodyCopy}>{`${formatTitleCase(deliveryOptionLabel)} (${deliveryDays})`}</AppText>
               </View>
               {hasAddress ? (
                 <View style={styles.itemSection}>
-                  <Text style={styles.sectionLabel}>Delivery Address</Text>
+                  <AppText style={styles.sectionLabel}>Delivery Address</AppText>
                   <View style={styles.addressGroup}>
-                    <Text style={styles.addressLine}>{fulfillment.address?.name}</Text>
-                    <Text style={styles.addressLine}>{fulfillment.address?.line1}</Text>
+                    <AppText style={styles.addressLine}>{fulfillment.address?.name}</AppText>
+                    <AppText style={styles.addressLine}>{fulfillment.address?.line1}</AppText>
                     {fulfillment.address?.line2 ? (
-                      <Text style={styles.addressLine}>{fulfillment.address.line2}</Text>
+                      <AppText style={styles.addressLine}>{fulfillment.address.line2}</AppText>
                     ) : null}
-                    <Text style={styles.addressLine}>
+                    <AppText style={styles.addressLine}>
                       {[fulfillment.address?.city, fulfillment.address?.state, fulfillment.address?.postalCode]
                         .filter(Boolean)
                         .join(', ')}
-                    </Text>
+                    </AppText>
                   </View>
                 </View>
               ) : null}
@@ -1114,7 +1105,7 @@ function OrderDetailsScreen({ navigation, route }) {
 
             <View style={styles.card}>
               <View style={styles.cardHeaderRow}>
-                <Text style={styles.cardTitle}>Price Breakdown</Text>
+                <AppText style={styles.cardTitle}>Price Breakdown</AppText>
               </View>
               {order?.pricing && typeof order.pricing === 'object' && Array.isArray(order.pricing.lineItems) && order.pricing.lineItems.length > 0 ? (
                 order.pricing.lineItems.map((item) => (
@@ -1126,26 +1117,26 @@ function OrderDetailsScreen({ navigation, route }) {
                   />
                 ))
               ) : (
-                <Text style={styles.secondaryText}>Pricing details unavailable.</Text>
+                <AppText style={styles.secondaryText}>Pricing details unavailable.</AppText>
               )}
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalValue}>
+                <AppText style={styles.totalLabel}>Total</AppText>
+                <AppText style={styles.totalValue}>
                   {order?.pricing && typeof order.pricing === 'object' && typeof order.pricing.total === 'number'
                     ? formatCurrency(order.pricing.total)
                     : typeof order?.total === 'number'
                     ? formatCurrency(order.total)
                     : formatCurrency(0)}
-                </Text>
+                </AppText>
               </View>
             </View>
           </View>
 
           <View style={styles.actionsCard}>
-            <Text style={styles.cardTitle}>Next Steps</Text>
-            <Text style={styles.bodyText}>
+            <AppText style={styles.cardTitle}>Next Steps</AppText>
+            <AppText style={styles.bodyText}>
               Need help or an update? Reach out anytime and we’ll get back to you.
-            </Text>
+            </AppText>
             <Pressable
               onPress={handleContactSupport}
               style={({ pressed }) => [styles.secondaryAction, { opacity: pressed ? 0.8 : 1 }]}
@@ -1154,14 +1145,14 @@ function OrderDetailsScreen({ navigation, route }) {
               <View style={styles.secondaryActionIcon}>
                 <Icon name="mail" color={colors.accent} size={18} />
               </View>
-              <Text style={styles.secondaryActionLabel}>Contact Support</Text>
+              <AppText style={styles.secondaryActionLabel}>Contact Support</AppText>
             </Pressable>
           </View>
         </ScrollView>
 
         {copied ? (
           <View style={styles.toast}>
-            <Text style={styles.toastText}>Order ID copied</Text>
+            <AppText style={styles.toastText}>Order ID copied</AppText>
           </View>
         ) : null}
 
@@ -1172,7 +1163,7 @@ function OrderDetailsScreen({ navigation, route }) {
               <Image source={{ uri: previewImage }} style={styles.previewImage} />
             ) : null}
             <Pressable style={styles.previewCloseButton} onPress={closePreview} accessibilityRole="button">
-              <Text style={styles.previewCloseLabel}>Close</Text>
+              <AppText style={styles.previewCloseLabel}>Close</AppText>
             </Pressable>
           </View>
         </Modal>
@@ -1184,9 +1175,9 @@ function OrderDetailsScreen({ navigation, route }) {
 function SummaryRow({ styles, label, value }) {
   return (
     <View style={styles.summaryRow}>
-      <Text style={styles.summaryLabel}>{label}</Text>
+      <AppText style={styles.summaryLabel}>{label}</AppText>
       {typeof value === 'string' || typeof value === 'number' ? (
-        <Text style={styles.summaryValue}>{value}</Text>
+        <AppText style={styles.summaryValue}>{value}</AppText>
       ) : (
         value
       )}

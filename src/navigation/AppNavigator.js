@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { AppState, Linking } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import AppText from '../components/AppText';
 import { supabase } from '../lib/supabaseClient';
 import SignupScreen from '../screens/SignupScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -266,16 +267,18 @@ function StatusOverlay() {
   return (
     <View style={[styles.overlay, { backgroundColor: overlayBackground, shadowColor: colors.shadow || '#000000' }]}>
       <ActivityIndicator size="large" color={accentColor} />
-      <Text
+      <AppText
+        variant="ui"
         style={[
           styles.overlayText,
           { color: primaryFontColor },
         ]}
       >
         {state.loadingConsentLogs ? 'Refreshing consent history…' : 'Loading preferences…'}
-      </Text>
+      </AppText>
       {state.statusMessage ? (
-        <Text
+        <AppText
+          variant="ui"
           onPress={clearStatusMessage}
           style={[
             styles.overlayDismiss,
@@ -283,7 +286,7 @@ function StatusOverlay() {
           ]}
         >
           Dismiss
-        </Text>
+        </AppText>
       ) : null}
     </View>
   );
@@ -325,15 +328,17 @@ function BannerToast({ navigationRef }) {
         },
       ]}
     >
-      <Text
+      <AppText
+        variant="ui"
         style={[
           styles.bannerText,
           { color: primaryFontColor },
         ]}
       >
         {state.statusMessage}
-      </Text>
-      <Text
+      </AppText>
+      <AppText
+        variant="ui"
         accessibilityRole="button"
         onPress={clearStatusMessage}
         style={[
@@ -342,7 +347,7 @@ function BannerToast({ navigationRef }) {
         ]}
       >
         Dismiss
-      </Text>
+      </AppText>
     </View>
   );
 }

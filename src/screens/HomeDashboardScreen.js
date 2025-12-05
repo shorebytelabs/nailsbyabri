@@ -1,15 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  FlatList,
-  Image,
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import {FlatList, Image, Linking, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions} from 'react-native';
+import AppText from '../components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme';
@@ -315,20 +306,20 @@ function HomeDashboardScreen() {
   // Helper function to render tip description with optional YouTube link
   const renderTipDescription = (description, youtubeUrl) => {
     if (!youtubeUrl) {
-      return <Text style={[styles.tipCopy, { color: colors.secondaryFont }]}>{description}</Text>;
+      return <AppText style={[styles.tipCopy, { color: colors.secondaryFont }]}>{description}</AppText>;
     }
 
     return (
-      <Text style={[styles.tipCopy, { color: colors.secondaryFont }]}>
+      <AppText style={[styles.tipCopy, { color: colors.secondaryFont }]}>
         {description}
         {' '}
-        <Text
+        <AppText
           style={[styles.tipLink, { color: accentColor }]}
           onPress={() => handleOpenUrl(youtubeUrl)}
         >
           Watch this video
-        </Text>
-      </Text>
+        </AppText>
+      </AppText>
     );
   };
 
@@ -381,22 +372,22 @@ function HomeDashboardScreen() {
           */}
           
           <View style={styles.heroTextGroup}>
-            <Text
+            <AppText
               style={[
                 styles.heroTitle,
                 { color: colors.primaryFont },
               ]}
             >
               Design Your Perfect Nails
-            </Text>
-            <Text
+            </AppText>
+            <AppText
               style={[
                 styles.heroSubtitle,
                 { color: colors.secondaryFont },
               ]}
             >
               Pick your shape, design, and sizing in minutes
-            </Text>
+            </AppText>
             <TouchableOpacity
               style={[
                 styles.heroButton,
@@ -411,22 +402,22 @@ function HomeDashboardScreen() {
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               activeOpacity={0.85}
             >
-              <Text style={[styles.heroButtonText, { color: accentContrastColor }]}>
+              <AppText style={[styles.heroButtonText, { color: accentContrastColor }]}>
                 {CTA_LABEL}
-              </Text>
+              </AppText>
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text
+          <AppText
             style={[
               styles.sectionTitle,
               { color: colors.primaryFont },
             ]}
           >
             Active orders
-          </Text>
+          </AppText>
           <TouchableOpacity
             onPress={() => {
               const allowed = ensureAuthenticated({
@@ -442,14 +433,14 @@ function HomeDashboardScreen() {
             accessibilityRole="button"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text
+            <AppText
               style={[
                 styles.sectionAction,
                 { color: accentColor },
               ]}
             >
               View all
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </View>
         <ScrollView
@@ -470,22 +461,22 @@ function HomeDashboardScreen() {
                   },
                 ]}
               >
-                <Text
+                <AppText
                   style={[
                     styles.orderName,
                     { color: onSurfaceColor },
                   ]}
                 >
                   No active orders
-                </Text>
-                <Text
+                </AppText>
+                <AppText
                   style={[
                     styles.orderMeta,
                     { color: colors.secondaryFont },
                   ]}
                 >
                   Start your first custom set to track it here.
-                </Text>
+                </AppText>
               </View>
             ]
           ) : (
@@ -507,7 +498,7 @@ function HomeDashboardScreen() {
                 >
                   <View style={styles.orderCardContent}>
                     {/* Order Number */}
-                    <Text
+                    <AppText
                       style={[
                         styles.orderNumber,
                         { color: primaryFontColor },
@@ -515,7 +506,7 @@ function HomeDashboardScreen() {
                       numberOfLines={1}
                     >
                       Order #{getOrderNumber(order)}
-                    </Text>
+                    </AppText>
                     
                     {/* Status */}
                     <View
@@ -527,7 +518,7 @@ function HomeDashboardScreen() {
                         },
                       ]}
                     >
-                      <Text
+                      <AppText
                         style={[
                           styles.statusText,
                           { color: statusInfo.statusTextColor },
@@ -535,11 +526,11 @@ function HomeDashboardScreen() {
                         numberOfLines={1}
                       >
                         {statusInfo.statusLabel.toUpperCase()}
-                      </Text>
+                      </AppText>
                     </View>
                     
                     {/* Set Summary */}
-                    <Text
+                    <AppText
                       style={[
                         styles.orderSummary,
                         { color: secondaryFontColor },
@@ -548,7 +539,7 @@ function HomeDashboardScreen() {
                       ellipsizeMode="tail"
                     >
                       {getOrderSummary(order)}
-                    </Text>
+                    </AppText>
                   </View>
                 </TouchableOpacity>
               );
@@ -557,22 +548,22 @@ function HomeDashboardScreen() {
         </ScrollView>
 
         <View style={styles.sectionHeader}>
-          <Text
+          <AppText
             style={[
               styles.sectionTitle,
               { color: colors.primaryFont },
             ]}
           >
             Tips
-          </Text>
+          </AppText>
         </View>
         {tipsLoading ? (
           <View style={styles.tipsLoadingContainer}>
-            <Text style={[styles.tipsLoadingText, { color: colors.secondaryFont }]}>Loading tips...</Text>
+            <AppText style={[styles.tipsLoadingText, { color: colors.secondaryFont }]}>Loading tips...</AppText>
           </View>
         ) : tips.length === 0 ? (
           <View style={styles.tipsEmptyContainer}>
-            <Text style={[styles.tipsEmptyText, { color: colors.secondaryFont }]}>No tips available</Text>
+            <AppText style={[styles.tipsEmptyText, { color: colors.secondaryFont }]}>No tips available</AppText>
           </View>
         ) : (
           <FlatList
@@ -602,7 +593,7 @@ function HomeDashboardScreen() {
                     resizeMode="cover"
                   />
                 ) : null}
-                <Text
+                <AppText
                   style={[
                     styles.tipTitle,
                     { color: onSurfaceColor },
@@ -610,7 +601,7 @@ function HomeDashboardScreen() {
                   numberOfLines={1}
                 >
                   {tip.title}
-                </Text>
+                </AppText>
                 {renderTipDescription(tip.description, tip.youtube_url)}
               </View>
             )}

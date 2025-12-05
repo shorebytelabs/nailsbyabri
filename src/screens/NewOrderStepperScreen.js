@@ -1,19 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import {ActivityIndicator, Alert, Image, Modal, ScrollView, StyleSheet, Switch, TextInput, TouchableOpacity, TouchableWithoutFeedback, View, useWindowDimensions} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../theme';
@@ -303,7 +290,7 @@ function ImagePreviewModal({ preview, onClose, colors }) {
             resizeMode="contain"
           />
           {preview.name ? (
-            <Text
+            <AppText
               style={[
                 styles.previewModalSubtitle,
                 { color: secondaryFont },
@@ -312,7 +299,7 @@ function ImagePreviewModal({ preview, onClose, colors }) {
               ellipsizeMode="tail"
             >
               {preview.name}
-            </Text>
+            </AppText>
           ) : null}
           <TouchableOpacity
             onPress={onClose}
@@ -325,14 +312,14 @@ function ImagePreviewModal({ preview, onClose, colors }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.previewCloseLabel,
                 { color: primaryFont },
               ]}
             >
               Close
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </View>
       </View>
@@ -2286,7 +2273,7 @@ function NewOrderStepperScreen({ route }) {
           },
         ]}
       >
-        <Text
+        <AppText
           style={[
             styles.stepperTitle,
             {
@@ -2297,7 +2284,7 @@ function NewOrderStepperScreen({ route }) {
           ]}
         >
           {stepperTitle}
-        </Text>
+        </AppText>
         <View
           style={[
             styles.progressContainer,
@@ -2316,7 +2303,7 @@ function NewOrderStepperScreen({ route }) {
             />
           </View>
           <View style={styles.progressRow}>
-            <Text
+            <AppText
               style={[
                 styles.setStatusPill,
                 {
@@ -2327,15 +2314,15 @@ function NewOrderStepperScreen({ route }) {
               ]}
             >
               {progressBadgeLabel}
-            </Text>
-            <Text
+            </AppText>
+            <AppText
               style={[
                 styles.progressLabel,
                 { color: secondaryFont },
               ]}
             >
               {progressLabel}
-            </Text>
+            </AppText>
           </View>
         </View>
 
@@ -2356,32 +2343,32 @@ function NewOrderStepperScreen({ route }) {
             ]}
             showsVerticalScrollIndicator={false}
           >
-            <Text
+            <AppText
               style={[
                 styles.stepTitle,
                 { color: primaryFont },
               ]}
             >
               {STEP_DEFINITIONS[currentStep].title}
-            </Text>
-            <Text
+            </AppText>
+            <AppText
               style={[
                 styles.stepSubtitle,
                 { color: secondaryFont },
               ]}
             >
               {STEP_DEFINITIONS[currentStep].subtitle}
-            </Text>
+            </AppText>
 
             {error ? (
-              <Text
+              <AppText
                 style={[
                   styles.errorText,
                   { color: accent },
                 ]}
               >
                 {error}
-              </Text>
+              </AppText>
             ) : null}
 
             {currentStep === 0 ? (
@@ -2400,9 +2387,9 @@ function NewOrderStepperScreen({ route }) {
             ) : null}
 
             {stepErrors.shape ? (
-              <Text style={[styles.validationText, { color: accent }]}>
+              <AppText style={[styles.validationText, { color: accent }]}>
                 Pick a shape to continue.
-              </Text>
+              </AppText>
             ) : null}
 
             {currentStep === 1 ? (
@@ -2431,9 +2418,9 @@ function NewOrderStepperScreen({ route }) {
             ) : null}
 
             {stepErrors.design ? (
-              <Text style={[styles.validationText, { color: accent }]}>
+              <AppText style={[styles.validationText, { color: accent }]}>
                 Add inspiration, describe your design, or mark for follow-up.
-              </Text>
+              </AppText>
             ) : null}
 
             {currentStep === 2 ? (
@@ -2540,9 +2527,9 @@ function NewOrderStepperScreen({ route }) {
           ) : null}
 
             {stepErrors.summary ? (
-              <Text style={[styles.validationText, { color: accent }]}>
+              <AppText style={[styles.validationText, { color: accent }]}>
                 Save at least one set to continue.
-              </Text>
+              </AppText>
             ) : null}
 
           {currentStep === 4 ? (
@@ -2595,9 +2582,9 @@ function NewOrderStepperScreen({ route }) {
           ) : null}
 
             {stepErrors.fulfillment ? (
-              <Text style={[styles.validationText, { color: accent }]}>
+              <AppText style={[styles.validationText, { color: accent }]}>
                 Please provide a full delivery address.
-              </Text>
+              </AppText>
             ) : null}
 
           {currentStep === 5 && priceDetails ? (
@@ -2664,7 +2651,7 @@ function NewOrderStepperScreen({ route }) {
                 {savingDraft ? (
                   <ActivityIndicator color={accent} />
                 ) : (
-                  <Text
+                  <AppText
                     numberOfLines={1}
                     ellipsizeMode="tail"
                     style={[
@@ -2673,7 +2660,7 @@ function NewOrderStepperScreen({ route }) {
                     ]}
                   >
                     Save Draft
-                  </Text>
+                  </AppText>
                 )}
               </TouchableOpacity>
             ) : currentStepKey !== 'summary' ? (
@@ -2689,7 +2676,7 @@ function NewOrderStepperScreen({ route }) {
                 accessibilityRole="button"
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text
+                <AppText
                   numberOfLines={1}
                   ellipsizeMode="tail"
                   style={[
@@ -2698,7 +2685,7 @@ function NewOrderStepperScreen({ route }) {
                   ]}
                 >
                   Back
-                </Text>
+                </AppText>
               </TouchableOpacity>
             ) : (
               <View style={styles.footerButtonSpacer} />
@@ -2725,7 +2712,7 @@ function NewOrderStepperScreen({ route }) {
                 {savingDraft ? (
                   <ActivityIndicator color={accent} />
                 ) : (
-                  <Text
+                  <AppText
                     numberOfLines={1}
                     ellipsizeMode="tail"
                     style={[
@@ -2734,7 +2721,7 @@ function NewOrderStepperScreen({ route }) {
                     ]}
                   >
                     Save Draft
-                  </Text>
+                  </AppText>
                 )}
               </TouchableOpacity>
             </View>
@@ -2793,22 +2780,22 @@ function NewOrderStepperScreen({ route }) {
                   },
                 ]}
               >
-                <Text
+                <AppText
                   style={[
                     styles.previewModalTitle,
                     { color: primaryFont },
                   ]}
                 >
                   {previewSet.name || previewSet.shapeName || 'Nail set preview'}
-                </Text>
-                <Text
+                </AppText>
+                <AppText
                   style={[
                     styles.previewModalSubtitle,
                     { color: secondaryFont },
                   ]}
                 >
                   Shape: {previewSet.shapeName || 'Custom'}
-                </Text>
+                </AppText>
                 <ScrollView style={styles.previewModalBody} contentContainerStyle={styles.previewModalBodyContent}>
                   {(previewSet.designUploads || []).map((upload, index) => {
                     const source = resolveUploadPreview(upload);
@@ -2822,22 +2809,22 @@ function NewOrderStepperScreen({ route }) {
                   })}
                   {previewSet.designDescription ? (
                     <View style={styles.previewModalSection}>
-                      <Text
+                      <AppText
                         style={[
                           styles.previewModalSectionTitle,
                           { color: primaryFont },
                         ]}
                       >
                         Description
-                      </Text>
-                      <Text
+                      </AppText>
+                      <AppText
                         style={[
                           styles.previewModalSectionCopy,
                           { color: secondaryFont },
                         ]}
                       >
                         {previewSet.designDescription}
-                      </Text>
+                      </AppText>
                     </View>
                   ) : null}
                 </ScrollView>
@@ -2862,9 +2849,9 @@ function NewOrderStepperScreen({ route }) {
             },
           ]}
         >
-          <Text style={[styles.toastText, { color: accentContrast || '#FFFFFF', flex: 1 }]}>
+          <AppText style={[styles.toastText, { color: accentContrast || '#FFFFFF', flex: 1 }]}>
             {toastMessage}
-          </Text>
+          </AppText>
           <TouchableOpacity
             onPress={() => {
               setToastMessage(null);
@@ -2873,9 +2860,9 @@ function NewOrderStepperScreen({ route }) {
             style={styles.toastCloseButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={[styles.toastCloseText, { color: accentContrast || '#FFFFFF' }]}>
+            <AppText style={[styles.toastCloseText, { color: accentContrast || '#FFFFFF' }]}>
               ×
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -2904,9 +2891,9 @@ function ShapeStep({ colors, shapes, selectedShapeId, onSelect, loading }) {
   if (!shapes || shapes.length === 0) {
     return (
       <View style={styles.loader}>
-        <Text style={[{ color: onSurface, textAlign: 'center' }]}>
+        <AppText style={[{ color: onSurface, textAlign: 'center' }]}>
           No shapes available. Please check your connection and try again.
-        </Text>
+        </AppText>
       </View>
     );
   }
@@ -2937,22 +2924,22 @@ function ShapeStep({ colors, shapes, selectedShapeId, onSelect, loading }) {
                 resizeMode="cover"
               />
             ) : null}
-            <Text
+            <AppText
               style={[
                 styles.shapeName,
                 { color: onSurface },
               ]}
             >
               {shape.name || 'Unnamed Shape'}
-            </Text>
-            <Text
+            </AppText>
+            <AppText
               style={[
                 styles.shapeDescription,
                 { color: secondaryFont },
               ]}
             >
               Base ${Number(shape.basePrice || 0).toFixed(2)}
-            </Text>
+            </AppText>
           </TouchableOpacity>
         );
       })}
@@ -2998,22 +2985,22 @@ function DesignStep({
       >
         <View style={styles.designUploadHeader}>
           <View style={styles.designUploadHeaderCopy}>
-            <Text
+            <AppText
               style={[
                 styles.sectionLabel,
                 { color: primaryFont },
               ]}
             >
               Design uploads
-            </Text>
-            <Text
+            </AppText>
+            <AppText
               style={[
                 styles.designUploadHint,
                 { color: secondaryFont },
               ]}
             >
               Add images if you have any inspiration to share.
-            </Text>
+            </AppText>
           </View>
           <TouchableOpacity
             onPress={onAddUpload}
@@ -3027,14 +3014,14 @@ function DesignStep({
             ]}
           >
             <Icon name="plus" color={accent} size={16} />
-            <Text
+            <AppText
               style={[
                 styles.designUploadActionLabel,
                 { color: accent },
               ]}
             >
               Add image
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </View>
         {uploadCount > 0 ? (
@@ -3079,13 +3066,13 @@ function DesignStep({
                         {upload.uploading && (
                           <View style={styles.uploadOverlay}>
                             <ActivityIndicator color={accent} size="small" />
-                            <Text style={[styles.uploadOverlayText, { color: surface }]}>Uploading...</Text>
+                            <AppText style={[styles.uploadOverlayText, { color: surface }]}>Uploading...</AppText>
                           </View>
                         )}
                         {upload.error && !upload.uploading && (
                           <View style={[styles.uploadOverlay, { backgroundColor: 'rgba(255, 0, 0, 0.8)' }]}>
                             <Icon name="close" color={surface} size={16} />
-                            <Text style={[styles.uploadOverlayText, { color: surface }]}>Failed</Text>
+                            <AppText style={[styles.uploadOverlayText, { color: surface }]}>Failed</AppText>
                           </View>
                         )}
                       </>
@@ -3101,21 +3088,21 @@ function DesignStep({
                         ) : (
                           <>
                             <Icon name="image" color={withOpacity(primaryFont, 0.4)} size={18} />
-                            <Text
+                            <AppText
                               style={[
                                 styles.designUploadEmptyText,
                                 { color: primaryFont },
                               ]}
                             >
                               No preview
-                            </Text>
+                            </AppText>
                           </>
                         )}
                       </View>
                     )}
                   </TouchableOpacity>
                   <View style={styles.designUploadMeta}>
-                    <Text
+                    <AppText
                       style={[
                         styles.designUploadName,
                         { color: primaryFont },
@@ -3124,16 +3111,16 @@ function DesignStep({
                       ellipsizeMode="tail"
                     >
                       {upload.fileName || 'Inspiration image'}
-                    </Text>
+                    </AppText>
                     <TouchableOpacity onPress={() => onRemoveUpload(upload.id)}>
-                      <Text
+                      <AppText
                         style={[
                           styles.designUploadRemove,
                           { color: accent },
                         ]}
                       >
                         Remove
-                      </Text>
+                      </AppText>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -3151,14 +3138,14 @@ function DesignStep({
             ]}
           >
             <Icon name="image" color={withOpacity(accent, 0.5)} size={28} />
-            <Text
+            <AppText
               style={[
                 styles.designUploadPlaceholderTitle,
                 { color: primaryFont },
               ]}
             >
               No images yet
-            </Text>
+            </AppText>
           </View>
         )}
       </View>
@@ -3173,22 +3160,22 @@ function DesignStep({
         ]}
       >
         <View style={styles.designDescriptionHeader}>
-          <Text
+          <AppText
             style={[
               styles.sectionLabel,
               { color: primaryFont },
             ]}
           >
             Design description
-          </Text>
-          <Text
+          </AppText>
+          <AppText
             style={[
               styles.designDescriptionHint,
               { color: secondaryFont },
             ]}
           >
             Share inspiration references or special instructions.
-          </Text>
+          </AppText>
         </View>
         <TextInput
           value={description}
@@ -3218,22 +3205,22 @@ function DesignStep({
         ]}
       >
         <View style={styles.designHelpCopy}>
-          <Text
+          <AppText
             style={[
               styles.designHelpTitle,
               { color: primaryFont },
             ]}
           >
             Need design help?
-          </Text>
-          <Text
+          </AppText>
+          <AppText
             style={[
               styles.designHelpHint,
               { color: secondaryFont },
             ]}
           >
             Toggle on if you'd like Abri to suggest ideas or finalize details with you.
-          </Text>
+          </AppText>
         </View>
         <Switch
           value={requiresDesignHelp}
@@ -3292,14 +3279,14 @@ function OrderSummaryStep({
           accessibilityHint="Save this set and add another"
         >
           <Icon name="plus" color={accent} size={16} />
-          <Text
+          <AppText
             style={[
               styles.summaryAddLabel,
               { color: accent },
             ]}
           >
             Add another set
-          </Text>
+          </AppText>
         </TouchableOpacity>
       </View>
 
@@ -3349,55 +3336,55 @@ function OrderSummaryStep({
                         ]}
                       >
                         <Icon name="image" color={withOpacity(primaryFont, 0.35)} size={22} />
-                        <Text
+                        <AppText
                           style={[
                             styles.summaryPreviewPlaceholderText,
                             { color: secondaryFont },
                           ]}
                         >
                           No image
-                        </Text>
+                        </AppText>
                       </View>
                     )}
                   </View>
                   <View style={styles.summaryMeta}>
-                    <Text
+                    <AppText
                       style={[
                         styles.summaryTitle,
                         { color: primaryFont },
                       ]}
                     >
                       {`Nail Set #${index + 1}`}
-                    </Text>
+                    </AppText>
                     <View style={styles.reviewMetaRow}>
-                      <Text
+                      <AppText
                         style={[
                           styles.reviewMetaLabel,
                           { color: withOpacity(primaryFont, 0.7) },
                         ]}
                       >
                         Shape
-                      </Text>
-                      <Text
+                      </AppText>
+                      <AppText
                         style={[
                           styles.reviewMetaValue,
                           { color: primaryFont },
                         ]}
                       >
                         {set.shapeName || 'Custom shape'}
-                      </Text>
+                      </AppText>
                     </View>
                     {set.designDescription ? (
                       <View style={styles.summaryDetailRow}>
-                        <Text
+                        <AppText
                           style={[
                             styles.summaryDetailLabel,
                             { color: withOpacity(primaryFont, 0.7) },
                           ]}
                         >
                           Description
-                        </Text>
-                        <Text
+                        </AppText>
+                        <AppText
                           style={[
                             styles.summaryDetailValue,
                             { color: secondaryFont },
@@ -3406,12 +3393,12 @@ function OrderSummaryStep({
                           ellipsizeMode="tail"
                         >
                           {set.designDescription}
-                        </Text>
+                        </AppText>
                       </View>
                     ) : null}
                     {isPhotoSizing || sizeText ? (
                       <View style={styles.summaryDetailRow}>
-                        <Text
+                        <AppText
                           style={[
                             styles.summaryDetailLabel,
                             {
@@ -3421,8 +3408,8 @@ function OrderSummaryStep({
                           ]}
                         >
                           Nail sizes
-                        </Text>
-                        <Text
+                        </AppText>
+                        <AppText
                           style={[
                             styles.summaryDetailValue,
                             { color: sizeDetails?.requiresSizingHelp ? accent : secondaryFont },
@@ -3433,40 +3420,40 @@ function OrderSummaryStep({
                             : isPhotoSizing
                             ? 'Photos provided'
                             : sizeText}
-                        </Text>
+                        </AppText>
                       </View>
                     ) : null}
                     {requiresFollowUp ? (
                       <View style={styles.reviewMetaRow}>
-                        <Text
+                        <AppText
                           style={[
                             styles.reviewMetaLabel,
                             { color: withOpacity(primaryFont, 0.7) },
                           ]}
                         >
                           Follow-up
-                        </Text>
-                        <Text
+                        </AppText>
+                        <AppText
                           style={[
                             styles.reviewMetaValue,
                             { color: accent },
                           ]}
                         >
                           Needs design assistance
-                        </Text>
+                        </AppText>
                       </View>
                     ) : null}
                   </View>
                 </View>
                 <View style={styles.summaryCardFooter}>
-                  <Text
+                  <AppText
                     style={[
                       styles.summarySetPrice,
                       { color: accent },
                     ]}
                   >
                     {formatCurrency(subtotal)}
-                  </Text>
+                  </AppText>
                   <View style={styles.summaryActions}>
                     <TouchableOpacity
                       onPress={() => onEditSet(set.id)}
@@ -3480,14 +3467,14 @@ function OrderSummaryStep({
                       ]}
                     >
                       <Icon name="edit" color={accent} size={16} />
-                      <Text
+                      <AppText
                         style={[
                           styles.reviewActionLabel,
                           { color: accent },
                         ]}
                       >
                         Edit
-                      </Text>
+                      </AppText>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => onRemoveSet(set.id)}
@@ -3501,14 +3488,14 @@ function OrderSummaryStep({
                       ]}
                     >
                       <Icon name="trash" color={withOpacity(primaryFont, 0.7)} size={16} />
-                      <Text
+                      <AppText
                         style={[
                           styles.reviewActionLabel,
                           { color: withOpacity(primaryFont, 0.7) },
                         ]}
                       >
                         Remove
-                      </Text>
+                      </AppText>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -3527,22 +3514,22 @@ function OrderSummaryStep({
           ]}
         >
           <Icon name="info" color={withOpacity(primaryFont, 0.4)} size={20} />
-          <Text
+          <AppText
             style={[
               styles.summaryEmptyTitle,
               { color: primaryFont },
             ]}
           >
             No sets saved yet
-          </Text>
-          <Text
+          </AppText>
+          <AppText
             style={[
               styles.summaryEmptyCopy,
               { color: secondaryFont },
             ]}
           >
             Save your first nail set to continue to delivery.
-          </Text>
+          </AppText>
         </View>
       )}
     </View>
@@ -3902,14 +3889,14 @@ function SizingStep({
             ]}
             accessibilityRole="button"
           >
-            <Text
+            <AppText
               style={[
                 styles.sizingOptionLabel,
                 { color: computedSelectedOption === option.key ? accent : primaryFont },
               ]}
             >
               {option.label}
-            </Text>
+            </AppText>
           </TouchableOpacity>
         ))}
       </View>
@@ -3927,22 +3914,22 @@ function SizingStep({
         >
           <View style={styles.designUploadHeader}>
             <View style={styles.designUploadHeaderCopy}>
-              <Text
+              <AppText
                 style={[
                   styles.sectionLabel,
                   { color: primaryFont },
                 ]}
               >
                 Let&apos;s get the right fit!
-              </Text>
-              <Text
+              </AppText>
+              <AppText
                 style={[
                   styles.designUploadHint,
                   { color: secondaryFont },
                 ]}
               >
                 Take clear photos so we can size your nails accurately.
-              </Text>
+              </AppText>
             </View>
             <TouchableOpacity
               onPress={onAddSizingUpload}
@@ -3958,22 +3945,22 @@ function SizingStep({
               ]}
             >
               <Icon name="plus" color={accent} size={16} />
-              <Text
+              <AppText
                 style={[
                   styles.designUploadActionLabel,
                   { color: accent },
                 ]}
               >
                 Add image
-              </Text>
+              </AppText>
             </TouchableOpacity>
           </View>
 
           <View style={styles.sizingInstructionList}>
-            <Text style={[styles.sizingInstructionItem, { color: secondaryFont }]}>• Place your hand on a flat surface with a quarter above</Text>
-            <Text style={[styles.sizingInstructionItem, { color: secondaryFont }]}>• Make sure the quarter is visible in every photo — one of your full hand, then one per finger</Text>
+            <AppText style={[styles.sizingInstructionItem, { color: secondaryFont }]}>• Place your hand on a flat surface with a quarter above</AppText>
+            <AppText style={[styles.sizingInstructionItem, { color: secondaryFont }]}>• Make sure the quarter is visible in every photo — one of your full hand, then one per finger</AppText>
           </View>
-          <Text style={[styles.sizingActionHint, { color: withOpacity(primaryFont, 0.7) }]}>Please keep personal info out of the photo frame</Text>
+          <AppText style={[styles.sizingActionHint, { color: withOpacity(primaryFont, 0.7) }]}>Please keep personal info out of the photo frame</AppText>
 
           {hasSizingUploads ? (
             <View style={styles.designUploadGrid}>
@@ -4021,19 +4008,19 @@ function SizingStep({
                           ]}
                         >
                           <Icon name="image" color={withOpacity(primaryFont, 0.4)} size={18} />
-                          <Text
+                          <AppText
                             style={[
                               styles.designUploadEmptyText,
                               { color: primaryFont },
                             ]}
                           >
                             No preview
-                          </Text>
+                          </AppText>
                         </View>
                       )}
                     </TouchableOpacity>
                     <View style={styles.designUploadMeta}>
-                      <Text
+                      <AppText
                         style={[
                           styles.designUploadName,
                           { color: primaryFont },
@@ -4042,16 +4029,16 @@ function SizingStep({
                         ellipsizeMode="tail"
                       >
                         {upload.fileName || 'Sizing photo'}
-                      </Text>
+                      </AppText>
                       <TouchableOpacity onPress={() => onRemoveSizingUpload?.(upload.id)}>
-                        <Text
+                        <AppText
                           style={[
                             styles.designUploadRemove,
                             { color: accent },
                           ]}
                         >
                           Remove
-                        </Text>
+                        </AppText>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -4069,14 +4056,14 @@ function SizingStep({
               ]}
             >
               <Icon name="image" color={withOpacity(accent, 0.5)} size={28} />
-              <Text
+              <AppText
                 style={[
                   styles.designUploadPlaceholderTitle,
                   { color: primaryFont },
                 ]}
               >
                 No images yet
-              </Text>
+              </AppText>
             </View>
           )}
         </View>
@@ -4094,18 +4081,18 @@ function SizingStep({
             },
           ]}
         >
-          <Text style={[styles.sizingInlineTitle, { color: primaryFont }]}>Enter your nail sizes</Text>
-          <Text style={[styles.sizingInlineCopy, { color: secondaryFont }]}>Enter a size for each finger (numeric values only)</Text>
+          <AppText style={[styles.sizingInlineTitle, { color: primaryFont }]}>Enter your nail sizes</AppText>
+          <AppText style={[styles.sizingInlineCopy, { color: secondaryFont }]}>Enter a size for each finger (numeric values only)</AppText>
           
           <View style={styles.manualSizeInputRow}>
             {FINGER_KEYS.map((finger) => (
               <View key={finger} style={styles.manualSizeInputColumn}>
-                <Text
+                <AppText
                   style={[styles.manualSizeInputLabel, { color: secondaryFont }]}
                   accessibilityLabel={`${FINGER_LABELS[finger]} finger size`}
                 >
                   {FINGER_LABELS[finger]}
-                </Text>
+                </AppText>
                 <TextInput
                   style={[
                     styles.manualSizeInput,
@@ -4153,9 +4140,9 @@ function SizingStep({
                     <Icon name="check" color={surface} size={14} />
                   ) : null}
                 </View>
-                <Text style={[styles.checkboxLabel, { color: primaryFont }]}>
+                <AppText style={[styles.checkboxLabel, { color: primaryFont }]}>
                   Save these nail sizes as my default
-                </Text>
+                </AppText>
               </TouchableOpacity>
             </View>
           ) : null}
@@ -4174,16 +4161,13 @@ function SizingStep({
           ]}
         >
           <View style={styles.savedProfileHeader}>
-            <Text style={[styles.sizingInlineTitle, { color: primaryFont }]}>Saved Nail Sizes</Text>
-            {activeProfile?.label && activeProfile.label !== 'Default nail size' && activeProfile.label !== 'Saved Nail Sizes' ? (
-              <Text style={[styles.savedProfileSubtitle, { color: secondaryFont }]}>{activeProfile.label}</Text>
-            ) : null}
+            <AppText style={[styles.sizingInlineTitle, { color: primaryFont }]}>Saved Nail Sizes</AppText>
           </View>
           
           {/* Helper text about updating saved sizes */}
-          <Text style={[styles.sizingHelperText, { color: secondaryFont }]}>
+          <AppText style={[styles.sizingHelperText, { color: secondaryFont }]}>
             To update your saved sizes, go to Profiles → Nail Sizes
-          </Text>
+          </AppText>
 
           {savedProfileOptions.length > 1 ? (
             <View style={styles.savedProfileSwitcher}>
@@ -4217,27 +4201,39 @@ function SizingStep({
                       },
                     ]}
                   >
-                    <Text
+                    <AppText
                       style={[
                         styles.savedProfileChipLabel,
                         { color: isActive ? accent : primaryFont },
                       ]}
                     >
                       {profile.label}
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 );
               })}
             </View>
           ) : null}
 
-          <View style={styles.savedProfileRowCompact}>
-            {activeProfileEntries.map((entry) => (
-              <View key={entry.finger} style={styles.savedProfileColumn}>
-                <Text style={[styles.savedProfileColumnLabel, { color: secondaryFont }]}>{entry.label}</Text>
-                <Text style={[styles.savedProfileColumnValue, { color: primaryFont }]}>{entry.value}</Text>
-              </View>
-            ))}
+          <View style={styles.savedProfileRowsContainer}>
+            {/* First row: Thumb, Index, Middle */}
+            <View style={styles.savedProfileRowCompact}>
+              {activeProfileEntries.filter((entry) => ['thumb', 'index', 'middle'].includes(entry.finger)).map((entry) => (
+                <View key={entry.finger} style={styles.savedProfileColumn}>
+                  <AppText style={[styles.savedProfileColumnLabel, { color: secondaryFont }]}>{entry.label}</AppText>
+                  <AppText style={[styles.savedProfileColumnValue, { color: primaryFont }]}>{entry.value}</AppText>
+                </View>
+              ))}
+            </View>
+            {/* Second row: Ring, Pinky */}
+            <View style={styles.savedProfileRowCompact}>
+              {activeProfileEntries.filter((entry) => ['ring', 'pinky'].includes(entry.finger)).map((entry) => (
+                <View key={entry.finger} style={styles.savedProfileColumn}>
+                  <AppText style={[styles.savedProfileColumnLabel, { color: secondaryFont }]}>{entry.label}</AppText>
+                  <AppText style={[styles.savedProfileColumnValue, { color: primaryFont }]}>{entry.value}</AppText>
+                </View>
+              ))}
+            </View>
           </View>
         </View>
       ) : null}
@@ -4255,8 +4251,8 @@ function SizingStep({
         ]}
       >
         <View style={styles.sizingHelpCopy}>
-          <Text style={[styles.sizingHelpTitle, { color: primaryFont }]}>Need sizing help?</Text>
-          <Text style={[styles.sizingHelpSubtitle, { color: secondaryFont }]}>Toggle on for Abri to assist and make sure your set fits just right.</Text>
+          <AppText style={[styles.sizingHelpTitle, { color: primaryFont }]}>Need sizing help?</AppText>
+          <AppText style={[styles.sizingHelpSubtitle, { color: secondaryFont }]}>Toggle on for Abri to assist and make sure your set fits just right.</AppText>
         </View>
         <Switch
           value={Boolean(requiresSizingHelp)}
@@ -4303,13 +4299,13 @@ function SizingStep({
                 resizeMode="contain"
               />
               {previewUpload.name ? (
-                <Text
+                <AppText
                   style={[styles.previewModalSubtitle, { color: secondaryFont }]}
                   numberOfLines={2}
                   ellipsizeMode="tail"
                 >
                   {previewUpload.name}
-                </Text>
+                </AppText>
               ) : null}
               <TouchableOpacity
                 onPress={() => setPreviewUpload(null)}
@@ -4322,14 +4318,14 @@ function SizingStep({
                   },
                 ]}
               >
-                <Text
+                <AppText
                   style={[
                     styles.previewCloseLabel,
                     { color: primaryFont },
                   ]}
                 >
                   Close
-                </Text>
+                </AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -4504,14 +4500,14 @@ function FulfillmentStep({ colors, fulfillment, deliveryMethods = {}, onChangeMe
 
   return (
     <View style={styles.fulfillmentContainer}>
-      <Text
+      <AppText
         style={[
           styles.sectionLabel,
           { color: primaryFont },
         ]}
       >
         Delivery method
-      </Text>
+      </AppText>
       <View style={styles.methodRow}>
         {Object.values(deliveryMethods || {}).map((method) => {
           const isActive = fulfillment.method === method.id;
@@ -4529,35 +4525,35 @@ function FulfillmentStep({ colors, fulfillment, deliveryMethods = {}, onChangeMe
               ]}
               onPress={() => onChangeMethod(method.id)}
             >
-              <Text
+              <AppText
                 style={[
                   styles.methodTitle,
                   { color: primaryFont },
                 ]}
               >
                 {method.label}
-              </Text>
-              <Text
+              </AppText>
+              <AppText
                 style={[
                   styles.methodDescription,
                   { color: secondaryFont },
                 ]}
               >
                 {method.description}
-              </Text>
+              </AppText>
             </TouchableOpacity>
           );
         })}
       </View>
 
-      <Text
+      <AppText
         style={[
           styles.sectionLabel,
           { color: primaryFont },
         ]}
       >
         Delivery timing
-      </Text>
+      </AppText>
       <View style={styles.speedRow}>
         {Object.values(
           deliveryMethods?.[fulfillment.method]?.speedOptions || {},
@@ -4577,30 +4573,30 @@ function FulfillmentStep({ colors, fulfillment, deliveryMethods = {}, onChangeMe
               ]}
               onPress={() => onChangeSpeed(speed.id)}
             >
-              <Text
+              <AppText
                 style={[
                   styles.speedTitle,
                   { color: primaryFont },
                 ]}
               >
                 {speed.label}
-              </Text>
-              <Text
+              </AppText>
+              <AppText
                 style={[
                   styles.speedDescription,
                   { color: secondaryFont },
                 ]}
               >
                 {speed.description}
-              </Text>
-              <Text
+              </AppText>
+              <AppText
                 style={[
                   styles.speedFee,
                   { color: accent },
                 ]}
               >
                 ${Number(speed.fee || 0).toFixed(2)}
-              </Text>
+              </AppText>
             </TouchableOpacity>
           );
         })}
@@ -4608,14 +4604,14 @@ function FulfillmentStep({ colors, fulfillment, deliveryMethods = {}, onChangeMe
 
       {(fulfillment.method === 'delivery' || fulfillment.method === 'shipping') && (
         <View style={styles.addressForm}>
-          <Text
+          <AppText
             style={[
               styles.sectionLabel,
               { color: primaryFont },
             ]}
           >
             Delivery address
-          </Text>
+          </AppText>
 
           {/* Address Dropdown */}
           {selectedAddressId !== null && (
@@ -4634,23 +4630,23 @@ function FulfillmentStep({ colors, fulfillment, deliveryMethods = {}, onChangeMe
                 {selectedAddress ? (
                   <>
                     <View style={styles.addressDropdownHeader}>
-                      <Text style={[styles.addressDropdownLabel, { color: accent }]}>
+                      <AppText style={[styles.addressDropdownLabel, { color: accent }]}>
                         {selectedAddress.label || 'Home'}
-                      </Text>
+                      </AppText>
                       {selectedAddress.isDefault && (
                         <View style={[styles.defaultBadgeSmall, { backgroundColor: accent }]}>
-                          <Text style={[styles.defaultBadgeTextSmall, { color: surface }]}>Default</Text>
+                          <AppText style={[styles.defaultBadgeTextSmall, { color: surface }]}>Default</AppText>
                         </View>
                       )}
                     </View>
-                    <Text style={[styles.addressDropdownPreview, { color: secondaryFont }]} numberOfLines={1}>
+                    <AppText style={[styles.addressDropdownPreview, { color: secondaryFont }]} numberOfLines={1}>
                       {selectedAddress.name}, {selectedAddress.line1}, {selectedAddress.city}, {selectedAddress.state}
-                    </Text>
+                    </AppText>
                   </>
                 ) : (
-                  <Text style={[styles.addressDropdownLabel, { color: primaryFont }]}>
+                  <AppText style={[styles.addressDropdownLabel, { color: primaryFont }]}>
                     Add New
-                  </Text>
+                  </AppText>
                 )}
               </View>
               <Icon 
@@ -4680,9 +4676,9 @@ function FulfillmentStep({ colors, fulfillment, deliveryMethods = {}, onChangeMe
                       },
                     ]}
                   >
-                    <Text style={[styles.addressDropdownOptionText, { color: isAddNewSelected ? accent : primaryFont }]}>
+                    <AppText style={[styles.addressDropdownOptionText, { color: isAddNewSelected ? accent : primaryFont }]}>
                       Add New
-                    </Text>
+                    </AppText>
                     {isAddNewSelected && <Icon name="check" color={accent} size={18} />}
                   </TouchableOpacity>
                   {savedAddresses.map((address) => {
@@ -4700,18 +4696,18 @@ function FulfillmentStep({ colors, fulfillment, deliveryMethods = {}, onChangeMe
                       >
                         <View style={styles.addressDropdownOptionContent}>
                           <View style={styles.addressDropdownOptionHeader}>
-                            <Text style={[styles.addressDropdownOptionLabel, { color: accent }]}>
+                            <AppText style={[styles.addressDropdownOptionLabel, { color: accent }]}>
                               {address.label || 'Home'}
-                            </Text>
+                            </AppText>
                             {address.isDefault && (
                               <View style={[styles.defaultBadgeSmall, { backgroundColor: accent }]}>
-                                <Text style={[styles.defaultBadgeTextSmall, { color: surface }]}>Default</Text>
+                                <AppText style={[styles.defaultBadgeTextSmall, { color: surface }]}>Default</AppText>
                               </View>
                             )}
                           </View>
-                          <Text style={[styles.addressDropdownOptionPreview, { color: secondaryFont }]} numberOfLines={2}>
+                          <AppText style={[styles.addressDropdownOptionPreview, { color: secondaryFont }]} numberOfLines={2}>
                             {address.name}, {address.line1}
-                          </Text>
+                          </AppText>
                         </View>
                         {isSelected && <Icon name="check" color={accent} size={18} />}
                       </TouchableOpacity>
@@ -4946,9 +4942,9 @@ function FulfillmentStep({ colors, fulfillment, deliveryMethods = {}, onChangeMe
                     >
                       {saveAddress && <Icon name="check" color={surface} size={14} />}
                     </TouchableOpacity>
-                    <Text style={[styles.saveAddressLabel, { color: primaryFont }]}>
+                    <AppText style={[styles.saveAddressLabel, { color: primaryFont }]}>
                       Save this address for future orders
-                    </Text>
+                    </AppText>
                   </View>
                 </View>
               )}
@@ -5035,26 +5031,26 @@ function ReviewStep({
     <View style={styles.reviewContainer}>
       <View style={styles.reviewSection}>
         <View style={styles.reviewSectionHeader}>
-          <Text
+          <AppText
             style={[
               styles.reviewHeading,
               { color: primaryFont },
             ]}
           >
             Order Summary
-          </Text>
+          </AppText>
           <TouchableOpacity
             onPress={onAddAnotherSet}
             accessibilityRole="button"
           >
-            <Text
+            <AppText
               style={[
                 styles.reviewLink,
                 { color: accent },
               ]}
             >
               Add another set
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </View>
 
@@ -5103,55 +5099,55 @@ function ReviewStep({
                         ]}
                       >
                         <Icon name="image" color={withOpacity(primaryFont, 0.35)} size={22} />
-                        <Text
+                        <AppText
                           style={[
                             styles.reviewPreviewPlaceholderText,
                             { color: secondaryFont },
                           ]}
                         >
                           No image
-                        </Text>
+                        </AppText>
                       </View>
                     )}
                   </View>
                   <View style={styles.reviewSetMeta}>
-                    <Text
+                    <AppText
                       style={[
                         styles.reviewSetTitle,
                         { color: primaryFont },
                       ]}
                     >
                       {`Nail Set #${index + 1}`}
-                    </Text>
+                    </AppText>
                     <View style={styles.reviewMetaRow}>
-                      <Text
+                      <AppText
                         style={[
                           styles.reviewMetaLabel,
                           { color: withOpacity(primaryFont, 0.7) },
                         ]}
                       >
                         Shape
-                      </Text>
-                      <Text
+                      </AppText>
+                      <AppText
                         style={[
                           styles.reviewMetaValue,
                           { color: primaryFont },
                         ]}
                       >
                         {set.shapeName || 'Custom shape'}
-                      </Text>
+                      </AppText>
                     </View>
                     {set.designDescription ? (
                       <View style={styles.summaryDetailRow}>
-                        <Text
+                        <AppText
                           style={[
                             styles.summaryDetailLabel,
                             { color: withOpacity(primaryFont, 0.7) },
                           ]}
                         >
                           Description
-                        </Text>
-                        <Text
+                        </AppText>
+                        <AppText
                           style={[
                             styles.summaryDetailValue,
                             { color: secondaryFont },
@@ -5160,12 +5156,12 @@ function ReviewStep({
                           ellipsizeMode="tail"
                         >
                           {set.designDescription}
-                        </Text>
+                        </AppText>
                       </View>
                     ) : null}
                     {isPhotoSizing || sizeText ? (
                       <View style={styles.reviewMetaRow}>
-                        <Text
+                        <AppText
                           style={[
                             styles.reviewMetaLabel,
                             {
@@ -5175,8 +5171,8 @@ function ReviewStep({
                           ]}
                         >
                           Nail sizes
-                        </Text>
-                        <Text
+                        </AppText>
+                        <AppText
                           style={[
                             styles.reviewMetaValue,
                             { color: sizeDetails?.requiresSizingHelp ? accent : secondaryFont },
@@ -5187,40 +5183,40 @@ function ReviewStep({
                             : isPhotoSizing
                             ? 'Photos provided'
                             : sizeText}
-                        </Text>
+                        </AppText>
                       </View>
                     ) : null}
                     {requiresFollowUp ? (
                       <View style={styles.reviewMetaRow}>
-                        <Text
+                        <AppText
                           style={[
                             styles.reviewMetaLabel,
                             { color: withOpacity(primaryFont, 0.7) },
                           ]}
                         >
                           Follow-up
-                        </Text>
-                        <Text
+                        </AppText>
+                        <AppText
                           style={[
                             styles.reviewMetaValue,
                             { color: accent },
                           ]}
                         >
                           Needs design assistance
-                        </Text>
+                        </AppText>
                       </View>
                     ) : null}
                   </View>
                 </View>
                 <View style={styles.reviewSetFooter}>
-                  <Text
+                  <AppText
                     style={[
                       styles.reviewSetPrice,
                       { color: accent },
                     ]}
                   >
                     {formatCurrency(subtotal)}
-                  </Text>
+                  </AppText>
                   <View style={styles.reviewSetActions}>
                     <TouchableOpacity
                       onPress={() => onEditSet?.(set.id)}
@@ -5234,14 +5230,14 @@ function ReviewStep({
                       accessibilityLabel={`Edit nail set ${index + 1}`}
                     >
                       <Icon name="edit" color={accent} size={16} />
-                      <Text
+                      <AppText
                         style={[
                           styles.reviewActionLabel,
                           { color: accent },
                         ]}
                       >
                         Edit
-                      </Text>
+                      </AppText>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => onRemoveSet?.(set.id)}
@@ -5255,14 +5251,14 @@ function ReviewStep({
                       accessibilityLabel={`Remove nail set ${index + 1}`}
                     >
                       <Icon name="trash" color={withOpacity(primaryFont, 0.7)} size={16} />
-                      <Text
+                      <AppText
                         style={[
                           styles.reviewActionLabel,
                           { color: withOpacity(primaryFont, 0.7) },
                         ]}
                       >
                         Remove
-                      </Text>
+                      </AppText>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -5274,27 +5270,27 @@ function ReviewStep({
 
       <View style={styles.reviewSection}>
         <View style={styles.reviewSectionHeader}>
-          <Text
+          <AppText
             style={[
               styles.reviewHeading,
               { color: primaryFont },
             ]}
           >
             Delivery Details
-          </Text>
+          </AppText>
           <TouchableOpacity
             onPress={onEditDelivery}
             accessibilityRole="button"
             accessibilityLabel="Edit delivery details"
           >
-            <Text
+            <AppText
               style={[
                 styles.reviewLink,
                 { color: accent },
               ]}
             >
               Edit delivery details
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </View>
         <View
@@ -5307,34 +5303,34 @@ function ReviewStep({
           ]}
         >
           <View style={styles.reviewMetaRow}>
-            <Text style={[styles.deliveryLabel, { color: secondaryFont }]}>Method</Text>
-            <Text style={[styles.deliveryValue, { color: primaryFont }]}>
+            <AppText style={[styles.deliveryLabel, { color: secondaryFont }]}>Method</AppText>
+            <AppText style={[styles.deliveryValue, { color: primaryFont }]}>
               {methodConfig ? methodConfig.label : 'Not selected'}
-            </Text>
+            </AppText>
           </View>
           <View style={styles.reviewMetaRow}>
-            <Text style={[styles.deliveryLabel, { color: secondaryFont }]}>Timing</Text>
-            <Text style={[styles.deliveryValue, { color: primaryFont }]}>
+            <AppText style={[styles.deliveryLabel, { color: secondaryFont }]}>Timing</AppText>
+            <AppText style={[styles.deliveryValue, { color: primaryFont }]}>
               {speedConfig ? `${speedConfig.label} • ${speedConfig.description}` : 'Not selected'}
-            </Text>
+            </AppText>
           </View>
           <View style={styles.reviewMetaRow}>
-            <Text style={[styles.deliveryLabel, { color: secondaryFont }]}>Estimated ready date</Text>
-            <Text style={[styles.deliveryValue, { color: accent }]}>
+            <AppText style={[styles.deliveryLabel, { color: secondaryFont }]}>Estimated ready date</AppText>
+            <AppText style={[styles.deliveryValue, { color: accent }]}>
               {estimatedDate || `${priceDetails?.estimatedCompletionDays || 0} business days`}
-            </Text>
+            </AppText>
           </View>
           {addressLines.length ? (
             <View style={styles.reviewMetaRow}>
-              <Text style={[styles.deliveryLabel, { color: secondaryFont }]}>Shipping</Text>
+              <AppText style={[styles.deliveryLabel, { color: secondaryFont }]}>Shipping</AppText>
               <View style={styles.deliveryAddressBlock}>
                 {addressLines.map((line, idx) => (
-                  <Text
+                  <AppText
                     key={`address_line_${idx}`}
                     style={[styles.deliveryValue, { color: primaryFont }]}
                   >
                     {line}
-                  </Text>
+                  </AppText>
                 ))}
               </View>
             </View>
@@ -5359,22 +5355,22 @@ function ReviewStep({
         >
           {capacityInfo.isFull ? (
             <>
-              <Text
+              <AppText
                 style={[
                   styles.capacityMessageTitle,
                   { color: warningColor },
                 ]}
               >
                 This Week Is Full!
-              </Text>
-              <Text
+              </AppText>
+              <AppText
                 style={[
                   styles.capacityMessageText,
                   { color: secondaryFont },
                 ]}
               >
                 Go ahead and submit! You'll need to submit again when the next window opens in{' '}
-                <Text style={{ fontWeight: '600' }}>
+                <AppText style={{ fontWeight: '600' }}>
                   {(() => {
                     if (!capacityInfo.nextWeekStartDate) return 'soon';
                     const today = new Date();
@@ -5384,27 +5380,27 @@ function ReviewStep({
                     const daysDiff = Math.ceil((nextWeek - today) / (1000 * 60 * 60 * 24));
                     return `${daysDiff} day${daysDiff !== 1 ? 's' : ''}`;
                   })()}
-                </Text>
-              </Text>
+                </AppText>
+              </AppText>
             </>
           ) : capacityInfo.isAlmostFull ? (
             <>
-              <Text
+              <AppText
                 style={[
                   styles.capacityMessageTitle,
                   { color: warningColor },
                 ]}
               >
                 Limited Availability
-              </Text>
-              <Text
+              </AppText>
+              <AppText
                 style={[
                   styles.capacityMessageText,
                   { color: secondaryFont },
                 ]}
               >
                 Only {capacityInfo.remaining} order{capacityInfo.remaining !== 1 ? 's' : ''} remaining this week. Submit your order soon to secure yours.
-              </Text>
+              </AppText>
             </>
           ) : null}
         </View>
@@ -5412,23 +5408,23 @@ function ReviewStep({
 
       <View style={styles.reviewSection}>
         <View style={styles.reviewSectionHeader}>
-          <Text
+          <AppText
             style={[
               styles.reviewHeading,
               { color: primaryFont },
             ]}
           >
             Price Breakdown
-          </Text>
+          </AppText>
           <TouchableOpacity accessibilityRole="button" onPress={onTogglePromoInput}>
-            <Text
+            <AppText
               style={[
                 styles.reviewLink,
                 { color: withOpacity(primaryFont, 0.7) },
               ]}
             >
               {promoCode ? `Promo code applied: ${promoCode.toUpperCase()}` : 'Have a promo code?'}
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </View>
         <View
@@ -5452,28 +5448,28 @@ function ReviewStep({
                     },
                   ]}
                 >
-                  <Text
+                  <AppText
                     style={[
                       styles.promoBadgeText,
                       { color: accent },
                     ]}
                   >
                     {promoCode.toUpperCase()}
-                  </Text>
+                  </AppText>
                 </View>
                 <TouchableOpacity
                   onPress={onClearPromoCode}
                   accessibilityRole="button"
                   accessibilityLabel="Remove promo code"
                 >
-                  <Text
+                  <AppText
                     style={[
                       styles.promoRemoveLabel,
                       { color: withOpacity(primaryFont, 0.65) },
                     ]}
                   >
                     Remove
-                  </Text>
+                  </AppText>
                 </TouchableOpacity>
               </View>
             ) : null}
@@ -5508,14 +5504,14 @@ function ReviewStep({
                   onPress={onApplyPromoCode}
                   accessibilityRole="button"
                 >
-                  <Text
+                  <AppText
                     style={[
                       styles.promoApplyLabel,
                       { color: colors.accentContrast || '#FFFFFF' },
                     ]}
                   >
                     Apply
-                  </Text>
+                  </AppText>
                 </TouchableOpacity>
               </View>
             ) : null}
@@ -5523,42 +5519,42 @@ function ReviewStep({
           <View style={styles.priceList}>
             {priceDetails.lineItems.map((item) => (
               <View key={item.id} style={styles.priceRow}>
-                <Text
+                <AppText
                   style={[
                     styles.priceLabel,
                     { color: secondaryFont },
                   ]}
                 >
                   {item.label}
-                </Text>
-                <Text
+                </AppText>
+                <AppText
                   style={[
                     styles.priceValue,
                     { color: primaryFont },
                   ]}
                 >
                   ${Number(item.amount || 0).toFixed(2)}
-                </Text>
+                </AppText>
               </View>
             ))}
           </View>
           <View style={styles.totalRow}>
-            <Text
+            <AppText
               style={[
                 styles.totalLabel,
                 { color: primaryFont },
               ]}
             >
               Total
-            </Text>
-            <Text
+            </AppText>
+            <AppText
               style={[
                 styles.totalValue,
                 { color: accent },
               ]}
             >
               ${Number(priceDetails.total || 0).toFixed(2)}
-            </Text>
+            </AppText>
           </View>
         </View>
       </View>
@@ -6123,13 +6119,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  savedProfileRowsContainer: {
+    gap: 12,
+    marginTop: 16,
+  },
   savedProfileRowCompact: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
-    marginTop: 16,
   },
   savedProfileColumn: {
     flex: 1,
@@ -6675,10 +6674,13 @@ const styles = StyleSheet.create({
   },
   priceLabel: {
     fontSize: 13,
+    flex: 1,
+    marginRight: 12,
   },
   priceValue: {
     fontSize: 13,
     fontWeight: '700',
+    flexShrink: 0,
   },
   totalRow: {
     flexDirection: 'row',
@@ -6844,13 +6846,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  savedProfileRowsContainer: {
+    gap: 12,
+    marginTop: 16,
+  },
   savedProfileRowCompact: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
-    marginTop: 16,
   },
   savedProfileColumn: {
     flex: 1,

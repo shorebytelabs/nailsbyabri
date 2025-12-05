@@ -1,7 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useTheme } from '../../theme';
 import { withOpacity } from '../../utils/color';
+import AppText from '../AppText';
 
 function Breadcrumb({ segments = [], style }) {
   const { theme } = useTheme();
@@ -20,7 +21,8 @@ function Breadcrumb({ segments = [], style }) {
         const segmentColor = isLast ? accentColor : withOpacity(baseColor, 0.75);
         return (
           <View key={`${segment.label}-${index}`} style={styles.segment}>
-            <Text
+            <AppText
+              variant="ui"
               style={[
                 styles.label,
                 {
@@ -30,16 +32,17 @@ function Breadcrumb({ segments = [], style }) {
               ]}
             >
               {segment.label}
-            </Text>
+            </AppText>
             {!isLast ? (
-              <Text
+              <AppText
+                variant="ui"
                 style={[
                   styles.separator,
                   { color: withOpacity(baseColor, 0.45) },
                 ]}
               >
                 /
-              </Text>
+              </AppText>
             ) : null}
           </View>
         );

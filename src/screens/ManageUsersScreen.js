@@ -4,17 +4,8 @@
  */
 
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {ActivityIndicator, Alert, FlatList, ScrollView, StyleSheet, TextInput, TouchableOpacity, View} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../icons/Icon';
 import { useTheme } from '../theme';
@@ -152,20 +143,20 @@ function ManageUsersScreen({ navigation }) {
     >
       <View style={styles.userRowContent}>
         <View style={styles.userInfo}>
-          <Text style={[styles.userName, { color: primaryFont }]} numberOfLines={1}>
+          <AppText style={[styles.userName, { color: primaryFont }]} numberOfLines={1}>
             {user.name || 'No name'}
-          </Text>
-          <Text style={[styles.userEmail, { color: secondaryFont }]} numberOfLines={1}>
+          </AppText>
+          <AppText style={[styles.userEmail, { color: secondaryFont }]} numberOfLines={1}>
             {user.email}
-          </Text>
+          </AppText>
         </View>
         <View style={styles.userMeta}>
           <View style={styles.metaRow}>
-            <Text style={[styles.metaLabel, { color: secondaryFont }]}>Role:</Text>
-            <Text style={[styles.metaValue, { color: primaryFont }]}>{formatRole(user.role)}</Text>
+            <AppText style={[styles.metaLabel, { color: secondaryFont }]}>Role:</AppText>
+            <AppText style={[styles.metaValue, { color: primaryFont }]}>{formatRole(user.role)}</AppText>
           </View>
           <View style={styles.metaRow}>
-            <Text style={[styles.metaLabel, { color: secondaryFont }]}>Status:</Text>
+            <AppText style={[styles.metaLabel, { color: secondaryFont }]}>Status:</AppText>
             <View
               style={[
                 styles.statusBadge,
@@ -176,7 +167,7 @@ function ManageUsersScreen({ navigation }) {
                 },
               ]}
             >
-              <Text
+              <AppText
                 style={[
                   styles.statusText,
                   {
@@ -185,16 +176,16 @@ function ManageUsersScreen({ navigation }) {
                 ]}
               >
                 {user.active ? 'Active' : 'Inactive'}
-              </Text>
+              </AppText>
             </View>
           </View>
           <View style={styles.metaRow}>
-            <Text style={[styles.metaLabel, { color: secondaryFont }]}>Orders:</Text>
-            <Text style={[styles.metaValue, { color: primaryFont }]}>{user.orderCount || 0}</Text>
+            <AppText style={[styles.metaLabel, { color: secondaryFont }]}>Orders:</AppText>
+            <AppText style={[styles.metaValue, { color: primaryFont }]}>{user.orderCount || 0}</AppText>
           </View>
           <View style={styles.metaRow}>
-            <Text style={[styles.metaLabel, { color: secondaryFont }]}>Last login:</Text>
-            <Text style={[styles.metaValue, { color: primaryFont }]}>{formatDate(user.last_login)}</Text>
+            <AppText style={[styles.metaLabel, { color: secondaryFont }]}>Last login:</AppText>
+            <AppText style={[styles.metaValue, { color: primaryFont }]}>{formatDate(user.last_login)}</AppText>
           </View>
         </View>
       </View>
@@ -206,7 +197,7 @@ function ManageUsersScreen({ navigation }) {
     if (!loading && users.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <Text style={[styles.emptyText, { color: secondaryFont }]}>No users found</Text>
+          <AppText style={[styles.emptyText, { color: secondaryFont }]}>No users found</AppText>
         </View>
       );
     }
@@ -224,7 +215,7 @@ function ManageUsersScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="chevronRight" color={primaryFont} size={20} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: primaryFont }]}>Manage Users</Text>
+        <AppText style={[styles.headerTitle, { color: primaryFont }]}>Manage Users</AppText>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -258,7 +249,7 @@ function ManageUsersScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.filterChipText,
                 {
@@ -267,7 +258,7 @@ function ManageUsersScreen({ navigation }) {
               ]}
             >
               Users
-            </Text>
+            </AppText>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleRoleFilter('admin')}
@@ -279,7 +270,7 @@ function ManageUsersScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.filterChipText,
                 {
@@ -288,7 +279,7 @@ function ManageUsersScreen({ navigation }) {
               ]}
             >
               Admins
-            </Text>
+            </AppText>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleActiveFilter(true)}
@@ -300,7 +291,7 @@ function ManageUsersScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.filterChipText,
                 {
@@ -309,7 +300,7 @@ function ManageUsersScreen({ navigation }) {
               ]}
             >
               Active
-            </Text>
+            </AppText>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleActiveFilter(false)}
@@ -321,7 +312,7 @@ function ManageUsersScreen({ navigation }) {
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.filterChipText,
                 {
@@ -330,7 +321,7 @@ function ManageUsersScreen({ navigation }) {
               ]}
             >
               Inactive
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -338,7 +329,7 @@ function ManageUsersScreen({ navigation }) {
       {loading && page === 1 ? (
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color={accent} />
-          <Text style={[styles.loadingText, { color: secondaryFont }]}>Loading users...</Text>
+          <AppText style={[styles.loadingText, { color: secondaryFont }]}>Loading users...</AppText>
         </View>
       ) : (
         <FlatList
@@ -358,7 +349,7 @@ function ManageUsersScreen({ navigation }) {
           ListEmptyComponent={
             !loading ? (
               <View style={styles.emptyContainer}>
-                <Text style={[styles.emptyText, { color: secondaryFont }]}>No users found</Text>
+                <AppText style={[styles.emptyText, { color: secondaryFont }]}>No users found</AppText>
               </View>
             ) : null
           }
@@ -367,9 +358,9 @@ function ManageUsersScreen({ navigation }) {
 
       {total > 0 && (
         <View style={[styles.paginationInfo, { borderTopColor: withOpacity(borderColor, 0.3) }]}>
-          <Text style={[styles.paginationText, { color: secondaryFont }]}>
+          <AppText style={[styles.paginationText, { color: secondaryFont }]}>
             Showing {users.length} of {total} users
-          </Text>
+          </AppText>
         </View>
       )}
     </SafeAreaView>

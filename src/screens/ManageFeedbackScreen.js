@@ -3,20 +3,8 @@
  * Admin-only screen for viewing customer feedback/reviews
  */
 import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  Image,
-  ScrollView,
-  Modal,
-  Dimensions,
-  useWindowDimensions,
-} from 'react-native';
+import {ActivityIndicator, Alert, FlatList, StyleSheet, TouchableOpacity, View, Image, ScrollView, Modal, Dimensions, useWindowDimensions} from 'react-native';
+import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../icons/Icon';
 import { useTheme } from '../theme';
@@ -107,35 +95,35 @@ function ManageFeedbackScreen({ navigation }) {
       <View style={[styles.feedbackItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.feedbackHeader}>
           <View style={styles.feedbackHeaderLeft}>
-            <Text style={[styles.orderNumber, { color: colors.primaryFont }]}>
+            <AppText style={[styles.orderNumber, { color: colors.primaryFont }]}>
               Order #{orderNumber}
-            </Text>
-            <Text style={[styles.customerName, { color: colors.secondaryFont }]}>
+            </AppText>
+            <AppText style={[styles.customerName, { color: colors.secondaryFont }]}>
               {customerName}
               {customerEmail ? ` • ${customerEmail}` : ''}
-            </Text>
+            </AppText>
           </View>
-          <Text style={[styles.timestamp, { color: colors.secondaryFont }]}>
+          <AppText style={[styles.timestamp, { color: colors.secondaryFont }]}>
             {formatDate(item.created_at)}
-          </Text>
+          </AppText>
         </View>
         <View style={styles.ratingContainer}>
           {renderStars(item.rating)}
-          <Text style={[styles.ratingText, { color: colors.primaryFont }]}>
+          <AppText style={[styles.ratingText, { color: colors.primaryFont }]}>
             {item.rating}/5
-          </Text>
+          </AppText>
         </View>
         {item.comment && (
           <View style={styles.commentContainer}>
-            <Text style={[styles.commentLabel, { color: colors.secondaryFont }]}>Comment:</Text>
-            <Text style={[styles.commentText, { color: colors.primaryFont }]}>
+            <AppText style={[styles.commentLabel, { color: colors.secondaryFont }]}>Comment:</AppText>
+            <AppText style={[styles.commentText, { color: colors.primaryFont }]}>
               {item.comment}
-            </Text>
+            </AppText>
           </View>
         )}
         {item.image_urls && Array.isArray(item.image_urls) && item.image_urls.length > 0 && (
           <View style={styles.imagesContainer}>
-            <Text style={[styles.imagesLabel, { color: colors.secondaryFont }]}>Photos:</Text>
+            <AppText style={[styles.imagesLabel, { color: colors.secondaryFont }]}>Photos:</AppText>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScroll}>
               {item.image_urls.map((imageUrl, index) => (
                 <TouchableOpacity
@@ -164,7 +152,7 @@ function ManageFeedbackScreen({ navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Icon name="chevronLeft" color={colors.primaryFont} size={24} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.primaryFont }]}>Customer Feedback</Text>
+          <AppText style={[styles.headerTitle, { color: colors.primaryFont }]}>Customer Feedback</AppText>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
@@ -180,7 +168,7 @@ function ManageFeedbackScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="chevronLeft" color={colors.primaryFont} size={24} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.primaryFont }]}>Customer Feedback</Text>
+        <AppText style={[styles.headerTitle, { color: colors.primaryFont }]}>Customer Feedback</AppText>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -193,9 +181,9 @@ function ManageFeedbackScreen({ navigation }) {
         onRefresh={handleRefresh}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: colors.secondaryFont }]}>
+            <AppText style={[styles.emptyText, { color: colors.secondaryFont }]}>
               No feedback submitted yet
-            </Text>
+            </AppText>
           </View>
         }
       />
@@ -339,9 +327,9 @@ function ImagePreviewModal({ images, initialIndex = 0, onClose, colors }) {
         {/* Image counter */}
         {images.length > 1 && (
           <View style={styles.counterContainer}>
-            <Text style={styles.counterText}>
+            <AppText style={styles.counterText}>
               {currentIndex + 1} / {images.length}
-            </Text>
+            </AppText>
           </View>
         )}
       </View>
