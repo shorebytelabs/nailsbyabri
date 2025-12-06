@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
@@ -89,10 +89,17 @@ function LoginScreen({
         ]}
       />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
         <Pressable
           onPress={onCancel}
           style={({ pressed }) => [styles.backLink, { opacity: pressed ? 0.7 : 1 }]}
@@ -200,7 +207,8 @@ function LoginScreen({
             </View>
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Legal Consent Modal */}
       <ConsentModal
@@ -247,10 +255,14 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   scrollContent: {
     flexGrow: 1,
     paddingVertical: 32,
     paddingHorizontal: 6,
+    paddingBottom: 100, // Extra padding at bottom so last field is visible above keyboard
     alignItems: 'center',
     gap: 24,
   },
@@ -289,7 +301,7 @@ const styles = StyleSheet.create({
   logoWrapper: {
     width: '100%',
     alignItems: 'center',
-    marginBottom: -120,
+    marginBottom: -130,
   },
   logoContainer: {
     width: 320,
@@ -320,7 +332,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 12 },
     shadowRadius: 24,
     elevation: 12,
-    marginTop: 0,
+    marginTop: -20,
   },
   formIntro: {
     gap: 10,
