@@ -315,3 +315,17 @@ if (!supabaseClient) {
 
 export const supabase = supabaseClient;
 
+// Note about refresh_token_not_found errors:
+// When the app starts, Supabase automatically tries to restore the user's session from storage.
+// If there's no valid session (user not logged in, session expired, etc.), Supabase may log
+// a "refresh_token_not_found" error to the console. This is EXPECTED and NORMAL behavior.
+//
+// IMPORTANT: This error:
+// - Only appears in development console logs (Metro bundler, Xcode console)
+// - Is NEVER shown to end users in the production app
+// - Does NOT affect app functionality - the app continues normally
+// - Simply means the user needs to log in
+//
+// The app handles this gracefully - if there's no session, users see the home screen
+// and can navigate to login when they want to use authenticated features.
+

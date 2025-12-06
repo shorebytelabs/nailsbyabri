@@ -149,7 +149,7 @@ function PrivacyScreen({ navigation }) {
         <AppText style={[styles.bodyText, { color: primaryFont }]}>
           • <AppText style={{ fontWeight: '600' }}>Access:</AppText> Request a copy of the personal information we hold about you{'\n\n'}
           • <AppText style={{ fontWeight: '600' }}>Correction:</AppText> Update or correct your personal information through your account settings{'\n\n'}
-          • <AppText style={{ fontWeight: '600' }}>Deletion:</AppText> Request deletion of your account and personal information{'\n\n'}
+          • <AppText style={{ fontWeight: '600' }}>Deletion:</AppText> Delete your account and personal information directly from the app{'\n\n'}
           • <AppText style={{ fontWeight: '600' }}>Opt-Out:</AppText> Unsubscribe from promotional communications (you will still receive transactional emails){'\n\n'}
           • <AppText style={{ fontWeight: '600' }}>Data Portability:</AppText> Request your data in a portable format
         </AppText>

@@ -75,11 +75,13 @@ export GENERATED_DOTENV="${SRCROOT:-ios}/ReactNativeConfig/GeneratedDotEnv.m"
 
 # Write ENVFILE to /tmp/envfile so react-native-config's podspec script can read it
 # This ensures the podspec script uses the correct .env file
-# Also write to envfile-override so it persists across builds
+# For Archive builds, don't write to override (to prevent contamination)
 echo "$ENVFILE" > /tmp/envfile
-echo "$ENVFILE" > /tmp/envfile-override
+if [ "$IS_ARCHIVE_BUILD" != true ]; then
+  echo "$ENVFILE" > /tmp/envfile-override
+  echo "📝 Wrote ENVFILE to /tmp/envfile-override: $ENVFILE"
+fi
 echo "📝 Wrote ENVFILE to /tmp/envfile: $ENVFILE"
-echo "📝 Wrote ENVFILE to /tmp/envfile-override: $ENVFILE"
 
 echo "📦 Generating ReactNativeConfig"
 echo "   ENVFILE: $ENVFILE"

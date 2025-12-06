@@ -14,6 +14,7 @@ import PrivacyScreen from './PrivacyScreen';
 import AccountDetailsScreen from './AccountDetailsScreen';
 import NailSizesScreen from './NailSizesScreen';
 import ShippingAddressScreen from './ShippingAddressScreen';
+import DeleteAccountScreen from './DeleteAccountScreen';
 
 function ProfileScreen() {
   const navigation = useNavigation();
@@ -29,7 +30,7 @@ function ProfileScreen() {
 
   const user = state.currentUser;
 
-  const [activeView, setActiveView] = useState('main'); // 'main', 'changePassword', 'terms', 'privacy', 'account', 'nailSizes', 'shippingAddress'
+  const [activeView, setActiveView] = useState('main'); // 'main', 'changePassword', 'terms', 'privacy', 'account', 'nailSizes', 'shippingAddress', 'deleteAccount'
   const [confirmation, setConfirmation] = useState(null);
 
 
@@ -129,6 +130,21 @@ function ProfileScreen() {
     );
   }
 
+  // If activeView is 'deleteAccount', show the Delete Account panel
+  if (activeView === 'deleteAccount') {
+    return (
+      <DeleteAccountScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
+          },
+        }}
+        onDeleteAccount={handleDeleteAccount}
+      />
+    );
+  }
+
   const memberSince = formatDate(user.memberSince || user.createdAt);
 
   const handleChangePassword = () => {
@@ -145,6 +161,45 @@ function ProfileScreen() {
     logEvent('profile_contact_support');
     Alert.alert('Contact Support', 'Please email NailsByAbriannaC@gmail.com for assistance.');
   };
+
+  const handleDeleteAccount = async () => {
+    logEvent('profile_delete_account_attempt');
+    
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => logEvent('profile_delete_account_cancelled'),
+        },
+        {
+          text: 'Delete My Account',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              logEvent('profile_delete_account_confirmed');
+              await deleteAccount();
+              // User will be automatically signed out by the service
+              // Navigate to home/login screen
+              handleLogout();
+              setConfirmation('Account deleted successfully');
+            } catch (error) {
+              logEvent('profile_delete_account_error');
+              Alert.alert(
+                'Deletion Failed',
+                error.message || 'Unable to delete account. Please contact support if this issue persists.',
+                [{ text: 'OK' }]
+              );
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
 
   const manageRows = [
     {
@@ -206,6 +261,16 @@ function ProfileScreen() {
       onPress: () => {
         logEvent('profile_view_privacy');
         setActiveView('privacy');
+      },
+    },
+    {
+      key: 'deleteAccount',
+      title: 'Delete My Account',
+      description: 'Permanently delete your account and remove all personal data',
+      icon: 'trash',
+      onPress: () => {
+        logEvent('profile_view_delete_account');
+        setActiveView('deleteAccount');
       },
     },
   ];
