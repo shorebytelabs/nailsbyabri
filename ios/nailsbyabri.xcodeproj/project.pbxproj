@@ -310,7 +310,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.shorebytelabs.--PRODUCT-NAME-rfc1034identifier-";
+				PRODUCT_BUNDLE_IDENTIFIER = com.shorebytelabs.nailsbyabri;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.shorebytelabs.nailsbyabri;
 				PRODUCT_NAME = nailsbyabri;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -349,7 +349,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.shorebytelabs.--PRODUCT-NAME-rfc1034identifier-";
+				PRODUCT_BUNDLE_IDENTIFIER = com.shorebytelabs.nailsbyabri;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.shorebytelabs.nailsbyabri;
 				PRODUCT_NAME = nailsbyabri;
 				PROVISIONING_PROFILE_SPECIFIER = "";

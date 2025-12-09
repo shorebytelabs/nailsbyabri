@@ -94,6 +94,12 @@ if [ -f "$SOURCE_ROOT/$ENVFILE" ]; then
   "${SOURCE_ROOT}/node_modules/react-native-config/ios/ReactNativeConfig/BuildXCConfig.rb" "$SOURCE_ROOT/$ENVFILE" "$CONFIG_OUTPUT"
   if [ -f "$CONFIG_OUTPUT" ]; then
     echo "✅ xcconfig generated: $CONFIG_OUTPUT"
+    # Fix URL escaping: /$()/ should be // in xcconfig files
+    if grep -q '/\$()/' "$CONFIG_OUTPUT"; then
+      echo "🔧 Fixing URL escaping in xcconfig..."
+      sed -i '' 's|/\$()/|//|g' "$CONFIG_OUTPUT"
+      echo "✅ Fixed URL escaping in xcconfig"
+    fi
   fi
   
   # Generate GeneratedDotEnv.m file (this is what the native module actually reads!)

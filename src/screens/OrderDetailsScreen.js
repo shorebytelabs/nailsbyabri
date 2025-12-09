@@ -1,5 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {Alert, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, View} from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
@@ -354,6 +361,44 @@ function createStyles(colors) {
       borderRadius: 18,
       resizeMode: 'contain',
     },
+    previewImageContainer: {
+      width: '100%',
+      height: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    previewImageZoomable: {
+      width: '100%',
+      height: '100%',
+    },
+    previewActionsContainer: {
+      position: 'absolute',
+      bottom: 40,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 20,
+    },
+    previewActionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 999,
+      minWidth: 100,
+    },
+    previewCloseButtonModal: {
+      backgroundColor: withOpacity(colors.surface || '#FFFFFF', 0.9),
+    },
+    previewActionLabel: {
+      fontSize: 14,
+      fontWeight: '700',
+    },
     previewCloseButton: {
       position: 'absolute',
       bottom: 40,
@@ -559,6 +604,141 @@ function createStyles(colors) {
   });
 }
 
+/**
+ * ZoomableImageModal - A full-screen image viewer with pinch-to-zoom and pan gestures
+ */
+function ZoomableImageModal({ imageUri, onClose, colors, styles: modalStyles }) {
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+
+  // Pinch gesture for zooming
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate((e) => {
+      scale.value = savedScale.value * e.scale;
+    })
+    .onEnd(() => {
+      // Clamp scale between 1 and 5
+      if (scale.value < 1) {
+        scale.value = withSpring(1);
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+      } else if (scale.value > 5) {
+        scale.value = withSpring(5);
+      }
+      savedScale.value = scale.value;
+    });
+
+  // Pan gesture for moving zoomed image
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      if (scale.value > 1) {
+        translateX.value = savedTranslateX.value + e.translationX;
+        translateY.value = savedTranslateY.value + e.translationY;
+      }
+    })
+    .onEnd(() => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    });
+
+  // Combined gestures
+  const composedGesture = Gesture.Simultaneous(pinchGesture, panGesture);
+
+  // Animated style for the image
+  const imageAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        { scale: scale.value },
+      ],
+    };
+  });
+
+  // Reset zoom when image changes
+  useEffect(() => {
+    if (imageUri) {
+      scale.value = withTiming(1);
+      savedScale.value = 1;
+      translateX.value = withTiming(0);
+      translateY.value = withTiming(0);
+      savedTranslateX.value = 0;
+      savedTranslateY.value = 0;
+    }
+  }, [imageUri, scale, savedScale, translateX, translateY, savedTranslateX, savedTranslateY]);
+
+  const handleDoubleTap = useCallback(() => {
+    if (scale.value > 1) {
+      // Reset zoom
+      scale.value = withSpring(1);
+      savedScale.value = 1;
+      translateX.value = withSpring(0);
+      translateY.value = withSpring(0);
+      savedTranslateX.value = 0;
+      savedTranslateY.value = 0;
+    } else {
+      // Zoom to 2x
+      scale.value = withSpring(2);
+      savedScale.value = 2;
+    }
+  }, [scale, savedScale, translateX, translateY, savedTranslateX, savedTranslateY]);
+
+  const doubleTapGesture = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(handleDoubleTap);
+
+  const finalGesture = Gesture.Race(doubleTapGesture, composedGesture);
+
+  if (!imageUri) {
+    return null;
+  }
+
+  return (
+    <View style={modalStyles.previewBackdrop}>
+      <Pressable
+        style={modalStyles.previewBackdropOverlay}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close image preview"
+      />
+      
+      <GestureDetector gesture={finalGesture}>
+        <Animated.View style={[modalStyles.previewImageContainer, imageAnimatedStyle]}>
+          <Image
+            source={{ uri: imageUri }}
+            style={modalStyles.previewImageZoomable}
+            resizeMode="contain"
+          />
+        </Animated.View>
+      </GestureDetector>
+
+      {/* Action buttons */}
+      <View style={modalStyles.previewActionsContainer}>
+        <Pressable
+          style={({ pressed }) => [
+            modalStyles.previewActionButton,
+            modalStyles.previewCloseButtonModal,
+            { opacity: pressed ? 0.7 : 1 },
+          ]}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <AppText variant="ui" style={[modalStyles.previewCloseLabel, { color: colors.primaryFont || '#354037' }]}>
+            Close
+          </AppText>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 function OrderDetailsScreen({ navigation, route }) {
   const initialOrder = route.params?.order || null;
   const fromOrders = Boolean(route.params?.fromOrders);
@@ -726,6 +906,7 @@ function OrderDetailsScreen({ navigation, route }) {
   const closePreview = useCallback(() => {
     setPreviewImage(null);
   }, []);
+
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -1165,15 +1346,12 @@ function OrderDetailsScreen({ navigation, route }) {
         ) : null}
 
         <Modal visible={Boolean(previewImage)} transparent animationType="fade" onRequestClose={closePreview}>
-          <View style={styles.previewBackdrop}>
-            <Pressable style={styles.previewBackdropOverlay} onPress={closePreview} accessibilityRole="button" />
-            {previewImage ? (
-              <Image source={{ uri: previewImage }} style={styles.previewImage} />
-            ) : null}
-            <Pressable style={styles.previewCloseButton} onPress={closePreview} accessibilityRole="button">
-              <AppText style={styles.previewCloseLabel}>Close</AppText>
-            </Pressable>
-          </View>
+          <ZoomableImageModal
+            imageUri={previewImage}
+            onClose={closePreview}
+            colors={colors}
+            styles={styles}
+          />
         </Modal>
       </ScreenContainer>
     </View>

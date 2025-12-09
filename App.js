@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar, View, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import ThemeProvider from './src/theme';
 import APP_CONFIG from './src/config/appConfig';
@@ -127,16 +128,18 @@ const App = () => {
   }
 
   return (
-    <StripeProvider publishableKey={APP_CONFIG.stripePublishableKey}>
-      <ThemeProvider initialThemeId={initialThemeId}>
-        <AppStateProvider>
-          <SafeAreaProvider>
-            <StatusBar barStyle="dark-content" />
-            <AppNavigator />
-          </SafeAreaProvider>
-        </AppStateProvider>
-      </ThemeProvider>
-    </StripeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <StripeProvider publishableKey={APP_CONFIG.stripePublishableKey}>
+        <ThemeProvider initialThemeId={initialThemeId}>
+          <AppStateProvider>
+            <SafeAreaProvider>
+              <StatusBar barStyle="dark-content" />
+              <AppNavigator />
+            </SafeAreaProvider>
+          </AppStateProvider>
+        </ThemeProvider>
+      </StripeProvider>
+    </GestureHandlerRootView>
   );
 };
 
