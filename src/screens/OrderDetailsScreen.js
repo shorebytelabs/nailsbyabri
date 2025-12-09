@@ -918,6 +918,9 @@ function OrderDetailsScreen({ navigation, route }) {
                     const designRequested = Boolean(
                       item.requiresFollowUp || item.requestDesignHelp || item.designHelp,
                     );
+                    const sizingRequested = Boolean(
+                      item.requiresSizingHelp || item.requires_sizing_help,
+                    );
                     const uploads = Array.isArray(item.designUploads) ? item.designUploads : [];
                     const primaryImage = uploads.length ? resolveImageSource(uploads[0]) : null;
 
@@ -966,6 +969,11 @@ function OrderDetailsScreen({ navigation, route }) {
                           {item.designAssistanceNotes ? (
                             <AppText style={styles.secondaryText}>{item.designAssistanceNotes}</AppText>
                           ) : null}
+                        </View>
+
+                        <View style={styles.itemSection}>
+                          <AppText style={styles.sectionLabel}>Sizing Assistance</AppText>
+                          <AppText style={styles.itemBodyCopy}>{sizingRequested ? 'Yes' : 'No'}</AppText>
                         </View>
 
                         {item.description ? (
