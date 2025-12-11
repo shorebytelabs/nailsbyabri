@@ -246,7 +246,11 @@ function OrderConfirmationContainer({ route, navigation }) {
           return;
         }
         handleOrderCancelled();
-        navigation.navigate('OrderDetails', { order: targetOrder });
+        // Pass both order and orderId for consistency
+        navigation.navigate('OrderDetails', { 
+          order: targetOrder, 
+          orderId: targetOrder.id 
+        });
       }}
     />
   );

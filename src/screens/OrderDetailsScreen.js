@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {Alert, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, View} from 'react-native';
+import {ActivityIndicator, Alert, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, View} from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
@@ -741,7 +741,9 @@ function ZoomableImageModal({ imageUri, onClose, colors, styles: modalStyles }) 
 
 function OrderDetailsScreen({ navigation, route }) {
   const initialOrder = route.params?.order || null;
+  const orderId = route.params?.orderId || initialOrder?.id || null;
   const fromOrders = Boolean(route.params?.fromOrders);
+  const fromHome = Boolean(route.params?.fromHome);
   const { theme } = useTheme();
   const { state } = useAppState();
   const colors = theme?.colors || {};
@@ -754,31 +756,47 @@ function OrderDetailsScreen({ navigation, route }) {
   const [copied, setCopied] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
 
-  // Fetch full order details if order doesn't have images (likely from list view)
+  // Fetch full order details if:
+  // 1. Coming from Home screen (list query excludes images)
+  // 2. Coming from Orders list (list query excludes images)
+  // 3. Order doesn't have full data (missing images or nailSets)
   useEffect(() => {
     const fetchFullOrder = async () => {
-      // Only fetch if we have an order ID, came from orders list, and haven't already started loading
-      if (!initialOrder?.id || !fromOrders || loadingOrder) {
+      // Need an order ID to fetch
+      if (!orderId || loadingOrder) {
         return;
       }
 
-      // Check if order sets have images - if not, fetch full order
-      const hasImages = initialOrder?.nailSets?.some((set) => {
-        const hasDesignImages = Array.isArray(set.designUploads) && set.designUploads.length > 0;
-        const hasSizingImages = Array.isArray(set.sizingUploads) && set.sizingUploads.length > 0;
-        return hasDesignImages || hasSizingImages;
-      });
+      // Always fetch full order if coming from Home or Orders list
+      // (these use optimized list queries that exclude images)
+      const shouldFetch = fromHome || fromOrders;
 
-      // If no images found, fetch full order details
-      if (!hasImages) {
+      // Also fetch if we have an initial order but it's missing critical data
+      const hasIncompleteData = initialOrder && (
+        !Array.isArray(initialOrder.nailSets) ||
+        initialOrder.nailSets.length === 0 ||
+        // Check if nailSets are missing image data (list query excludes design_uploads and sizing_uploads)
+        initialOrder.nailSets.some((set) => {
+          // If set exists but has no designUploads or sizingUploads arrays, data might be incomplete
+          return !set.designUploads && !set.sizingUploads;
+        })
+      );
+
+      if (shouldFetch || hasIncompleteData) {
         try {
           setLoadingOrder(true);
           const { fetchOrder } = await import('../services/orderService');
-          const { order: fullOrder } = await fetchOrder(initialOrder.id);
-          setOrder(fullOrder);
+          const { order: fullOrder } = await fetchOrder(orderId);
+          if (fullOrder) {
+            setOrder(fullOrder);
+          }
         } catch (error) {
           console.error('[OrderDetailsScreen] Failed to fetch full order details:', error);
           // Keep using the initial order if fetch fails
+          if (!initialOrder) {
+            Alert.alert('Error', 'Failed to load order details. Please try again.');
+            navigation.goBack();
+          }
         } finally {
           setLoadingOrder(false);
         }
@@ -787,10 +805,11 @@ function OrderDetailsScreen({ navigation, route }) {
 
     fetchFullOrder();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialOrder?.id, fromOrders]);
+  }, [orderId, fromHome, fromOrders]);
 
-  const orderId = order?.id || '—';
-  const displayOrderId = orderId && orderId !== '—' ? orderId.slice(0, 8).toUpperCase() : '—';
+  // Use orderId from route params or order object
+  const resolvedOrderId = orderId || order?.id || '—';
+  const displayOrderId = resolvedOrderId && resolvedOrderId !== '—' ? resolvedOrderId.slice(0, 8).toUpperCase() : '—';
   const orderDate = order?.placedAt || order?.createdAt || order?.submittedAt || order?.updatedAt || null;
   const orderTimestamp = orderDate ? new Date(orderDate) : null;
   const status = order?.status || 'Processing';
@@ -826,19 +845,19 @@ function OrderDetailsScreen({ navigation, route }) {
   const backgroundColor = colors.primaryBackground || '#F4EBE3';
 
   const handleCopyOrderId = useCallback(() => {
-    if (!orderId || orderId === '—') {
+    if (!resolvedOrderId || resolvedOrderId === '—') {
       return;
     }
     try {
       if (typeof Clipboard?.setString === 'function') {
-        Clipboard.setString(orderId);
+        Clipboard.setString(resolvedOrderId);
       }
     } catch (error) {
       // ignore clipboard errors
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 2400);
-  }, [orderId]);
+  }, [resolvedOrderId]);
 
   const handleContactSupport = useCallback(async () => {
     try {
@@ -933,6 +952,38 @@ function OrderDetailsScreen({ navigation, route }) {
     navigation.navigate('OrderConfirmation', { order });
   }, [fromOrders, navigation, order]);
 
+  // Show loading state while fetching full order details
+  if (loadingOrder && (!order || (fromHome || fromOrders))) {
+    return (
+      <View style={[styles.root, { backgroundColor }]}>
+        <SafeAreaView
+          edges={['top', 'left', 'right']}
+          style={[
+            styles.brandHeaderSafe,
+            { backgroundColor, borderBottomColor: withOpacity(colors.shadow || '#000000', 0.08) },
+          ]}
+        >
+          <View style={styles.brandHeader}>
+            <View style={styles.brandInfo}>
+              <View style={styles.brandLogoFrame}>
+                <Image source={LOGO_SOURCE} style={styles.brandLogo} resizeMode="cover" />
+              </View>
+            </View>
+          </View>
+        </SafeAreaView>
+        <ScreenContainer scroll={false}>
+          <View style={[styles.emptyState, { justifyContent: 'center', alignItems: 'center', gap: 16 }]}>
+            <ActivityIndicator size="large" color={colors.accent || '#6F171F'} />
+            <AppText style={[styles.emptyTitle, { fontSize: 18 }]}>Loading order details...</AppText>
+            <AppText style={styles.emptySubtitle}>
+              Fetching complete order information including images and sizing details.
+            </AppText>
+          </View>
+        </ScreenContainer>
+      </View>
+    );
+  }
+
   if (!order) {
     return (
       <View style={[styles.root, { backgroundColor }]}>
@@ -955,7 +1006,7 @@ function OrderDetailsScreen({ navigation, route }) {
           <View style={styles.emptyState}>
             <AppText style={styles.emptyTitle}>Order not found</AppText>
             <AppText style={styles.emptySubtitle}>
-              We couldn’t load the order details. Return to your profile or contact support for help.
+              We couldn't load the order details. Return to your profile or contact support for help.
             </AppText>
             <PrimaryButton label="Back to Home" onPress={() => navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] })} />
           </View>

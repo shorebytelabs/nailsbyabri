@@ -484,7 +484,12 @@ function OrdersScreen({ route }) {
         return;
       }
 
-      navigateToRoot('OrderDetails', { order, fromOrders: true });
+      // Pass both order (for initial display) and orderId (for fetching full data)
+      navigateToRoot('OrderDetails', { 
+        order, 
+        orderId: order.id, 
+        fromOrders: true 
+      });
     },
     [navigateToRoot, setState],
   );

@@ -242,6 +242,7 @@ function HomeDashboardScreen() {
     }
 
     // If order is submitted → open order details page
+    // Always pass orderId explicitly to ensure correct order is loaded
     const navigateToRoot = (routeName, params) => {
       let parentNav = navigation;
       while (parentNav?.getParent?.()) {
@@ -249,7 +250,12 @@ function HomeDashboardScreen() {
       }
       parentNav?.navigate(routeName, params);
     };
-    navigateToRoot('OrderDetails', { order, fromHome: true });
+    // Pass both order (for initial display) and orderId (for fetching full data)
+    navigateToRoot('OrderDetails', { 
+      order, 
+      orderId: order.id, 
+      fromHome: true 
+    });
   }, [navigation, setState]);
 
   const [tips, setTips] = useState([]);

@@ -113,7 +113,11 @@ function NotificationsScreen() {
           if (fullOrder) {
             // Small delay to ensure panel is closed
             setTimeout(() => {
-              navigation.navigate('OrderDetails', { order: fullOrder });
+              // Pass both order and orderId for consistency
+              navigation.navigate('OrderDetails', { 
+                order: fullOrder, 
+                orderId: fullOrder.id 
+              });
             }, 100);
           } else {
             Alert.alert('Order not found', 'The order associated with this notification could not be found.');
