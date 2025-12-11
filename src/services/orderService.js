@@ -382,6 +382,7 @@ function transformOrderFromDB(order, orderSets = []) {
     adminImages: Array.isArray(order.admin_images) ? order.admin_images : [],
     estimatedFulfillmentDate: order.estimated_fulfillment_date,
     paidAt: order.paid_at,
+    paymentMethod: order.payment_method,
     productionJobs: Array.isArray(order.production_jobs) ? order.production_jobs : [],
     createdAt: order.created_at,
     updatedAt: order.updated_at,
@@ -1222,7 +1223,7 @@ export async function updateOrder(orderId, updates) {
     // First fetch existing order to check previous status (needed for admin completion logic)
     const { data: existingOrder, error: checkError } = await supabase
       .from('orders')
-      .select('id, status, tracking_number, paid_at, discount, user_id')
+      .select('id, status, tracking_number, paid_at, payment_method, discount, user_id')
       .eq('id', orderId)
       .single();
 
@@ -1365,6 +1366,17 @@ export async function updateOrder(orderId, updates) {
     // Handle paid_at update (for marking orders as paid)
     if (updates.paid_at !== undefined) {
       updatePayload.paid_at = updates.paid_at || null;
+    }
+
+    // Handle payment_method update
+    if (updates.payment_method !== undefined) {
+      // Validate payment method value
+      const validMethods = ['venmo', 'cash', 'other'];
+      if (updates.payment_method === null || validMethods.includes(updates.payment_method)) {
+        updatePayload.payment_method = updates.payment_method;
+      } else {
+        console.warn('[updateOrder] Invalid payment_method value:', updates.payment_method);
+      }
     }
 
     // If discount is being updated, we need to fetch the order first to recalculate pricing

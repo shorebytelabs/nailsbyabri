@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {ActivityIndicator, Alert, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, View} from 'react-native';
+import {ActivityIndicator, Alert, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, TextInput, TouchableOpacity, View} from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
@@ -616,6 +616,132 @@ function createStyles(colors) {
       fontStyle: 'italic',
       marginTop: 4,
     },
+    paymentMethodText: {
+      fontSize: 13,
+      color: colors.secondaryFont || '#767154',
+      marginTop: 8,
+    },
+    paymentMethodValue: {
+      fontWeight: '600',
+      color: colors.primaryFont || '#220707',
+    },
+    paymentMethodModalBackdrop: {
+      flex: 1,
+      backgroundColor: withOpacity(colors.shadow || '#000000', 0.5),
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    paymentMethodModalOverlay: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    paymentMethodModalCard: {
+      backgroundColor: colors.surface || '#FFFFFF',
+      borderRadius: 20,
+      padding: 24,
+      width: '100%',
+      maxWidth: 400,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: withOpacity(colors.border || '#D9C8A9', 0.3),
+      ...cardShadow,
+    },
+    paymentMethodModalTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      marginBottom: 8,
+    },
+    paymentMethodModalDescription: {
+      fontSize: 14,
+      lineHeight: 20,
+      marginBottom: 20,
+    },
+    paymentMethodOptions: {
+      gap: 12,
+      marginBottom: 24,
+    },
+    paymentMethodOption: {
+      borderWidth: 2,
+      borderRadius: 12,
+      padding: 16,
+    },
+    paymentMethodOptionContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    paymentMethodRadio: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      borderWidth: 2,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    paymentMethodRadioInner: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: '#FFFFFF',
+    },
+    paymentMethodOptionLabel: {
+      fontSize: 16,
+    },
+    paymentMethodModalActions: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    paymentMethodModalButton: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    paymentMethodModalCancelButton: {
+      backgroundColor: withOpacity(colors.border || '#D9C8A9', 0.2),
+    },
+    paymentMethodModalConfirmButton: {
+      // Background color set inline based on selection
+    },
+    paymentMethodModalButtonText: {
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    otherPaymentMethodContainer: {
+      marginBottom: 20,
+    },
+    otherPaymentMethodLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      marginBottom: 8,
+    },
+    otherPaymentMethodInput: {
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 14,
+      minHeight: 100,
+      maxHeight: 150,
+    },
+    otherPaymentMethodCharCount: {
+      fontSize: 12,
+      marginTop: 4,
+      textAlign: 'right',
+    },
+    changePaymentMethodButton: {
+      marginTop: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: withOpacity(colors.accent || '#6F171F', 0.3),
+      backgroundColor: withOpacity(colors.accent || '#6F171F', 0.05),
+      alignSelf: 'flex-start',
+    },
+    changePaymentMethodText: {
+      fontSize: 13,
+      fontWeight: '600',
+    },
   });
 }
 
@@ -770,6 +896,9 @@ function OrderDetailsScreen({ navigation, route }) {
   const [markingPaid, setMarkingPaid] = useState(false);
   const [copied, setCopied] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+  const [otherPaymentMethodText, setOtherPaymentMethodText] = useState('');
 
   // Fetch full order details if:
   // 1. Coming from Home screen (list query excludes images)
@@ -887,46 +1016,101 @@ function OrderDetailsScreen({ navigation, route }) {
     Alert.alert('Contact Support', 'Please email NailsByAbriannaC@gmail.com for assistance.');
   }, []);
 
-  const handleMarkAsPaid = useCallback(async () => {
+  const handleMarkAsPaid = useCallback(() => {
     if (!order?.id) {
       return;
     }
 
-    Alert.alert(
-      'Mark Order as Paid',
-      `Are you sure you want to mark order #${displayOrderId} as paid? This will update the payment status.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Mark as Paid',
-          style: 'default',
-          onPress: async () => {
-            try {
-              setMarkingPaid(true);
-              const now = new Date().toISOString();
-              await updateOrder(order.id, {
-                paid_at: now,
-              });
-              
-              // Update local state
-              setOrder((prev) => ({
-                ...prev,
-                paid_at: now,
-                paidAt: now, // Also set camelCase version for consistency
-              }));
-              
-              Alert.alert('Success', 'Order has been marked as paid.');
-            } catch (error) {
-              console.error('[OrderDetailsScreen] Error marking order as paid:', error);
-              Alert.alert('Error', 'Failed to mark order as paid. Please try again.');
-            } finally {
-              setMarkingPaid(false);
-            }
-          },
-        },
-      ]
-    );
-  }, [order?.id, displayOrderId]);
+    // Show payment method selection modal first
+    // Initialize with existing payment method if order is already paid, otherwise null
+    const existingMethod = order?.payment_method || order?.paymentMethod || null;
+    
+    // Extract base method and description if format is "other:description"
+    if (existingMethod && existingMethod.startsWith('other:')) {
+      setSelectedPaymentMethod('other');
+      setOtherPaymentMethodText(existingMethod.substring(6)); // Remove "other:" prefix
+    } else if (existingMethod === 'other') {
+      setSelectedPaymentMethod('other');
+      setOtherPaymentMethodText('');
+    } else {
+      setSelectedPaymentMethod(existingMethod);
+      setOtherPaymentMethodText('');
+    }
+    
+    setShowPaymentMethodModal(true);
+  }, [order?.id, order?.payment_method, order?.paymentMethod]);
+
+  const handleConfirmPayment = useCallback(async () => {
+    if (!order?.id || !selectedPaymentMethod) {
+      Alert.alert('Payment Method Required', 'Please select a payment method.');
+      return;
+    }
+
+    // Validate "Other" payment method has text
+    if (selectedPaymentMethod === 'other') {
+      const trimmedText = otherPaymentMethodText?.trim() || '';
+      if (trimmedText.length === 0) {
+        Alert.alert('Payment Details Required', 'Please enter details about how the order was paid.');
+        return;
+      }
+      if (trimmedText.length > 500) {
+        Alert.alert('Text Too Long', 'Payment details must be 500 characters or less.');
+        return;
+      }
+    }
+
+    try {
+      setMarkingPaid(true);
+      setShowPaymentMethodModal(false);
+      
+      const isAlreadyPaid = order?.paid_at || order?.paidAt;
+      const now = isAlreadyPaid ? (order.paid_at || order.paidAt) : new Date().toISOString();
+      
+      // Format payment method: if "other", store as "other:description"
+      let paymentMethodValue = selectedPaymentMethod;
+      if (selectedPaymentMethod === 'other') {
+        const trimmedText = otherPaymentMethodText?.trim() || '';
+        paymentMethodValue = `other:${trimmedText}`;
+      }
+      
+      // Update payment method (and paid_at if not already paid)
+      const updateData = {
+        payment_method: paymentMethodValue,
+      };
+      
+      // Only update paid_at if order is not already paid
+      if (!isAlreadyPaid) {
+        updateData.paid_at = now;
+      }
+      
+      await updateOrder(order.id, updateData);
+      
+      // Update local state
+      setOrder((prev) => ({
+        ...prev,
+        paid_at: prev.paid_at || now,
+        paidAt: prev.paidAt || now,
+        payment_method: paymentMethodValue,
+        paymentMethod: paymentMethodValue,
+      }));
+      
+      const methodLabel = selectedPaymentMethod === 'venmo' ? 'Venmo' :
+                         selectedPaymentMethod === 'cash' ? 'Cash' :
+                         selectedPaymentMethod === 'other' ? 'Other' :
+                         selectedPaymentMethod;
+      
+      if (isAlreadyPaid) {
+        Alert.alert('Success', `Payment method updated to ${methodLabel}.`);
+      } else {
+        Alert.alert('Success', `Order has been marked as paid via ${methodLabel}.`);
+      }
+    } catch (error) {
+      console.error('[OrderDetailsScreen] Error updating payment:', error);
+      Alert.alert('Error', 'Failed to update payment information. Please try again.');
+    } finally {
+      setMarkingPaid(false);
+    }
+  }, [order?.id, order?.paid_at, order?.paidAt, selectedPaymentMethod, otherPaymentMethodText]);
 
   const handlePreviewImage = useCallback((upload) => {
     const source = resolveImageSource(upload);
@@ -1168,7 +1352,7 @@ function OrderDetailsScreen({ navigation, route }) {
                       style={styles.markPaidButton}
                     />
                     <AppText style={styles.adminPaymentHint}>
-                      Click this button after confirming payment has been received via Venmo.
+                      Mark order as paid via your preferred payment method (Venmo, Cash, etc.)
                     </AppText>
                   </View>
                 )}
@@ -1182,6 +1366,47 @@ function OrderDetailsScreen({ navigation, route }) {
                 <AppText style={styles.paymentReceivedText}>
                   Payment was received on {(order.paid_at || order.paidAt) ? new Date(order.paid_at || order.paidAt).toLocaleDateString() : '—'}
                 </AppText>
+                {(order.payment_method || order.paymentMethod) && (() => {
+                  const paymentMethod = order.payment_method || order.paymentMethod;
+                  let methodLabel = '';
+                  let methodDescription = '';
+                  
+                  if (paymentMethod === 'venmo') {
+                    methodLabel = 'Venmo';
+                  } else if (paymentMethod === 'cash') {
+                    methodLabel = 'Cash';
+                  } else if (paymentMethod === 'other' || paymentMethod.startsWith('other:')) {
+                    methodLabel = 'Other';
+                    if (paymentMethod.startsWith('other:')) {
+                      methodDescription = paymentMethod.substring(6); // Remove "other:" prefix
+                    }
+                  } else {
+                    methodLabel = paymentMethod;
+                  }
+                  
+                  return (
+                    <View>
+                      <AppText style={styles.paymentMethodText}>
+                        Payment method: <AppText style={styles.paymentMethodValue}>{methodLabel}</AppText>
+                      </AppText>
+                      {methodDescription && (
+                        <AppText style={[styles.paymentMethodText, { marginTop: 4, fontStyle: 'italic' }]}>
+                          {methodDescription}
+                        </AppText>
+                      )}
+                    </View>
+                  );
+                })()}
+                {isAdmin && (
+                  <TouchableOpacity
+                    onPress={handleMarkAsPaid}
+                    style={styles.changePaymentMethodButton}
+                  >
+                    <AppText style={[styles.changePaymentMethodText, { color: colors.accent || '#6F171F' }]}>
+                      Change Payment Method
+                    </AppText>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
@@ -1449,6 +1674,156 @@ function OrderDetailsScreen({ navigation, route }) {
             colors={colors}
             styles={styles}
           />
+        </Modal>
+
+        {/* Payment Method Selection Modal */}
+        <Modal
+          visible={showPaymentMethodModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowPaymentMethodModal(false)}
+        >
+          <View style={styles.paymentMethodModalBackdrop}>
+            <Pressable
+              style={styles.paymentMethodModalOverlay}
+              onPress={() => setShowPaymentMethodModal(false)}
+            />
+            <View style={styles.paymentMethodModalCard}>
+              <AppText style={[styles.paymentMethodModalTitle, { color: colors.primaryFont || '#220707' }]}>
+                Select Payment Method
+              </AppText>
+              <AppText style={[styles.paymentMethodModalDescription, { color: colors.secondaryFont || '#5C5F5D' }]}>
+                How was this order paid?
+              </AppText>
+
+              <View style={styles.paymentMethodOptions}>
+                {[
+                  { value: 'venmo', label: 'Venmo' },
+                  { value: 'cash', label: 'Cash' },
+                  { value: 'other', label: 'Other' },
+                ].map((method) => (
+                  <TouchableOpacity
+                    key={method.value}
+                    style={[
+                      styles.paymentMethodOption,
+                      {
+                        borderColor: selectedPaymentMethod === method.value
+                          ? colors.accent || '#6F171F'
+                          : withOpacity(colors.border || '#D9C8A9', 0.5),
+                        backgroundColor: selectedPaymentMethod === method.value
+                          ? withOpacity(colors.accent || '#6F171F', 0.08)
+                          : colors.surface || '#FFFFFF',
+                      },
+                    ]}
+                    onPress={() => setSelectedPaymentMethod(method.value)}
+                  >
+                    <View style={styles.paymentMethodOptionContent}>
+                      <View
+                        style={[
+                          styles.paymentMethodRadio,
+                          {
+                            borderColor: selectedPaymentMethod === method.value
+                              ? colors.accent || '#6F171F'
+                              : withOpacity(colors.border || '#D9C8A9', 0.6),
+                            backgroundColor: selectedPaymentMethod === method.value
+                              ? colors.accent || '#6F171F'
+                              : 'transparent',
+                          },
+                        ]}
+                      >
+                        {selectedPaymentMethod === method.value && (
+                          <View style={styles.paymentMethodRadioInner} />
+                        )}
+                      </View>
+                      <AppText
+                        style={[
+                          styles.paymentMethodOptionLabel,
+                          {
+                            color: selectedPaymentMethod === method.value
+                              ? colors.accent || '#6F171F'
+                              : colors.primaryFont || '#220707',
+                            fontWeight: selectedPaymentMethod === method.value ? '700' : '500',
+                          },
+                        ]}
+                      >
+                        {method.label}
+                      </AppText>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Text input for "Other" payment method */}
+              {selectedPaymentMethod === 'other' && (
+                <View style={styles.otherPaymentMethodContainer}>
+                  <AppText style={[styles.otherPaymentMethodLabel, { color: colors.primaryFont || '#220707' }]}>
+                    Payment Details <AppText style={{ color: colors.secondaryFont || '#767154', fontSize: 13 }}>(required, max 500 characters)</AppText>
+                  </AppText>
+                  <TextInput
+                    style={[
+                      styles.otherPaymentMethodInput,
+                      {
+                        borderColor: withOpacity(colors.border || '#D9C8A9', 0.5),
+                        backgroundColor: colors.surface || '#FFFFFF',
+                        color: colors.primaryFont || '#220707',
+                      },
+                    ]}
+                    value={otherPaymentMethodText}
+                    onChangeText={(text) => {
+                      if (text.length <= 500) {
+                        setOtherPaymentMethodText(text);
+                      }
+                    }}
+                    placeholder="Enter payment details (e.g., PayPal, Zelle, check, etc.)"
+                    placeholderTextColor={withOpacity(colors.secondaryFont || '#767154', 0.6)}
+                    multiline
+                    numberOfLines={4}
+                    maxLength={500}
+                    textAlignVertical="top"
+                  />
+                  <AppText style={[styles.otherPaymentMethodCharCount, { color: colors.secondaryFont || '#767154' }]}>
+                    {otherPaymentMethodText.length}/500 characters
+                  </AppText>
+                </View>
+              )}
+
+              <View style={styles.paymentMethodModalActions}>
+                <TouchableOpacity
+                  style={[styles.paymentMethodModalButton, styles.paymentMethodModalCancelButton]}
+                  onPress={() => setShowPaymentMethodModal(false)}
+                >
+                  <AppText style={[styles.paymentMethodModalButtonText, { color: colors.primaryFont || '#220707' }]}>
+                    Cancel
+                  </AppText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.paymentMethodModalButton,
+                    styles.paymentMethodModalConfirmButton,
+                    {
+                      backgroundColor: selectedPaymentMethod
+                        ? colors.accent || '#6F171F'
+                        : withOpacity(colors.border || '#D9C8A9', 0.3),
+                      opacity: selectedPaymentMethod ? 1 : 0.5,
+                    },
+                  ]}
+                  onPress={handleConfirmPayment}
+                    disabled={!selectedPaymentMethod || markingPaid || (selectedPaymentMethod === 'other' && !otherPaymentMethodText?.trim())}
+                >
+                  <AppText
+                    style={[
+                      styles.paymentMethodModalButtonText,
+                      {
+                        color: selectedPaymentMethod ? (colors.accentContrast || '#FFFFFF') : colors.secondaryFont || '#5C5F5D',
+                      },
+                    ]}
+                  >
+                    {markingPaid ? 'Marking...' : 'Mark as Paid'}
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         </Modal>
       </ScreenContainer>
     </View>
