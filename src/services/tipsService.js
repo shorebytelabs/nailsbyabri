@@ -11,9 +11,10 @@ import { supabase } from '../lib/supabaseClient';
  */
 export async function getEnabledTips() {
   try {
+    // OPTIMIZATION: Explicitly select only needed fields to reduce cached egress
     const { data, error } = await supabase
       .from('tips')
-      .select('*')
+      .select('id, title, description, image_url, youtube_url, display_order, enabled, created_at')
       .eq('enabled', true)
       .order('display_order', { ascending: true });
 
@@ -35,9 +36,10 @@ export async function getEnabledTips() {
  */
 export async function getAllTips() {
   try {
+    // OPTIMIZATION: Explicitly select only needed fields to reduce cached egress
     const { data, error } = await supabase
       .from('tips')
-      .select('*')
+      .select('id, title, description, image_url, image_path, youtube_url, display_order, enabled, created_by_admin_id, created_at, updated_at')
       .order('display_order', { ascending: true });
 
     if (error) {

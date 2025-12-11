@@ -45,10 +45,12 @@ function GalleryScreen() {
     try {
       setLoading(true);
       
-      // Fetch from gallery_images table or storage bucket
+      // Fetch from gallery_images table
+      // OPTIMIZATION: Only select needed fields to reduce cached egress
+      // Images are stored in Storage, so we only need URLs and metadata
       const { data, error } = await supabase
         .from('gallery_images')
-        .select('*')
+        .select('id, image_url, file_name, created_at, uploaded_by')
         .order('created_at', { ascending: false });
 
       if (error) {

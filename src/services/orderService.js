@@ -873,16 +873,26 @@ export async function fetchOrders(params = {}) {
     // This requires a foreign key relationship between orders.user_id and profiles.id.
     // If the foreign key exists, this will be much faster than separate queries.
     // If it doesn't exist, we'll fall back to separate queries.
-    // NOTE: We select all fields (*) which includes large JSONB fields like:
-    // - customer_sizes (can be large if per-set sizing)
-    // - pricing (usually small)
-    // - fulfillment (usually small)
-    // - production_jobs (can be large)
-    // For list views, we might want to exclude these, but for now we fetch everything
+    // OPTIMIZATION: Exclude large JSONB fields from list queries to reduce cached egress:
+    // - customer_sizes (can be large if per-set sizing) - only needed for detail view
+    // - production_jobs (can be large) - only needed for detail view
+    // - pricing, fulfillment kept (small and needed for list display)
     let query = supabase
       .from('orders')
       .select(`
-        *,
+        id,
+        order_id,
+        user_id,
+        status,
+        created_at,
+        updated_at,
+        placed_at,
+        submitted_at,
+        pricing,
+        fulfillment,
+        promo_code,
+        discount,
+        order_notes,
         profile:profiles (
           id,
           full_name,
@@ -940,7 +950,22 @@ export async function fetchOrders(params = {}) {
       useJoin = false;
       
       // Fall back to separate queries
-      let fallbackQuery = supabase.from('orders').select('*');
+      // OPTIMIZATION: Exclude large JSONB fields (same as main query above)
+      let fallbackQuery = supabase.from('orders').select(`
+        id,
+        order_id,
+        user_id,
+        status,
+        created_at,
+        updated_at,
+        placed_at,
+        submitted_at,
+        pricing,
+        fulfillment,
+        promo_code,
+        discount,
+        order_notes
+      `);
       
       if (params.allOrders) {
         // Admin: fetch all orders
