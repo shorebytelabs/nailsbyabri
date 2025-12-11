@@ -67,7 +67,7 @@ function PrivacyScreen({ navigation }) {
           • Design preferences and uploaded images{'\n'}
           • Photos taken with your device's camera for nail sizing (if you choose the camera sizing option){'\n'}
           • Delivery/shipping address{'\n'}
-          • Payment information (processed securely through Venmo)
+          • Payment method information (when your order is marked as paid, we may record the payment method used, such as Venmo, Cash, or other methods, for order records and accounting purposes)
         </AppText>
 
         <AppText style={[styles.subsectionTitle, { color: primaryFont }]}>1.3 Feedback Information</AppText>

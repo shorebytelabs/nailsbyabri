@@ -63,7 +63,7 @@ function TermsScreen({ navigation }) {
 
         <AppText style={[styles.sectionTitle, { color: primaryFont }]}>5. Payment Terms</AppText>
         <AppText style={[styles.bodyText, { color: primaryFont }]}>
-          Payment is required before production begins on your order. We accept payment through Venmo as specified at checkout. All prices are in U.S. Dollars (USD). Prices are subject to change without notice, but you will be charged the price in effect at the time of order submission. Promotional codes may be subject to additional terms and conditions.
+          Payment is required before production begins on your order. We accept payment through various methods, including Venmo. Payment method information may be recorded for order records and accounting purposes. All prices are in U.S. Dollars (USD). Prices are subject to change without notice, but you will be charged the price in effect at the time of order submission. Promotional codes may be subject to additional terms and conditions.
         </AppText>
 
         <AppText style={[styles.sectionTitle, { color: primaryFont }]}>6. Refunds and Cancellations</AppText>
