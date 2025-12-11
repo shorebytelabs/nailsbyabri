@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import FormField from '../components/FormField';
+import PasswordField from '../components/PasswordField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
 import ConsentModal from '../components/ConsentModal';
@@ -23,6 +24,7 @@ function LoginScreen({
 }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [consentModalVisible, setConsentModalVisible] = useState(false);
@@ -162,12 +164,13 @@ function LoginScreen({
                 placeholder="you@example.com"
                 keyboardType="email-address"
               />
-              <FormField
+              <PasswordField
                 label="Password"
                 value={password}
                 onChangeText={setPassword}
                 placeholder="Enter your password"
-                secureTextEntry
+                showPassword={showPassword}
+                onToggleShowPassword={() => setShowPassword(!showPassword)}
               />
             </View>
 
