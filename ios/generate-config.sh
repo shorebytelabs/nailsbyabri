@@ -102,8 +102,10 @@ if [ -f "$ENV_FILE_PATH" ]; then
   CONFIG_OUTPUT_ABS="$(cd "$(dirname "$CONFIG_OUTPUT")" && pwd)/$(basename "$CONFIG_OUTPUT")"
   
   # Generate xcconfig file (for build settings) - use absolute paths
-  "${SOURCE_ROOT}/node_modules/react-native-config/ios/ReactNativeConfig/BuildXCConfig.rb" "$ENV_FILE_ABS" "$CONFIG_OUTPUT_ABS"
-  if [ -f "$CONFIG_OUTPUT" ]; then
+  "${SOURCE_ROOT}/node_modules/react-native-config/ios/ReactNativeConfig/BuildXCConfig.rb" "$ENV_FILE_ABS" "$CONFIG_OUTPUT_ABS" 2>&1 | grep -v "Missing .env file" || true
+  
+  # Check if xcconfig was generated and has content
+  if [ -f "$CONFIG_OUTPUT" ] && [ -s "$CONFIG_OUTPUT" ] && grep -q "SUPABASE_URL\|APP_ENV" "$CONFIG_OUTPUT" 2>/dev/null; then
     echo "✅ xcconfig generated: $CONFIG_OUTPUT"
     # Fix URL escaping: /$()/ should be // in xcconfig files
     if grep -q '/\$()/' "$CONFIG_OUTPUT"; then
@@ -111,6 +113,22 @@ if [ -f "$ENV_FILE_PATH" ]; then
       sed -i '' 's|/\$()/|//|g' "$CONFIG_OUTPUT"
       echo "✅ Fixed URL escaping in xcconfig"
     fi
+  else
+    echo "⚠️  Ruby script failed or generated empty file, creating xcconfig manually..."
+    # Manually create xcconfig from .env file
+    {
+      echo "// Auto-generated - do not edit manually"
+      while IFS='=' read -r key value || [ -n "$key" ]; do
+        # Skip empty lines and comments
+        [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+        # Remove quotes from value if present
+        value=$(echo "$value" | sed "s/^['\"]//; s/['\"]$//")
+        # Escape special characters for xcconfig
+        value=$(echo "$value" | sed 's/\\/\\\\/g')
+        echo "${key} = ${value}"
+      done < "$ENV_FILE_PATH"
+    } > "$CONFIG_OUTPUT"
+    echo "✅ Manually created xcconfig: $CONFIG_OUTPUT"
   fi
   
   # Generate GeneratedDotEnv.m file (this is what the native module actually reads!)
@@ -136,9 +154,10 @@ if [ -f "$ENV_FILE_PATH" ]; then
   if [ -d "$RNC_NODE_MODULES" ]; then
     echo "📁 Generating GeneratedDotEnv.m in node_modules: $RNC_NODE_MODULES"
     # Set ENVFILE environment variable so ReadDotEnv.rb uses the correct file
-    ENVFILE="$ENVFILE" "${SOURCE_ROOT}/node_modules/react-native-config/ios/ReactNativeConfig/BuildDotenvConfig.rb" "$SOURCE_ROOT/$ENVFILE" "$RNC_NODE_MODULES"
+    ENVFILE="$ENVFILE" "${SOURCE_ROOT}/node_modules/react-native-config/ios/ReactNativeConfig/BuildDotenvConfig.rb" "$SOURCE_ROOT/$ENVFILE" "$RNC_NODE_MODULES" 2>&1 | grep -v "Missing .env file" || true
     
-    if [ -f "${RNC_NODE_MODULES}/GeneratedDotEnv.m" ]; then
+    # Check if GeneratedDotEnv.m was created and has valid content (not empty dictionary)
+    if [ -f "${RNC_NODE_MODULES}/GeneratedDotEnv.m" ] && grep -q "DOT_ENV" "${RNC_NODE_MODULES}/GeneratedDotEnv.m" 2>/dev/null && ! grep -q "@{[[:space:]]*}" "${RNC_NODE_MODULES}/GeneratedDotEnv.m" 2>/dev/null && grep -q ":@" "${RNC_NODE_MODULES}/GeneratedDotEnv.m" 2>/dev/null; then
       echo "✅ GeneratedDotEnv.m created in node_modules"
       # Fix URL escaping: /$()/ should be // in .m files (xcconfig escaping doesn't apply here)
       if grep -q '/\$()/' "${RNC_NODE_MODULES}/GeneratedDotEnv.m"; then
@@ -148,15 +167,44 @@ if [ -f "$ENV_FILE_PATH" ]; then
       fi
       echo "   First line:"
       head -1 "${RNC_NODE_MODULES}/GeneratedDotEnv.m" || true
+    else
+      echo "⚠️  Ruby script failed or generated empty file, creating GeneratedDotEnv.m manually..."
+      # Manually create GeneratedDotEnv.m from .env file
+      {
+        echo "#import <Foundation/Foundation.h>"
+        echo ""
+        echo "// Auto-generated - do not edit manually"
+        echo "#define DOT_ENV @{"
+        first=true
+        while IFS='=' read -r key value || [ -n "$key" ]; do
+          # Skip empty lines and comments
+          [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+          # Remove quotes from value if present
+          value=$(echo "$value" | sed "s/^['\"]//; s/['\"]$//")
+          # Escape quotes in value for Objective-C string
+          value=$(echo "$value" | sed "s/\"/\\\\\"/g")
+          if [ "$first" = true ]; then
+            echo -n "  @\"${key}\" : @\"${value}\""
+            first=false
+          else
+            echo ","
+            echo -n "  @\"${key}\" : @\"${value}\""
+          fi
+        done < "$ENV_FILE_PATH"
+        echo ""
+        echo "};"
+      } > "${RNC_NODE_MODULES}/GeneratedDotEnv.m"
+      echo "✅ Manually created GeneratedDotEnv.m: ${RNC_NODE_MODULES}/GeneratedDotEnv.m"
     fi
   fi
   
   # Also generate in Pods location if found (for immediate use)
   if [ -n "$RNC_PODS_DIR" ] && [ -d "$RNC_PODS_DIR" ]; then
     echo "📁 Also generating in Pods location: $RNC_PODS_DIR"
-    "${SOURCE_ROOT}/node_modules/react-native-config/ios/ReactNativeConfig/BuildDotenvConfig.rb" "$SOURCE_ROOT/$ENVFILE" "$RNC_PODS_DIR"
+    "${SOURCE_ROOT}/node_modules/react-native-config/ios/ReactNativeConfig/BuildDotenvConfig.rb" "$SOURCE_ROOT/$ENVFILE" "$RNC_PODS_DIR" 2>&1 | grep -v "Missing .env file" || true
     
-    if [ -f "${RNC_PODS_DIR}/GeneratedDotEnv.m" ]; then
+    # Check if GeneratedDotEnv.m was created and has valid content (not empty dictionary)
+    if [ -f "${RNC_PODS_DIR}/GeneratedDotEnv.m" ] && grep -q "DOT_ENV" "${RNC_PODS_DIR}/GeneratedDotEnv.m" 2>/dev/null && ! grep -q "@{[[:space:]]*}" "${RNC_PODS_DIR}/GeneratedDotEnv.m" 2>/dev/null && grep -q ":@" "${RNC_PODS_DIR}/GeneratedDotEnv.m" 2>/dev/null; then
       echo "✅ GeneratedDotEnv.m created in Pods"
       # Fix URL escaping: /$()/ should be // in .m files
       if grep -q '/\$()/' "${RNC_PODS_DIR}/GeneratedDotEnv.m"; then
@@ -166,6 +214,40 @@ if [ -f "$ENV_FILE_PATH" ]; then
       fi
       echo "   First few lines:"
       head -3 "${RNC_PODS_DIR}/GeneratedDotEnv.m" || true
+    else
+      echo "⚠️  Ruby script failed for Pods, creating GeneratedDotEnv.m manually..."
+      # Copy from node_modules if it exists, otherwise create manually
+      if [ -f "${RNC_NODE_MODULES}/GeneratedDotEnv.m" ]; then
+        cp "${RNC_NODE_MODULES}/GeneratedDotEnv.m" "${RNC_PODS_DIR}/GeneratedDotEnv.m"
+        echo "✅ Copied GeneratedDotEnv.m to Pods from node_modules"
+      else
+        # Manually create GeneratedDotEnv.m from .env file
+        {
+          echo "#import <Foundation/Foundation.h>"
+          echo ""
+          echo "// Auto-generated - do not edit manually"
+          echo "#define DOT_ENV @{"
+          first=true
+          while IFS='=' read -r key value || [ -n "$key" ]; do
+            # Skip empty lines and comments
+            [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+            # Remove quotes from value if present
+            value=$(echo "$value" | sed "s/^['\"]//; s/['\"]$//")
+            # Escape quotes in value for Objective-C string
+            value=$(echo "$value" | sed "s/\"/\\\\\"/g")
+            if [ "$first" = true ]; then
+              echo -n "  @\"${key}\" : @\"${value}\""
+              first=false
+            else
+              echo ","
+              echo -n "  @\"${key}\" : @\"${value}\""
+            fi
+          done < "$ENV_FILE_PATH"
+          echo ""
+          echo "};"
+        } > "${RNC_PODS_DIR}/GeneratedDotEnv.m"
+        echo "✅ Manually created GeneratedDotEnv.m in Pods"
+      fi
     fi
   fi
   
