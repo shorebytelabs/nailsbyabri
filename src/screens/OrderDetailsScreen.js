@@ -456,18 +456,33 @@ function createStyles(colors) {
     },
     summaryRowCompact: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'space-between',
       gap: 12,
+      minHeight: 20,
     },
     summaryLabelCompact: {
       fontSize: 13,
       color: colors.secondaryFont || '#767154',
+      flexShrink: 0,
     },
     summaryValueCompact: {
       fontSize: 13,
       fontWeight: '600',
       color: colors.primaryFont || '#354037',
+      flex: 1,
+      textAlign: 'right',
+    },
+    customerInfoContainer: {
+      flex: 1,
+      alignItems: 'flex-end',
+      gap: 2,
+    },
+    customerEmail: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primaryFont || '#354037',
+      textAlign: 'right',
     },
     summaryOrderIdContainer: {
       borderRadius: 16,
@@ -1090,6 +1105,37 @@ function OrderDetailsScreen({ navigation, route }) {
                     {orderTimestamp ? formatDateTime(orderTimestamp) : '—'}
                   </AppText>
                 </View>
+                {/* Creator/Customer Info */}
+                {(order?.user?.name || order?.user?.email || order?.userName || order?.userEmail) && (
+                  <View style={styles.summaryRowCompact}>
+                    <AppText style={styles.summaryLabelCompact}>Customer</AppText>
+                    <View style={styles.customerInfoContainer}>
+                      {(() => {
+                        const name = order?.user?.name || order?.userName || order?.customerName;
+                        const email = order?.user?.email || order?.userEmail || order?.customerEmail;
+                        return (
+                          <>
+                            {name && (
+                              <AppText style={styles.summaryValueCompact}>
+                                {name}
+                              </AppText>
+                            )}
+                            {email && (
+                              <AppText style={styles.customerEmail}>
+                                {email}
+                              </AppText>
+                            )}
+                            {!name && !email && (
+                              <AppText style={styles.summaryValueCompact}>
+                                Unknown customer
+                              </AppText>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </View>
+                  </View>
+                )}
                 <View style={styles.summaryRowCompact}>
                   <AppText style={styles.summaryLabelCompact}>Status</AppText>
                   <View
