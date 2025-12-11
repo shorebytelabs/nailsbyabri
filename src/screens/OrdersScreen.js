@@ -1144,6 +1144,8 @@ function OrdersScreen({ route }) {
                 styles.cardTitle,
                 { color: primaryFontColor },
               ]}
+              numberOfLines={2}
+              ellipsizeMode="tail"
             >
               Order #{getOrderNumber(order)}
             </AppText>
@@ -2333,15 +2335,19 @@ const styles = StyleSheet.create({
   cardHeaderLeft: {
     flex: 1,
     gap: 4,
+    minWidth: 0, // Allow flex to shrink if needed
+    marginRight: 8, // Add spacing from status badge
   },
   cardHeaderRight: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 8,
+    flexShrink: 1, // Allow shrinking but with maxWidth constraint on status pill
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: '700',
+    flexShrink: 1, // Allow text to wrap if needed
   },
   cardOrderNumber: {
     fontSize: 12,
@@ -2357,10 +2363,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   statusPill: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 14,
     minHeight: 32, // Ensure minimum height for two-line status
+    maxWidth: 140, // Prevent status badge from taking too much space
+    alignSelf: 'flex-start', // Align to top when wrapping
   },
   statusTextContainer: {
     alignItems: 'center',
@@ -2368,9 +2376,11 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 11, // Slightly smaller to fit better
     fontWeight: '700',
     textTransform: 'uppercase',
+    textAlign: 'center', // Center text when it wraps
+    lineHeight: 14, // Tighter line height for wrapping
   },
   cardMeta: {
     fontSize: 12,

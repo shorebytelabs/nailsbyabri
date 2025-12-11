@@ -87,11 +87,22 @@ echo "📦 Generating ReactNativeConfig"
 echo "   ENVFILE: $ENVFILE"
 echo "   SOURCE_ROOT: $SOURCE_ROOT"
 
-if [ -f "$SOURCE_ROOT/$ENVFILE" ]; then
-  echo "✅ Found env file: $SOURCE_ROOT/$ENVFILE"
+# Convert to absolute path for the env file
+ENV_FILE_PATH="${SOURCE_ROOT}/${ENVFILE}"
+if [ ! -f "$ENV_FILE_PATH" ]; then
+  # Try relative to current directory if absolute doesn't work
+  ENV_FILE_PATH="$(cd "$SOURCE_ROOT" && pwd)/${ENVFILE}"
+fi
+
+if [ -f "$ENV_FILE_PATH" ]; then
+  echo "✅ Found env file: $ENV_FILE_PATH"
   
-  # Generate xcconfig file (for build settings)
-  "${SOURCE_ROOT}/node_modules/react-native-config/ios/ReactNativeConfig/BuildXCConfig.rb" "$SOURCE_ROOT/$ENVFILE" "$CONFIG_OUTPUT"
+  # Convert to absolute path
+  ENV_FILE_ABS="$(cd "$(dirname "$ENV_FILE_PATH")" && pwd)/$(basename "$ENV_FILE_PATH")"
+  CONFIG_OUTPUT_ABS="$(cd "$(dirname "$CONFIG_OUTPUT")" && pwd)/$(basename "$CONFIG_OUTPUT")"
+  
+  # Generate xcconfig file (for build settings) - use absolute paths
+  "${SOURCE_ROOT}/node_modules/react-native-config/ios/ReactNativeConfig/BuildXCConfig.rb" "$ENV_FILE_ABS" "$CONFIG_OUTPUT_ABS"
   if [ -f "$CONFIG_OUTPUT" ]; then
     echo "✅ xcconfig generated: $CONFIG_OUTPUT"
     # Fix URL escaping: /$()/ should be // in xcconfig files
