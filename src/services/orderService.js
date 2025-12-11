@@ -881,13 +881,11 @@ export async function fetchOrders(params = {}) {
       .from('orders')
       .select(`
         id,
-        order_id,
         user_id,
         status,
         created_at,
         updated_at,
-        placed_at,
-        submitted_at,
+        paid_at,
         pricing,
         fulfillment,
         promo_code,
@@ -953,13 +951,11 @@ export async function fetchOrders(params = {}) {
       // OPTIMIZATION: Exclude large JSONB fields (same as main query above)
       let fallbackQuery = supabase.from('orders').select(`
         id,
-        order_id,
         user_id,
         status,
         created_at,
         updated_at,
-        placed_at,
-        submitted_at,
+        paid_at,
         pricing,
         fulfillment,
         promo_code,
