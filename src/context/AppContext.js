@@ -61,6 +61,211 @@ const initialState = {
 
 export function AppStateProvider({ children }) {
   const [state, setState] = useState(initialState);
+  const [isRestoringSession, setIsRestoringSession] = useState(true);
+
+  // Restore session on app startup (persistent login)
+  useEffect(() => {
+    let isMounted = true;
+
+    const restoreSession = async () => {
+      try {
+        if (__DEV__) {
+          console.log('[AppContext] 🔄 Checking for existing session...');
+        }
+
+        // Check for existing Supabase session
+        const { supabase } = await import('../lib/supabaseClient');
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          if (__DEV__) {
+            console.log('[AppContext] ⚠️  Session check error (expected if no session):', sessionError.message);
+          }
+          // No valid session - user needs to log in
+          if (isMounted) {
+            setIsRestoringSession(false);
+          }
+          return;
+        }
+
+        if (session?.user) {
+          if (__DEV__) {
+            console.log('[AppContext] ✅ Found existing session, restoring user...');
+          }
+
+          // Get user profile
+          const { getProfile } = await import('../services/supabaseService');
+          let profile = null;
+          try {
+            profile = await getProfile(session.user.id);
+          } catch (profileError) {
+            if (__DEV__) {
+              console.warn('[AppContext] ⚠️  Failed to fetch profile (non-critical):', profileError?.message);
+            }
+          }
+
+          const userMetadata = session.user.user_metadata || {};
+          const user = {
+            id: session.user.id,
+            email: session.user.email,
+            name: userMetadata.full_name || profile?.full_name || session.user.email,
+            age_group: userMetadata.age_group || null,
+            age: userMetadata.age_group ? (userMetadata.age_group === '55+' ? 55 : parseInt(userMetadata.age_group.split('-')[0])) : null,
+            role: profile?.role || 'user',
+            createdAt: session.user.created_at,
+            pendingConsent: false,
+          };
+
+          const adminUser = applyAdminFlag(user);
+
+          if (isMounted) {
+            setState((prev) => ({
+              ...prev,
+              currentUser: adminUser,
+            }));
+
+            // Load orders for restored user
+            const { fetchOrders } = await import('../services/api');
+            try {
+              const fetchParams = adminUser.isAdmin
+                ? { allOrders: true }
+                : { userId: adminUser.id };
+              const response = await fetchOrders(fetchParams);
+              const orders = Array.isArray(response?.orders) ? response.orders : [];
+              
+              if (isMounted) {
+                setState((prev) => ({
+                  ...prev,
+                  orders,
+                  ordersLoaded: true,
+                }));
+              }
+            } catch (error) {
+              if (__DEV__) {
+                console.warn('[AppContext] ⚠️  Failed to load orders on session restore (non-critical):', error?.message);
+              }
+            }
+
+            if (__DEV__) {
+              console.log('[AppContext] ✅ Session restored successfully');
+            }
+          }
+        } else {
+          if (__DEV__) {
+            console.log('[AppContext] ℹ️  No existing session found');
+          }
+        }
+      } catch (error) {
+        if (__DEV__) {
+          console.error('[AppContext] ❌ Error restoring session:', error);
+        }
+      } finally {
+        if (isMounted) {
+          setIsRestoringSession(false);
+        }
+      }
+    };
+
+    restoreSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Set up auth state change listener for token refresh
+  useEffect(() => {
+    let authListener = null;
+
+    const setupAuthListener = async () => {
+      try {
+        const { supabase } = await import('../lib/supabaseClient');
+        
+        // Listen for auth state changes (login, logout, token refresh)
+        authListener = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (__DEV__) {
+            console.log('[AppContext] 🔐 Auth state changed:', event, session?.user?.id || 'no user');
+          }
+
+          if (event === 'SIGNED_OUT' || !session) {
+            // User signed out or session expired
+            if (__DEV__) {
+              console.log('[AppContext] 👋 User signed out or session expired');
+            }
+            setState((prev) => ({
+              ...prev,
+              currentUser: null,
+              orders: [],
+              ordersLoaded: false,
+            }));
+            return;
+          }
+
+          if (event === 'TOKEN_REFRESHED' && session?.user) {
+            // Token was refreshed - session is still valid
+            if (__DEV__) {
+              console.log('[AppContext] 🔄 Token refreshed successfully');
+            }
+            // No need to update state - session is still valid
+            return;
+          }
+
+          if (event === 'SIGNED_IN' && session?.user) {
+            // User signed in (but we already handle this in handleLoginSuccess)
+            // Only update if we don't already have a current user
+            if (!state.currentUser) {
+              if (__DEV__) {
+                console.log('[AppContext] ✅ User signed in via auth state change');
+              }
+              // Get user profile and set current user
+              try {
+                const { getProfile } = await import('../services/supabaseService');
+                const profile = await getProfile(session.user.id);
+                const userMetadata = session.user.user_metadata || {};
+                const user = {
+                  id: session.user.id,
+                  email: session.user.email,
+                  name: userMetadata.full_name || profile?.full_name || session.user.email,
+                  age_group: userMetadata.age_group || null,
+                  role: profile?.role || 'user',
+                  createdAt: session.user.created_at,
+                  pendingConsent: false,
+                };
+                const adminUser = applyAdminFlag(user);
+                setState((prev) => ({
+                  ...prev,
+                  currentUser: adminUser,
+                }));
+              } catch (error) {
+                if (__DEV__) {
+                  console.warn('[AppContext] ⚠️  Failed to fetch profile on sign in (non-critical):', error?.message);
+                }
+              }
+            }
+          }
+        });
+
+        if (__DEV__) {
+          console.log('[AppContext] ✅ Auth state listener set up');
+        }
+      } catch (error) {
+        if (__DEV__) {
+          console.error('[AppContext] ❌ Failed to set up auth listener:', error);
+        }
+      }
+    };
+
+    setupAuthListener();
+
+    return () => {
+      if (authListener) {
+        authListener.data.subscription.unsubscribe();
+        if (__DEV__) {
+          console.log('[AppContext] 🔌 Auth state listener removed');
+        }
+      }
+    };
+  }, [state.currentUser]);
 
   useEffect(() => {
     if (__DEV__) {
@@ -596,8 +801,17 @@ export function AppStateProvider({ children }) {
 
   const contextValue = useMemo(
     () => ({
-      state,
+      state: {
+        ...state,
+        isRestoringSession, // Add restoration state to context
+      },
+      setState,
       clearStatusMessage,
+      setAuthRedirect,
+      clearAuthRedirect,
+      ensureAuthenticated,
+      enterConsentFlow,
+      loadOrdersForUser,
       handleSignupSuccess,
       handleLoginSuccess,
       handleConsentPendingLogin,
@@ -608,17 +822,19 @@ export function AppStateProvider({ children }) {
       handleDraftSaved,
       handleOrderCancelled,
       handleOrderComplete,
-      loadOrdersForUser,
       updateOrderAdmin,
-      enterConsentFlow,
-      ensureAuthenticated,
-      clearAuthRedirect,
       handleExitImpersonation,
-      setState,
     }),
     [
       state,
+      isRestoringSession,
+      setState,
       clearStatusMessage,
+      setAuthRedirect,
+      clearAuthRedirect,
+      ensureAuthenticated,
+      enterConsentFlow,
+      loadOrdersForUser,
       handleSignupSuccess,
       handleLoginSuccess,
       handleConsentPendingLogin,
@@ -629,11 +845,7 @@ export function AppStateProvider({ children }) {
       handleDraftSaved,
       handleOrderCancelled,
       handleOrderComplete,
-      loadOrdersForUser,
       updateOrderAdmin,
-      enterConsentFlow,
-      ensureAuthenticated,
-      clearAuthRedirect,
       handleExitImpersonation,
     ],
   );

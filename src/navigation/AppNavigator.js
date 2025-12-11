@@ -3,6 +3,7 @@ import { AppState, Linking } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useTheme } from '../theme';
 import AppText from '../components/AppText';
 import { supabase } from '../lib/supabaseClient';
 import SignupScreen from '../screens/SignupScreen';
@@ -24,7 +25,6 @@ import MainTabs from './MainTabs';
 import NewOrderStepperScreen from '../screens/NewOrderStepperScreen';
 import FeedbackScreen from '../screens/FeedbackScreen';
 import { useAppState } from '../context/AppContext';
-import { useTheme } from '../theme';
 import { logEvent } from '../utils/analytics';
 import { withOpacity } from '../utils/color';
 
@@ -360,8 +360,10 @@ function AppNavigator() {
   const { state } = useAppState();
   const isAuthenticated = Boolean(state.currentUser);
   const hasPendingConsent = Boolean(state.pendingConsent);
+  const isRestoringSession = state.isRestoringSession ?? false;
   const [navigationReady, setNavigationReady] = useState(false);
   const navigationRef = React.useRef(null);
+  const { theme } = useTheme(); // Call hook unconditionally at the top
 
   // Configure deep linking for password reset
   // Handle both deep links (nailsbyabri://) and Supabase verify URLs (https://)
@@ -681,6 +683,37 @@ function AppNavigator() {
       appStateSubscription?.remove();
     };
   }, []);
+
+  // Reset navigation to Login screen when user logs out
+  // IMPORTANT: This must be called BEFORE any conditional returns to follow Rules of Hooks
+  useEffect(() => {
+    if (!isAuthenticated && navigationReady && navigationRef.current && !isRestoringSession) {
+      // Small delay to ensure state is fully updated
+      const timer = setTimeout(() => {
+        if (navigationRef.current) {
+          navigationRef.current.reset({
+            index: 0,
+            routes: [{ name: 'Login' }],
+          });
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, navigationReady, isRestoringSession]);
+
+  // Show loading screen while restoring session
+  if (isRestoringSession) {
+    const colors = theme?.colors || {};
+    const loadingBgColor = colors.primaryBackground || '#F4EBE3';
+    const isDarkTheme = ['snow', 'deepTeal', 'slateBlue', 'warmCharcoal'].includes(theme?.id);
+    const indicatorColor = isDarkTheme ? '#FFFFFF' : '#6F171F';
+    
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: loadingBgColor }}>
+        <ActivityIndicator size="large" color={indicatorColor} />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer
