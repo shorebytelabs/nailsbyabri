@@ -65,8 +65,9 @@ function PrivacyScreen({ navigation }) {
         <AppText style={[styles.bodyText, { color: primaryFont }]}>
           • Nail size measurements{'\n'}
           • Design preferences and uploaded images{'\n'}
+          • Photos taken with your device's camera for nail sizing (if you choose the camera sizing option){'\n'}
           • Delivery/shipping address{'\n'}
-          • Payment information (processed securely through Venmo)
+          • Payment method information (when your order is marked as paid, we may record the payment method used, such as Venmo, Cash, or other methods, for order records and accounting purposes)
         </AppText>
 
         <AppText style={[styles.subsectionTitle, { color: primaryFont }]}>1.3 Feedback Information</AppText>
@@ -80,7 +81,16 @@ function PrivacyScreen({ navigation }) {
           • Timestamp of feedback submission
         </AppText>
 
-        <AppText style={[styles.subsectionTitle, { color: primaryFont }]}>1.4 Usage Information</AppText>
+        <AppText style={[styles.subsectionTitle, { color: primaryFont }]}>1.4 Device Permissions</AppText>
+        <AppText style={[styles.bodyText, { color: primaryFont }]}>
+          The App may request access to certain device features:
+        </AppText>
+        <AppText style={[styles.bodyText, { color: primaryFont }]}>
+          • <AppText style={{ fontWeight: '600' }}>Camera Access:</AppText> If you choose to use the camera-based nail sizing feature, the App will request permission to access your device's camera to take photos of your nails for sizing purposes. These photos are uploaded to our secure servers and used solely for fulfilling your order. You can choose to use manual nail size entry instead, which does not require camera access.{'\n\n'}
+          • <AppText style={{ fontWeight: '600' }}>Photo Library Access:</AppText> The App may request access to your photo library to allow you to select and upload images for design inspiration or nail sizing. We only access photos that you explicitly choose to upload.
+        </AppText>
+
+        <AppText style={[styles.subsectionTitle, { color: primaryFont }]}>1.5 Usage Information</AppText>
         <AppText style={[styles.bodyText, { color: primaryFont }]}>
           We automatically collect certain information when you use the App, including:
         </AppText>
@@ -109,6 +119,9 @@ function PrivacyScreen({ navigation }) {
         <AppText style={[styles.sectionTitle, { color: primaryFont }]}>3. Data Storage and Security</AppText>
         <AppText style={[styles.bodyText, { color: primaryFont }]}>
           We use Supabase for authentication, database storage, and file storage. Your data is stored securely using industry-standard encryption. We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the internet or electronic storage is 100% secure.
+        </AppText>
+        <AppText style={[styles.bodyText, { color: primaryFont }]}>
+          <AppText style={{ fontWeight: '600' }}>Session Persistence:</AppText> To provide a seamless user experience, we store authentication tokens securely on your device using encrypted local storage. This allows you to remain logged in even after closing the app. These tokens are automatically refreshed to maintain your session. You can log out at any time through the app settings, which will remove all stored authentication data from your device.
         </AppText>
 
         <AppText style={[styles.sectionTitle, { color: primaryFont }]}>4. Information Sharing and Disclosure</AppText>

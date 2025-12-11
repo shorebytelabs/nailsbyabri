@@ -55,6 +55,7 @@ import ManageThemeScreen from './ManageThemeScreen';
 import ManageShapesScreen from './ManageShapesScreen';
 import ManageDeliveryMethodsScreen from './ManageDeliveryMethodsScreen';
 import ManageFeedbackScreen from './ManageFeedbackScreen';
+import ManageNailSizingModeScreen from './ManageNailSizingModeScreen';
 import { Image } from 'react-native';
 
 function AdminPanelScreen({ navigation }) {
@@ -200,6 +201,7 @@ function AdminPanelScreen({ navigation }) {
       setNotificationsLoading(false);
     }
   };
+
 
   const handleCreatePromo = () => {
     setEditingPromo(null);
@@ -970,6 +972,15 @@ function AdminPanelScreen({ navigation }) {
         setActiveView('feedback');
       },
     },
+    {
+      key: 'nailSizingMode',
+      title: 'Nail Sizing Mode',
+      description: 'Choose between camera or manual entry for nail sizing',
+      icon: 'sliders',
+      onPress: () => {
+        setActiveView('nailSizingMode');
+      },
+    },
   ];
 
   const primaryFont = colors.primaryFont || '#220707';
@@ -1165,6 +1176,19 @@ function AdminPanelScreen({ navigation }) {
   if (activeView === 'feedback') {
     return (
       <ManageFeedbackScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
+          },
+        }}
+      />
+    );
+  }
+
+  if (activeView === 'nailSizingMode') {
+    return (
+      <ManageNailSizingModeScreen
         navigation={{
           ...navigation,
           goBack: () => {

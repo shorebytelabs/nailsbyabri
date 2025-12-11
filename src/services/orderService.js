@@ -382,6 +382,7 @@ function transformOrderFromDB(order, orderSets = []) {
     adminImages: Array.isArray(order.admin_images) ? order.admin_images : [],
     estimatedFulfillmentDate: order.estimated_fulfillment_date,
     paidAt: order.paid_at,
+    paymentMethod: order.payment_method,
     productionJobs: Array.isArray(order.production_jobs) ? order.production_jobs : [],
     createdAt: order.created_at,
     updatedAt: order.updated_at,
@@ -474,7 +475,7 @@ export async function createOrUpdateOrder(orderData) {
 
     // Backend validation constants (must match frontend)
     const MAX_SETS_PER_ORDER = 10;
-    const MAX_PHOTOS_PER_SET = 5;
+    const MAX_PHOTOS_PER_SET = 6;
     const MAX_COMMENT_LENGTH = 500;
     const MAX_IMAGE_SIZE_MB = 5;
     const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
@@ -873,16 +874,24 @@ export async function fetchOrders(params = {}) {
     // This requires a foreign key relationship between orders.user_id and profiles.id.
     // If the foreign key exists, this will be much faster than separate queries.
     // If it doesn't exist, we'll fall back to separate queries.
-    // NOTE: We select all fields (*) which includes large JSONB fields like:
-    // - customer_sizes (can be large if per-set sizing)
-    // - pricing (usually small)
-    // - fulfillment (usually small)
-    // - production_jobs (can be large)
-    // For list views, we might want to exclude these, but for now we fetch everything
+    // OPTIMIZATION: Exclude large JSONB fields from list queries to reduce cached egress:
+    // - customer_sizes (can be large if per-set sizing) - only needed for detail view
+    // - production_jobs (can be large) - only needed for detail view
+    // - pricing, fulfillment kept (small and needed for list display)
     let query = supabase
       .from('orders')
       .select(`
-        *,
+        id,
+        user_id,
+        status,
+        created_at,
+        updated_at,
+        paid_at,
+        pricing,
+        fulfillment,
+        promo_code,
+        discount,
+        order_notes,
         profile:profiles (
           id,
           full_name,
@@ -940,7 +949,20 @@ export async function fetchOrders(params = {}) {
       useJoin = false;
       
       // Fall back to separate queries
-      let fallbackQuery = supabase.from('orders').select('*');
+      // OPTIMIZATION: Exclude large JSONB fields (same as main query above)
+      let fallbackQuery = supabase.from('orders').select(`
+        id,
+        user_id,
+        status,
+        created_at,
+        updated_at,
+        paid_at,
+        pricing,
+        fulfillment,
+        promo_code,
+        discount,
+        order_notes
+      `);
       
       if (params.allOrders) {
         // Admin: fetch all orders
@@ -1201,7 +1223,7 @@ export async function updateOrder(orderId, updates) {
     // First fetch existing order to check previous status (needed for admin completion logic)
     const { data: existingOrder, error: checkError } = await supabase
       .from('orders')
-      .select('id, status, tracking_number, paid_at, discount, user_id')
+      .select('id, status, tracking_number, paid_at, payment_method, discount, user_id')
       .eq('id', orderId)
       .single();
 
@@ -1344,6 +1366,17 @@ export async function updateOrder(orderId, updates) {
     // Handle paid_at update (for marking orders as paid)
     if (updates.paid_at !== undefined) {
       updatePayload.paid_at = updates.paid_at || null;
+    }
+
+    // Handle payment_method update
+    if (updates.payment_method !== undefined) {
+      // Validate payment method value
+      const validMethods = ['venmo', 'cash', 'other'];
+      if (updates.payment_method === null || validMethods.includes(updates.payment_method)) {
+        updatePayload.payment_method = updates.payment_method;
+      } else {
+        console.warn('[updateOrder] Invalid payment_method value:', updates.payment_method);
+      }
     }
 
     // If discount is being updated, we need to fetch the order first to recalculate pricing

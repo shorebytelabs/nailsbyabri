@@ -81,7 +81,10 @@ function VenmoPaymentInfo({
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <AppText variant="ui" style={styles.title}>Pay with Venmo</AppText>
+          <AppText variant="ui" style={styles.title}>Venmo Payment Information</AppText>
+          <AppText variant="small" style={styles.introText}>
+            You can pay via Venmo or your preferred payment method
+          </AppText>
         </View>
 
         {totalAmount && (
@@ -134,8 +137,8 @@ function VenmoPaymentInfo({
         <View style={styles.instructionsContainer}>
           <AppText style={styles.instructionsText}>
             {orderNumber
-              ? `Please include your order number "${orderNumber}" in the Venmo note when sending payment.`
-              : 'Please include your order number in the Venmo note when sending payment.'}
+              ? `If paying via Venmo, please include your order number "${orderNumber}" in the Venmo note when sending payment.`
+              : 'If paying via Venmo, please include your order number in the Venmo note when sending payment.'}
           </AppText>
         </View>
 
@@ -194,11 +197,17 @@ function createStyles(colors, compact) {
     },
     header: {
       marginBottom: compact ? 4 : 8,
+      gap: 6,
     },
     title: {
       fontSize: compact ? 16 : 18,
       fontWeight: '700',
       color: colors.primaryFont || '#354037',
+    },
+    introText: {
+      fontSize: 13,
+      color: colors.secondaryFont || '#767154',
+      lineHeight: 18,
     },
     amountRow: {
       flexDirection: 'row',

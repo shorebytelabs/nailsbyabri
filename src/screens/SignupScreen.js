@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, TouchableOpacity, View, Linking } from 'react-native';
 import FormField from '../components/FormField';
+import PasswordField from '../components/PasswordField';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenContainer from '../components/ScreenContainer';
 import Icon from '../icons/Icon';
@@ -20,18 +21,40 @@ const AGE_GROUPS = [
   { value: '55+', label: '55+ years' },
 ];
 
+// Password validation rules
+const validatePassword = (pwd) => {
+  return {
+    minLength: pwd.length >= 8,
+    hasUpperCase: /[A-Z]/.test(pwd),
+    hasNumber: /[0-9]/.test(pwd),
+    hasSpecialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd),
+  };
+};
+
+const isPasswordValid = (validation) => {
+  return validation.minLength && validation.hasUpperCase && validation.hasNumber && validation.hasSpecialChar;
+};
+
 function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, navigation }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [ageGroup, setAgeGroup] = useState('');
   const [consentAccepted, setConsentAccepted] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [successPayload, setSuccessPayload] = useState(null);
   const [successVisible, setSuccessVisible] = useState(false);
+
+  // Real-time password validation
+  const passwordValidation = useMemo(() => validatePassword(password), [password]);
 
   const { theme } = useTheme();
   const colors = theme?.colors || {};
@@ -72,14 +95,36 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
     }
 
     if (!sanitizedPassword) {
-      setError('Please enter a password.');
+      setPasswordError('Please enter a password.');
+      setError(null);
       return;
     }
 
-    if (sanitizedPassword.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    // Validate password strength
+    const pwdValidation = validatePassword(sanitizedPassword);
+    if (!isPasswordValid(pwdValidation)) {
+      setPasswordError('Please meet all password requirements.');
+      setError(null);
       return;
     }
+
+    // Validate confirm password
+    const sanitizedConfirmPassword = confirmPassword.trim();
+    if (!sanitizedConfirmPassword) {
+      setConfirmPasswordError('Please confirm your password.');
+      setError(null);
+      return;
+    }
+
+    if (sanitizedPassword !== sanitizedConfirmPassword) {
+      setConfirmPasswordError('Passwords do not match.');
+      setError(null);
+      return;
+    }
+
+    // Clear password errors if validation passes
+    setPasswordError('');
+    setConfirmPasswordError('');
     
     // Validate age group - must be 13 or older
     // All our age groups start at 13+, so if ageGroup is set, it's valid
@@ -97,6 +142,8 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
     setLoading(true);
     setError(null);
     setEmailError('');
+    setPasswordError('');
+    setConfirmPasswordError('');
 
     try {
       const response = await signup({
@@ -129,8 +176,21 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
     }
   };
 
-  const isSubmitDisabled =
-    !name.trim() || !email.trim() || !password.trim() || !ageGroup || !consentAccepted;
+  // Check if form is valid for submit button state
+  const isFormValid = useMemo(() => {
+    return (
+      name.trim() &&
+      email.trim() &&
+      password.trim() &&
+      confirmPassword.trim() &&
+      password === confirmPassword &&
+      isPasswordValid(passwordValidation) &&
+      ageGroup &&
+      consentAccepted
+    );
+  }, [name, email, password, confirmPassword, passwordValidation, ageGroup, consentAccepted]);
+
+  const isSubmitDisabled = !isFormValid || loading;
 
   return (
     <ScreenContainer scroll={false} style={styles.screen}>
@@ -210,12 +270,121 @@ function SignupScreen({ onSignupSuccess, onSwitchToLogin, onCancel = () => {}, n
                 keyboardType="email-address"
                 errorMessage={emailError}
               />
-              <FormField
+              <PasswordField
                 label="Password"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(value) => {
+                  setPassword(value);
+                  setPasswordError('');
+                }}
                 placeholder="Create a strong password"
-                secureTextEntry
+                showPassword={showPassword}
+                onToggleShowPassword={() => setShowPassword(!showPassword)}
+                errorMessage={passwordError}
+              />
+              
+              {/* Password Requirements Checklist */}
+              {password.length > 0 && (
+                <View style={styles.passwordRequirements}>
+                  <AppText variant="small" style={[styles.requirementsTitle, { color: onSurfaceColor }]}>
+                    Password must include:
+                  </AppText>
+                  <View style={styles.requirementsList}>
+                    <View style={styles.requirementItem}>
+                      <Icon
+                        name={passwordValidation.minLength ? 'check' : 'close'}
+                        color={passwordValidation.minLength ? (colors.success || '#4B7A57') : errorColor}
+                        size={16}
+                      />
+                      <AppText
+                        variant="small"
+                        style={[
+                          styles.requirementText,
+                          {
+                            color: passwordValidation.minLength
+                              ? (colors.success || '#4B7A57')
+                              : secondaryFontColor,
+                          },
+                        ]}
+                      >
+                        At least 8 characters
+                      </AppText>
+                    </View>
+                    <View style={styles.requirementItem}>
+                      <Icon
+                        name={passwordValidation.hasUpperCase ? 'check' : 'close'}
+                        color={passwordValidation.hasUpperCase ? (colors.success || '#4B7A57') : errorColor}
+                        size={16}
+                      />
+                      <AppText
+                        variant="small"
+                        style={[
+                          styles.requirementText,
+                          {
+                            color: passwordValidation.hasUpperCase
+                              ? (colors.success || '#4B7A57')
+                              : secondaryFontColor,
+                          },
+                        ]}
+                      >
+                        One uppercase letter
+                      </AppText>
+                    </View>
+                    <View style={styles.requirementItem}>
+                      <Icon
+                        name={passwordValidation.hasNumber ? 'check' : 'close'}
+                        color={passwordValidation.hasNumber ? (colors.success || '#4B7A57') : errorColor}
+                        size={16}
+                      />
+                      <AppText
+                        variant="small"
+                        style={[
+                          styles.requirementText,
+                          {
+                            color: passwordValidation.hasNumber
+                              ? (colors.success || '#4B7A57')
+                              : secondaryFontColor,
+                          },
+                        ]}
+                      >
+                        One number
+                      </AppText>
+                    </View>
+                    <View style={styles.requirementItem}>
+                      <Icon
+                        name={passwordValidation.hasSpecialChar ? 'check' : 'close'}
+                        color={passwordValidation.hasSpecialChar ? (colors.success || '#4B7A57') : errorColor}
+                        size={16}
+                      />
+                      <AppText
+                        variant="small"
+                        style={[
+                          styles.requirementText,
+                          {
+                            color: passwordValidation.hasSpecialChar
+                              ? (colors.success || '#4B7A57')
+                              : secondaryFontColor,
+                          },
+                        ]}
+                      >
+                        One special character (!@#$%^&* etc.)
+                      </AppText>
+                    </View>
+                  </View>
+                </View>
+              )}
+              
+              <PasswordField
+                label="Confirm Password"
+                value={confirmPassword}
+                onChangeText={(value) => {
+                  setConfirmPassword(value);
+                  setConfirmPasswordError('');
+                }}
+                placeholder="Re-enter your password"
+                showPassword={showConfirmPassword}
+                onToggleShowPassword={() => setShowConfirmPassword(!showConfirmPassword)}
+                errorMessage={confirmPasswordError}
               />
               <View style={styles.ageGroupContainer}>
                 <AppText variant="ui" style={[styles.ageGroupLabel, { color: onSurfaceColor }]}>Age Group</AppText>
@@ -379,7 +548,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingVertical: 32,
     paddingHorizontal: 6,
-    paddingBottom: 150, // Extra padding at bottom so last field (consent checkbox) is visible above keyboard
+    paddingBottom: 200, // Extra padding at bottom so last field (consent checkbox) is visible above keyboard
     alignItems: 'center',
     gap: 24,
   },
@@ -574,6 +743,29 @@ const styles = StyleSheet.create({
   successMessage: {
     fontSize: 14,
     lineHeight: 20,
+  },
+  passwordRequirements: {
+    marginTop: -8,
+    marginBottom: 4,
+    paddingHorizontal: 4,
+  },
+  requirementsTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  requirementsList: {
+    gap: 6,
+  },
+  requirementItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  requirementText: {
+    fontSize: 12,
+    fontWeight: '500',
+    flex: 1,
   },
 });
 

@@ -6,7 +6,8 @@ import * as addressService from './addressService';
 
 // Legacy backend URL - only used for shapes catalog now
 // Auth and orders have been migrated to Supabase
-const DEFAULT_BASE_URL = 'http://localhost:4000';
+// Use 127.0.0.1 instead of localhost for iOS Simulator compatibility
+const DEFAULT_BASE_URL = 'http://127.0.0.1:4000';
 
 const API_BASE_URL =
   Platform.select({

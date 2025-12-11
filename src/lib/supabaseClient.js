@@ -175,11 +175,15 @@ const fetchWithRetry = async (url, options = {}) => {
       lastError = error;
       
       // Check if it's a QUIC/network connection error
+      // Error code -1000 (bad URL) can occur in iOS Simulator even with valid URLs
+      // Error code -1005 is NSURLErrorNetworkConnectionLost
       const isNetworkError = 
         error.message?.includes('Network request failed') ||
         error.message?.includes('connection was lost') ||
         error.message?.includes('Socket is not connected') ||
         error.message?.includes('AbortError') ||
+        error.message?.includes('bad URL') ||
+        (error.code === -1000) || // NSURLErrorBadURL - sometimes happens in simulator with valid URLs
         (error.code === -1005); // NSURLErrorNetworkConnectionLost
 
       if (isNetworkError && attempt < maxRetries) {

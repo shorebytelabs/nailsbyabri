@@ -378,3 +378,149 @@ export function subscribeToActiveAnimation(callback) {
   };
 }
 
+/**
+ * Get the nail sizing mode ('camera' or 'manual')
+ * @returns {Promise<string>} The sizing mode ('camera' or 'manual'), defaults to 'manual'
+ */
+export async function getNailSizingMode() {
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'nail_sizing_mode')
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // Setting doesn't exist, return default (manual for backward compatibility)
+        if (__DEV__) {
+          console.log('[appSettings] Nail sizing mode setting not found, using default: manual');
+        }
+        return 'manual';
+      }
+      throw error;
+    }
+
+    // Parse JSONB value
+    let mode;
+    if (typeof data.value === 'string') {
+      try {
+        const parsed = JSON.parse(data.value);
+        mode = typeof parsed === 'string' ? parsed : data.value;
+      } catch {
+        mode = data.value;
+      }
+    } else {
+      mode = data.value;
+    }
+    
+    // Validate mode - must be 'camera' or 'manual'
+    if (mode !== 'camera' && mode !== 'manual') {
+      if (__DEV__) {
+        console.warn('[appSettings] Invalid nail sizing mode, defaulting to manual:', mode);
+      }
+      return 'manual';
+    }
+    
+    if (__DEV__) {
+      console.log('[appSettings] ✅ Nail sizing mode loaded:', mode);
+    }
+    return mode;
+  } catch (error) {
+    console.error('[appSettings] ❌ Error getting nail sizing mode:', error);
+    // Return default (manual) on error for backward compatibility
+    return 'manual';
+  }
+}
+
+/**
+ * Set the nail sizing mode (admin only)
+ * @param {string} mode - The sizing mode ('camera' or 'manual')
+ * @param {string} adminUserId - The ID of the admin making the change
+ * @returns {Promise<void>}
+ */
+export async function setNailSizingMode(mode, adminUserId) {
+  try {
+    // Validate mode
+    if (mode !== 'camera' && mode !== 'manual') {
+      throw new Error('Invalid nail sizing mode. Must be "camera" or "manual".');
+    }
+    
+    if (__DEV__) {
+      console.log('[appSettings] Setting nail sizing mode to:', mode, 'by admin:', adminUserId);
+    }
+
+    // Verify admin user exists and has admin role
+    const { data: adminProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, role, email')
+      .eq('id', adminUserId)
+      .single();
+
+    if (profileError || !adminProfile) {
+      console.error('[appSettings] ❌ Admin profile not found:', profileError);
+      throw new Error('Admin profile not found. Please ensure you are logged in as an admin.');
+    }
+
+    if (adminProfile.role !== 'admin') {
+      console.error('[appSettings] ❌ User is not an admin. Role:', adminProfile.role);
+      throw new Error('You do not have admin permissions to change the nail sizing mode.');
+    }
+
+    if (__DEV__) {
+      console.log('[appSettings] ✅ Admin verified:', adminProfile.email, 'Role:', adminProfile.role);
+    }
+
+    // Try to update existing row
+    const { data: updateData, error: updateError } = await supabase
+      .from('app_settings')
+      .update({
+        value: mode,
+        updated_by_admin_id: adminUserId,
+      })
+      .eq('key', 'nail_sizing_mode')
+      .select();
+
+    // If there's an RLS error, provide more helpful message
+    if (updateError) {
+      if (updateError.code === '42501') {
+        console.error('[appSettings] ❌ RLS Policy Error - Admin role may not be recognized by RLS');
+        throw new Error('Row-level security policy blocked the update. Please verify your admin role in the database.');
+      }
+      console.error('[appSettings] ❌ Error updating nail sizing mode:', updateError);
+      throw updateError;
+    }
+
+    // If update succeeded but returned 0 rows, the row doesn't exist - try insert
+    if (!updateData || updateData.length === 0) {
+      if (__DEV__) {
+        console.log('[appSettings] No existing row found, attempting insert...');
+      }
+      
+      const { error: insertError } = await supabase
+        .from('app_settings')
+        .insert({
+          key: 'nail_sizing_mode',
+          value: mode,
+          updated_by_admin_id: adminUserId,
+        });
+
+      if (insertError) {
+        if (insertError.code === '42501') {
+          console.error('[appSettings] ❌ RLS Policy Error on INSERT');
+          throw new Error('Row-level security policy blocked the insert. Please verify your admin role in the database.');
+        }
+        console.error('[appSettings] ❌ Error inserting nail sizing mode:', insertError);
+        throw insertError;
+      }
+    }
+
+    if (__DEV__) {
+      console.log('[appSettings] ✅ Nail sizing mode updated successfully');
+    }
+  } catch (error) {
+    console.error('[appSettings] ❌ Failed to set nail sizing mode:', error);
+    throw error;
+  }
+}
+
