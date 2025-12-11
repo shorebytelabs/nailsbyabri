@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {ActivityIndicator, Alert, Image, Modal, ScrollView, StyleSheet, Switch, TextInput, TouchableOpacity, TouchableWithoutFeedback, View, useWindowDimensions} from 'react-native';
+import {ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, TextInput, TouchableOpacity, TouchableWithoutFeedback, View, useWindowDimensions} from 'react-native';
 import AppText from '../components/AppText';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -14,10 +14,13 @@ import { logEvent } from '../utils/analytics';
 import { withOpacity } from '../utils/color';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { uploadImageToStorage } from '../services/imageStorageService';
+import { getNailSizingMode } from '../services/appSettingsService';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
 
 // Order safety limits
 const MAX_SETS_PER_ORDER = 10;
-const MAX_PHOTOS_PER_SET = 5;
+const MAX_PHOTOS_PER_SET = 6;
 const MAX_COMMENT_LENGTH = 500;
 const MAX_IMAGE_SIZE_MB = 5;
 const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
@@ -256,6 +259,147 @@ function getSetSizeDetails(set = {}) {
   return { fallback: 'Standard sizes', requiresSizingHelp };
 }
 
+/**
+ * ZoomableImageModal - A full-screen image viewer with pinch-to-zoom and pan gestures
+ */
+function ZoomableImageModal({ imageUri, onClose, colors, styles: modalStyles }) {
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+
+  // Pinch gesture for zooming
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate((e) => {
+      scale.value = savedScale.value * e.scale;
+    })
+    .onEnd(() => {
+      // Clamp scale between 1 and 5
+      if (scale.value < 1) {
+        scale.value = withSpring(1);
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+      } else if (scale.value > 5) {
+        scale.value = withSpring(5);
+      }
+      savedScale.value = scale.value;
+    });
+
+  // Pan gesture for moving zoomed image
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      if (scale.value > 1) {
+        translateX.value = savedTranslateX.value + e.translationX;
+        translateY.value = savedTranslateY.value + e.translationY;
+      }
+    })
+    .onEnd(() => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    });
+
+  // Combined gestures
+  const composedGesture = Gesture.Simultaneous(pinchGesture, panGesture);
+
+  // Animated style for the image
+  const imageAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        { scale: scale.value },
+      ],
+    };
+  });
+
+  // Reset zoom when image changes
+  useEffect(() => {
+    if (imageUri) {
+      scale.value = withTiming(1);
+      savedScale.value = 1;
+      translateX.value = withTiming(0);
+      translateY.value = withTiming(0);
+      savedTranslateX.value = 0;
+      savedTranslateY.value = 0;
+    }
+  }, [imageUri, scale, savedScale, translateX, translateY, savedTranslateX, savedTranslateY]);
+
+  const handleDoubleTap = useCallback(() => {
+    if (scale.value > 1) {
+      // Reset zoom
+      scale.value = withSpring(1);
+      savedScale.value = 1;
+      translateX.value = withSpring(0);
+      translateY.value = withSpring(0);
+      savedTranslateX.value = 0;
+      savedTranslateY.value = 0;
+    } else {
+      // Zoom to 2x
+      scale.value = withSpring(2);
+      savedScale.value = 2;
+    }
+  }, [scale, savedScale, translateX, translateY, savedTranslateX, savedTranslateY]);
+
+  const doubleTapGesture = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(handleDoubleTap);
+
+  const finalGesture = Gesture.Race(doubleTapGesture, composedGesture);
+
+  if (!imageUri) {
+    return null;
+  }
+
+  const shadowColor = colors?.shadow || '#000000';
+  const surfaceColor = colors?.surface || '#FFFFFF';
+
+  return (
+    <View style={[modalStyles.previewBackdrop, { backgroundColor: withOpacity(shadowColor, 0.85) }]}>
+      <Pressable
+        style={modalStyles.previewBackdropOverlay}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close image preview"
+      />
+      
+      <GestureDetector gesture={finalGesture}>
+        <Animated.View style={[modalStyles.previewImageContainer, imageAnimatedStyle]}>
+          <Image
+            source={{ uri: imageUri }}
+            style={modalStyles.previewImageZoomable}
+            resizeMode="contain"
+          />
+        </Animated.View>
+      </GestureDetector>
+
+      {/* Action buttons */}
+      <View style={modalStyles.previewActionsContainer}>
+        <Pressable
+          style={({ pressed }) => [
+            modalStyles.previewActionButton,
+            modalStyles.previewCloseButtonModal,
+            { 
+              opacity: pressed ? 0.7 : 1,
+              backgroundColor: withOpacity(surfaceColor, 0.9),
+            },
+          ]}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <AppText variant="ui" style={[modalStyles.previewCloseLabel, { color: colors?.primaryFont || '#220707' }]}>
+            Close
+          </AppText>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 function ImagePreviewModal({ preview, onClose, colors }) {
   if (!preview || !preview.uri) {
     return null;
@@ -388,6 +532,7 @@ function NewOrderStepperScreen({ route }) {
   const [promoInputValue, setPromoInputValue] = useState('');
   const [saveAsDefault, setSaveAsDefault] = useState(false);
   const [capacityInfo, setCapacityInfo] = useState(null);
+  const [nailSizingMode, setNailSizingMode] = useState('manual'); // Default to manual for backward compatibility
 
   const savedSizeProfiles = useMemo(() => {
     const nailSizes = state?.preferences?.nailSizes;
@@ -483,6 +628,21 @@ function NewOrderStepperScreen({ route }) {
       Alert.alert('Error', 'Unable to save default sizes. Please try again.');
     }
   }, [state.currentUser, state.preferences, handleUpdatePreferences]);
+
+  // Load nail sizing mode from admin settings
+  useEffect(() => {
+    const loadNailSizingMode = async () => {
+      try {
+        const mode = await getNailSizingMode();
+        setNailSizingMode(mode);
+      } catch (error) {
+        console.error('[NewOrderStepper] Error loading nail sizing mode:', error);
+        // Default to manual on error for backward compatibility
+        setNailSizingMode('manual');
+      }
+    };
+    loadNailSizingMode();
+  }, []);
 
   useEffect(() => {
     logEvent('start_order_step', { step: STEP_DEFINITIONS[currentStep].key });
@@ -1977,9 +2137,10 @@ function NewOrderStepperScreen({ route }) {
     if (currentSetDraft.sizeMode === 'perSet') {
       const hasSavedProfile = currentSetDraft.selectedSizingOption === 'saved' && currentSetDraft.selectedProfileId;
       
-      // Check if using manual entry (not camera anymore)
-      const isManualEntry = currentSetDraft.selectedSizingOption === 'manual' || 
-                           (currentSetDraft.selectedSizingOption === 'camera' && !currentSetDraft.sizingUploads?.length);
+      // Check if using manual entry (when manual mode is enabled)
+      const isManualEntry = nailSizingMode === 'manual' && 
+                           (currentSetDraft.selectedSizingOption === 'manual' || 
+                            (currentSetDraft.selectedSizingOption === 'camera' && !currentSetDraft.sizingUploads?.length));
       
       if (isManualEntry && !currentSetDraft.requiresSizingHelp) {
         // Check if all finger sizes are entered
@@ -1995,8 +2156,8 @@ function NewOrderStepperScreen({ route }) {
         }
       }
       
-      // Legacy camera validation (for backward compatibility with old data)
-      if (currentSetDraft.selectedSizingOption === 'camera') {
+      // Camera validation (when camera mode is enabled)
+      if (currentSetDraft.selectedSizingOption === 'camera' && nailSizingMode === 'camera') {
         const hasSizingPhotos =
           Array.isArray(currentSetDraft.sizingUploads) && currentSetDraft.sizingUploads.length > 0;
         // Check for sizing help specifically (not design help)
@@ -2009,7 +2170,7 @@ function NewOrderStepperScreen({ route }) {
 
     setError(null);
     return true;
-  }, [currentSetDraft]);
+  }, [currentSetDraft, nailSizingMode]);
 
   const handleSaveCurrentSet = useCallback(() => {
     if (!validateCurrentSet()) {
@@ -2435,6 +2596,7 @@ function NewOrderStepperScreen({ route }) {
                 requiresSizingHelp={currentSetDraft.requiresSizingHelp}
                 selectedSizingOption={currentSetDraft.selectedSizingOption}
                 selectedProfileId={currentSetDraft.selectedProfileId}
+                nailSizingMode={nailSizingMode}
                 hasDefaultSizes={hasDefaultSizes}
                 onSaveDefaultSizes={handleSaveDefaultSizes}
                 saveAsDefault={currentSetDraft.saveAsDefault || saveAsDefault}
@@ -3233,11 +3395,22 @@ function DesignStep({
           ios_backgroundColor={withOpacity(border, 0.6)}
         />
       </View>
-      <ImagePreviewModal
-        preview={previewUpload}
-        onClose={() => setPreviewUpload(null)}
-        colors={{ surface, border, primaryFont, secondaryFont }}
-      />
+      {/* Zoomable image preview for design photos */}
+      {previewUpload ? (
+        <Modal
+          transparent
+          animationType="fade"
+          visible
+          onRequestClose={() => setPreviewUpload(null)}
+        >
+          <ZoomableImageModal
+            imageUri={previewUpload.uri}
+            onClose={() => setPreviewUpload(null)}
+            colors={{ surface, border, primaryFont, secondaryFont, shadow }}
+            styles={styles}
+          />
+        </Modal>
+      ) : null}
     </View>
   );
 }
@@ -3556,6 +3729,7 @@ function SizingStep({
   onSaveDefaultSizes,
   saveAsDefault = false,
   onSaveAsDefaultChange,
+  nailSizingMode = 'manual', // Default to manual for backward compatibility
   _debugProps,
 }) {
   // Log props when component receives them
@@ -3623,18 +3797,27 @@ function SizingStep({
 
   const computedSelectedOption = useMemo(() => {
     if (selectedSizingOption) {
-      // If 'camera' was selected, map to 'manual' instead (camera option is hidden)
-      if (selectedSizingOption === 'camera') {
+      // If 'camera' was selected but camera mode is disabled, map to 'manual'
+      if (selectedSizingOption === 'camera' && nailSizingMode !== 'camera') {
         return 'manual';
       }
+      // If 'manual' was selected but manual mode is disabled, map to 'camera'
+      if (selectedSizingOption === 'manual' && nailSizingMode !== 'manual') {
+        return 'camera';
+      }
       if (selectedSizingOption === 'saved' && !hasSavedProfiles) {
-        return 'manual';
+        // Fallback to the enabled mode
+        return nailSizingMode === 'camera' ? 'camera' : 'manual';
       }
       return selectedSizingOption;
     }
 
-    return hasSavedProfiles ? 'saved' : 'manual';
-  }, [selectedSizingOption, hasSavedProfiles]);
+    // Default based on what's available
+    if (hasSavedProfiles) {
+      return 'saved';
+    }
+    return nailSizingMode === 'camera' ? 'camera' : 'manual';
+  }, [selectedSizingOption, hasSavedProfiles, nailSizingMode]);
 
   useEffect(() => {
     if (!selectedSizingOption) {
@@ -3644,14 +3827,20 @@ function SizingStep({
     }
 
     if (selectedSizingOption === 'saved' && !hasSavedProfiles) {
+      // Fallback to the enabled mode
+      onChangeSizingOption?.(nailSizingMode === 'camera' ? 'camera' : 'manual');
+    }
+    
+    // Map 'camera' to 'manual' if camera mode is disabled
+    if (selectedSizingOption === 'camera' && nailSizingMode !== 'camera') {
       onChangeSizingOption?.('manual');
     }
     
-    // Map old 'camera' to 'manual'
-    if (selectedSizingOption === 'camera') {
-      onChangeSizingOption?.('manual');
+    // Map 'manual' to 'camera' if manual mode is disabled
+    if (selectedSizingOption === 'manual' && nailSizingMode !== 'manual') {
+      onChangeSizingOption?.('camera');
     }
-  }, [selectedSizingOption, hasSavedProfiles, onChangeSizingOption]);
+  }, [selectedSizingOption, hasSavedProfiles, onChangeSizingOption, nailSizingMode]);
 
   useEffect(() => {
     // Ensure perSet mode for manual entry and saved profiles
@@ -3797,11 +3986,10 @@ function SizingStep({
     onChangeSizingOption?.('saved');
   }, [hasSavedProfiles, activeProfile, savedProfileOptions, onChangeSizingOption, onSelectProfile, selectedProfileId]);
 
-  // Camera option is hidden but function kept for backward compatibility
-  // const handleCameraSelect = useCallback(() => {
-  //   onChangeSizingOption?.('camera');
-  //   onSelectSizeMode('perSet');
-  // }, [onSelectSizeMode, onChangeSizingOption]);
+  const handleCameraSelect = useCallback(() => {
+    onChangeSizingOption?.('camera');
+    onSelectSizeMode('perSet');
+  }, [onSelectSizeMode, onChangeSizingOption]);
 
   const handleManualSelect = useCallback(() => {
     onChangeSizingOption?.('manual');
@@ -3845,31 +4033,50 @@ function SizingStep({
   const hasSizingUploads = sizingUploadList.length > 0;
   const [previewUpload, setPreviewUpload] = useState(null);
 
-  // Always show manual entry option, and saved size option if available
+  // Show options based on admin setting and saved profiles
   const optionDefinitions = useMemo(
-    () => [
-      ...(hasSavedProfiles
-        ? [
-            {
-              key: 'saved',
-              label: 'Use your saved size',
-              onPress: handleSelectSaved,
-            },
-          ]
-        : []),
-      {
-        key: 'manual',
-        label: 'Enter your nail sizes',
-        onPress: handleManualSelect,
-      },
-      // Camera option hidden per requirements - code preserved for future use
-      // {
-      //   key: 'camera',
-      //   label: 'Take a photo to measure',
-      //   onPress: handleCameraSelect,
-      // },
-    ],
-    [hasSavedProfiles, handleSelectSaved, handleManualSelect],
+    () => {
+      const options = [];
+      
+      // Add saved profile option if available
+      if (hasSavedProfiles) {
+        options.push({
+          key: 'saved',
+          label: 'Use your saved size',
+          onPress: handleSelectSaved,
+        });
+      }
+      
+      // Add camera option if admin enabled it
+      if (nailSizingMode === 'camera') {
+        options.push({
+          key: 'camera',
+          label: 'Take a photo to measure',
+          onPress: handleCameraSelect,
+        });
+      }
+      
+      // Add manual entry option if admin enabled it
+      if (nailSizingMode === 'manual') {
+        options.push({
+          key: 'manual',
+          label: 'Enter your nail sizes',
+          onPress: handleManualSelect,
+        });
+      }
+      
+      // Fallback: if mode is invalid or both are somehow enabled, show manual
+      if (options.length === 0) {
+        options.push({
+          key: 'manual',
+          label: 'Enter your nail sizes',
+          onPress: handleManualSelect,
+        });
+      }
+      
+      return options;
+    },
+    [hasSavedProfiles, handleSelectSaved, handleManualSelect, handleCameraSelect, nailSizingMode],
   );
 
   return (
@@ -3901,8 +4108,8 @@ function SizingStep({
         ))}
       </View>
 
-      {/* Camera option UI hidden per requirements - code preserved for future re-enablement */}
-      {/* {computedSelectedOption === 'camera' ? (
+      {/* Camera option UI - shown when admin enables camera mode */}
+      {computedSelectedOption === 'camera' && nailSizingMode === 'camera' ? (
         <View
           style={[
             styles.designUploadCard,
@@ -4067,10 +4274,10 @@ function SizingStep({
             </View>
           )}
         </View>
-      ) : null} */}
+      ) : null}
 
-      {/* Per-finger manual entry */}
-      {computedSelectedOption === 'manual' ? (
+      {/* Per-finger manual entry - shown when admin enables manual mode */}
+      {computedSelectedOption === 'manual' && nailSizingMode === 'manual' ? (
         <View
           style={[
             styles.sizingInlineCard,
@@ -4274,7 +4481,7 @@ function SizingStep({
         />
       </View>
 
-      {/* Note: saveAsDefault state is exposed via ref callback pattern - parent handles saving */}
+      {/* Zoomable image preview for sizing photos */}
       {previewUpload ? (
         <Modal
           transparent
@@ -4282,53 +4489,12 @@ function SizingStep({
           visible
           onRequestClose={() => setPreviewUpload(null)}
         >
-          <View style={styles.previewModalContainer}>
-            <View
-              style={[
-                styles.previewModalCard,
-                {
-                  backgroundColor: surface,
-                  borderColor: withOpacity(border, 0.6),
-                  maxWidth: 480,
-                },
-              ]}
-            >
-              <Image
-                source={{ uri: previewUpload.uri }}
-                style={styles.previewModalImageLarge}
-                resizeMode="contain"
-              />
-              {previewUpload.name ? (
-                <AppText
-                  style={[styles.previewModalSubtitle, { color: secondaryFont }]}
-                  numberOfLines={2}
-                  ellipsizeMode="tail"
-                >
-                  {previewUpload.name}
-                </AppText>
-              ) : null}
-              <TouchableOpacity
-                onPress={() => setPreviewUpload(null)}
-                accessibilityRole="button"
-                style={[
-                  styles.previewCloseButton,
-                  {
-                    borderColor: withOpacity(border, 0.5),
-                    backgroundColor: withOpacity(surface, 0.95),
-                  },
-                ]}
-              >
-                <AppText
-                  style={[
-                    styles.previewCloseLabel,
-                    { color: primaryFont },
-                  ]}
-                >
-                  Close
-                </AppText>
-              </TouchableOpacity>
-            </View>
-          </View>
+          <ZoomableImageModal
+            imageUri={previewUpload.uri}
+            onClose={() => setPreviewUpload(null)}
+            colors={colors}
+            styles={styles}
+          />
         </Modal>
       ) : null}
     </View>
@@ -6859,6 +7025,53 @@ const styles = StyleSheet.create({
   sizingHelpSubtitle: {
     fontSize: 12,
     lineHeight: 18,
+  },
+  previewBackdrop: {
+    flex: 1,
+    backgroundColor: withOpacity('#000000', 0.85),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewBackdropOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  previewImageContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewImageZoomable: {
+    width: '100%',
+    height: '100%',
+  },
+  previewActionsContainer: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+  },
+  previewActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 999,
+    minWidth: 100,
+  },
+  previewCloseButtonModal: {
+    backgroundColor: withOpacity('#FFFFFF', 0.9),
+  },
+  previewCloseLabel: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   previewModalImageLarge: {
     width: '100%',

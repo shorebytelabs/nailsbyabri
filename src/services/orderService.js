@@ -474,7 +474,7 @@ export async function createOrUpdateOrder(orderData) {
 
     // Backend validation constants (must match frontend)
     const MAX_SETS_PER_ORDER = 10;
-    const MAX_PHOTOS_PER_SET = 5;
+    const MAX_PHOTOS_PER_SET = 6;
     const MAX_COMMENT_LENGTH = 500;
     const MAX_IMAGE_SIZE_MB = 5;
     const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
