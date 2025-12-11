@@ -2137,10 +2137,9 @@ function NewOrderStepperScreen({ route }) {
     if (currentSetDraft.sizeMode === 'perSet') {
       const hasSavedProfile = currentSetDraft.selectedSizingOption === 'saved' && currentSetDraft.selectedProfileId;
       
-      // Check if using manual entry (when manual mode is enabled)
-      const isManualEntry = nailSizingMode === 'manual' && 
-                           (currentSetDraft.selectedSizingOption === 'manual' || 
-                            (currentSetDraft.selectedSizingOption === 'camera' && !currentSetDraft.sizingUploads?.length));
+      // Check if using manual entry (always available)
+      const isManualEntry = currentSetDraft.selectedSizingOption === 'manual' || 
+                           (currentSetDraft.selectedSizingOption === 'camera' && !currentSetDraft.sizingUploads?.length);
       
       if (isManualEntry && !currentSetDraft.requiresSizingHelp) {
         // Check if all finger sizes are entered
@@ -2156,7 +2155,7 @@ function NewOrderStepperScreen({ route }) {
         }
       }
       
-      // Camera validation (when camera mode is enabled)
+      // Camera validation (only when camera is selected and camera mode is enabled)
       if (currentSetDraft.selectedSizingOption === 'camera' && nailSizingMode === 'camera') {
         const hasSizingPhotos =
           Array.isArray(currentSetDraft.sizingUploads) && currentSetDraft.sizingUploads.length > 0;
@@ -3797,26 +3796,22 @@ function SizingStep({
 
   const computedSelectedOption = useMemo(() => {
     if (selectedSizingOption) {
-      // If 'camera' was selected but camera mode is disabled, map to 'manual'
+      // If 'camera' was selected but camera mode is disabled, fallback to 'manual'
       if (selectedSizingOption === 'camera' && nailSizingMode !== 'camera') {
         return 'manual';
       }
-      // If 'manual' was selected but manual mode is disabled, map to 'camera'
-      if (selectedSizingOption === 'manual' && nailSizingMode !== 'manual') {
-        return 'camera';
-      }
+      // If 'saved' was selected but no saved profiles, fallback to 'manual'
       if (selectedSizingOption === 'saved' && !hasSavedProfiles) {
-        // Fallback to the enabled mode
-        return nailSizingMode === 'camera' ? 'camera' : 'manual';
+        return 'manual';
       }
       return selectedSizingOption;
     }
 
-    // Default based on what's available
+    // Default: saved (if available) > manual (always available) > camera (if enabled)
     if (hasSavedProfiles) {
       return 'saved';
     }
-    return nailSizingMode === 'camera' ? 'camera' : 'manual';
+    return 'manual'; // Manual is always available
   }, [selectedSizingOption, hasSavedProfiles, nailSizingMode]);
 
   useEffect(() => {
@@ -3826,19 +3821,14 @@ function SizingStep({
       return;
     }
 
+    // If 'saved' was selected but no saved profiles, fallback to 'manual'
     if (selectedSizingOption === 'saved' && !hasSavedProfiles) {
-      // Fallback to the enabled mode
-      onChangeSizingOption?.(nailSizingMode === 'camera' ? 'camera' : 'manual');
-    }
-    
-    // Map 'camera' to 'manual' if camera mode is disabled
-    if (selectedSizingOption === 'camera' && nailSizingMode !== 'camera') {
       onChangeSizingOption?.('manual');
     }
     
-    // Map 'manual' to 'camera' if manual mode is disabled
-    if (selectedSizingOption === 'manual' && nailSizingMode !== 'manual') {
-      onChangeSizingOption?.('camera');
+    // If 'camera' was selected but camera mode is disabled, fallback to 'manual'
+    if (selectedSizingOption === 'camera' && nailSizingMode !== 'camera') {
+      onChangeSizingOption?.('manual');
     }
   }, [selectedSizingOption, hasSavedProfiles, onChangeSizingOption, nailSizingMode]);
 
@@ -4047,30 +4037,19 @@ function SizingStep({
         });
       }
       
-      // Add camera option if admin enabled it
+      // Always show manual entry option
+      options.push({
+        key: 'manual',
+        label: 'Enter your nail sizes',
+        onPress: handleManualSelect,
+      });
+      
+      // Add camera option only if admin enabled it
       if (nailSizingMode === 'camera') {
         options.push({
           key: 'camera',
           label: 'Take a photo to measure',
           onPress: handleCameraSelect,
-        });
-      }
-      
-      // Add manual entry option if admin enabled it
-      if (nailSizingMode === 'manual') {
-        options.push({
-          key: 'manual',
-          label: 'Enter your nail sizes',
-          onPress: handleManualSelect,
-        });
-      }
-      
-      // Fallback: if mode is invalid or both are somehow enabled, show manual
-      if (options.length === 0) {
-        options.push({
-          key: 'manual',
-          label: 'Enter your nail sizes',
-          onPress: handleManualSelect,
         });
       }
       
@@ -4109,7 +4088,7 @@ function SizingStep({
       </View>
 
       {/* Camera option UI - shown when admin enables camera mode */}
-      {computedSelectedOption === 'camera' && nailSizingMode === 'camera' ? (
+      {computedSelectedOption === 'camera' ? (
         <View
           style={[
             styles.designUploadCard,
@@ -4277,7 +4256,7 @@ function SizingStep({
       ) : null}
 
       {/* Per-finger manual entry - shown when admin enables manual mode */}
-      {computedSelectedOption === 'manual' && nailSizingMode === 'manual' ? (
+      {computedSelectedOption === 'manual' ? (
         <View
           style={[
             styles.sizingInlineCard,
@@ -6207,6 +6186,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 14,
     paddingVertical: 14,
+    paddingHorizontal: 10,
     alignItems: 'center',
     justifyContent: 'center',
     shadowOpacity: 0.08,

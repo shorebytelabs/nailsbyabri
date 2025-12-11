@@ -4,7 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {ActivityIndicator, Alert, ScrollView, StyleSheet, TouchableOpacity, View} from 'react-native';
+import {ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, TouchableOpacity, View} from 'react-native';
 import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../icons/Icon';
@@ -23,7 +23,7 @@ function ManageNailSizingModeScreen({ navigation }) {
   const isAdmin = state.currentUser?.isAdmin || false;
   const currentUserId = state.currentUser?.id;
 
-  const [nailSizingMode, setNailSizingModeState] = useState('manual');
+  const [cameraEnabled, setCameraEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -42,7 +42,7 @@ function ManageNailSizingModeScreen({ navigation }) {
     try {
       setLoading(true);
       const mode = await getNailSizingMode();
-      setNailSizingModeState(mode);
+      setCameraEnabled(mode === 'camera');
     } catch (error) {
       console.error('[ManageNailSizingMode] Error loading nail sizing mode:', error);
       Alert.alert('Error', 'Failed to load nail sizing mode. Please try again.');
@@ -51,29 +51,33 @@ function ManageNailSizingModeScreen({ navigation }) {
     }
   }, []);
 
-  const handleSaveMode = useCallback(async (mode) => {
+  const handleToggleCamera = useCallback(async (enabled) => {
     if (!currentUserId) {
       Alert.alert('Error', 'Admin user ID not found');
       return;
     }
 
-    if (mode === nailSizingMode) {
-      // Already set to this mode, no need to save
+    if (enabled === cameraEnabled) {
+      // Already set to this state, no need to save
       return;
     }
+
+    const mode = enabled ? 'camera' : 'manual';
 
     try {
       setSaving(true);
       await setNailSizingMode(mode, currentUserId);
-      setNailSizingModeState(mode);
-      Alert.alert('Success', `Nail sizing mode set to ${mode === 'camera' ? 'Camera Sizing' : 'Manual Entry'}`);
+      setCameraEnabled(enabled);
+      // Don't show alert for toggle - it's immediate feedback
     } catch (error) {
       console.error('[ManageNailSizingMode] Error saving nail sizing mode:', error);
-      Alert.alert('Error', error.message || 'Failed to save nail sizing mode. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to save setting. Please try again.');
+      // Revert toggle on error
+      setCameraEnabled(!enabled);
     } finally {
       setSaving(false);
     }
-  }, [currentUserId, nailSizingMode]);
+  }, [currentUserId, cameraEnabled]);
 
   const primaryFont = colors.primaryFont || '#220707';
   const secondaryFont = colors.secondaryFont || '#5C5F5D';
@@ -110,115 +114,60 @@ function ManageNailSizingModeScreen({ navigation }) {
 
       <ScrollView style={styles.content}>
         <View style={styles.section}>
-          <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Choose Sizing Method</AppText>
+          <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Camera Sizing</AppText>
           <AppText style={[styles.sectionDescription, { color: secondaryFont }]}>
-            Select how users will enter their nail sizes. Camera mode allows users to take photos for sizing, while manual mode requires them to enter measurements directly.
+            Enable camera-based nail sizing to allow users to take photos of their nails for accurate sizing. Manual entry will always be available regardless of this setting.
           </AppText>
 
-          <View style={styles.optionsContainer}>
-            <TouchableOpacity
-              onPress={() => handleSaveMode('camera')}
-              disabled={saving}
-              style={[
-                styles.optionCard,
-                {
-                  backgroundColor: nailSizingMode === 'camera' ? accent : surface,
-                  borderColor: nailSizingMode === 'camera' ? accent : withOpacity(borderColor, 0.5),
-                  opacity: saving ? 0.5 : 1,
-                },
-              ]}
-            >
-              <View style={styles.optionHeader}>
+          <View style={[
+            styles.toggleCard,
+            {
+              backgroundColor: surface,
+              borderColor: withOpacity(borderColor, 0.5),
+            },
+          ]}>
+            <View style={styles.toggleContent}>
+              <View style={styles.toggleHeader}>
                 <Icon 
-                  name="image" 
-                  color={nailSizingMode === 'camera' ? (colors.accentContrast || '#FFFFFF') : accent} 
+                  name="camera" 
+                  color={accent} 
                   size={24} 
                 />
-                <AppText
-                  style={[
-                    styles.optionTitle,
-                    {
-                      color: nailSizingMode === 'camera' ? (colors.accentContrast || '#FFFFFF') : primaryFont,
-                    },
-                  ]}
-                >
-                  Camera Sizing
-                </AppText>
-              </View>
-              <AppText
-                style={[
-                  styles.optionDescription,
-                  {
-                    color: nailSizingMode === 'camera' ? (colors.accentContrast || '#FFFFFF') : secondaryFont,
-                  },
-                ]}
-              >
-                Users can take photos of their nails with a reference object (like a quarter) for accurate sizing.
-              </AppText>
-              {nailSizingMode === 'camera' && (
-                <View style={styles.selectedBadge}>
-                  <Icon name="check" color={colors.accentContrast || '#FFFFFF'} size={16} />
-                  <AppText style={[styles.selectedText, { color: colors.accentContrast || '#FFFFFF' }]}>
-                    Currently Active
+                <View style={styles.toggleTextContainer}>
+                  <AppText style={[styles.toggleTitle, { color: primaryFont }]}>
+                    Enable Camera Sizing
+                  </AppText>
+                  <AppText style={[styles.toggleDescription, { color: secondaryFont }]}>
+                    When enabled, users can take photos of their nails with a reference object (like a quarter) for accurate sizing.
                   </AppText>
                 </View>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => handleSaveMode('manual')}
-              disabled={saving}
-              style={[
-                styles.optionCard,
-                {
-                  backgroundColor: nailSizingMode === 'manual' ? accent : surface,
-                  borderColor: nailSizingMode === 'manual' ? accent : withOpacity(borderColor, 0.5),
-                  opacity: saving ? 0.5 : 1,
-                },
-              ]}
-            >
-              <View style={styles.optionHeader}>
-                <Icon 
-                  name="edit" 
-                  color={nailSizingMode === 'manual' ? (colors.accentContrast || '#FFFFFF') : accent} 
-                  size={24} 
-                />
-                <AppText
-                  style={[
-                    styles.optionTitle,
-                    {
-                      color: nailSizingMode === 'manual' ? (colors.accentContrast || '#FFFFFF') : primaryFont,
-                    },
-                  ]}
-                >
-                  Manual Entry
+              </View>
+              <Switch
+                value={cameraEnabled}
+                onValueChange={handleToggleCamera}
+                disabled={saving}
+                trackColor={{
+                  false: withOpacity(borderColor, 0.6),
+                  true: withOpacity(accent, 0.4),
+                }}
+                thumbColor={cameraEnabled ? accent : surface}
+                ios_backgroundColor={withOpacity(borderColor, 0.6)}
+              />
+            </View>
+            {cameraEnabled && (
+              <View style={styles.statusBadge}>
+                <Icon name="check" color={accent} size={14} />
+                <AppText style={[styles.statusText, { color: accent }]}>
+                  Camera sizing is enabled
                 </AppText>
               </View>
-              <AppText
-                style={[
-                  styles.optionDescription,
-                  {
-                    color: nailSizingMode === 'manual' ? (colors.accentContrast || '#FFFFFF') : secondaryFont,
-                  },
-                ]}
-              >
-                Users enter nail sizes manually by typing measurements for each finger.
-              </AppText>
-              {nailSizingMode === 'manual' && (
-                <View style={styles.selectedBadge}>
-                  <Icon name="check" color={colors.accentContrast || '#FFFFFF'} size={16} />
-                  <AppText style={[styles.selectedText, { color: colors.accentContrast || '#FFFFFF' }]}>
-                    Currently Active
-                  </AppText>
-                </View>
-              )}
-            </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.infoBox}>
             <Icon name="info" color={accent} size={18} />
             <AppText style={[styles.infoText, { color: secondaryFont }]}>
-              Changing this setting will immediately affect all new orders. Existing orders will not be affected.
+              When enabled, users will see both "Enter your nail sizes" and "Take a photo to measure" options. When disabled, only "Enter your nail sizes" will be available. Manual entry is always available regardless of this setting.
             </AppText>
           </View>
         </View>
@@ -275,40 +224,47 @@ const createStyles = (colors) => StyleSheet.create({
     lineHeight: 22,
     marginBottom: 8,
   },
-  optionsContainer: {
-    gap: 16,
-    marginTop: 8,
-  },
-  optionCard: {
+  toggleCard: {
     padding: 20,
     borderRadius: 16,
-    borderWidth: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginTop: 8,
     gap: 12,
   },
-  optionHeader: {
+  toggleContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
+    gap: 16,
   },
-  optionTitle: {
-    fontSize: 18,
+  toggleHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    flex: 1,
+  },
+  toggleTextContainer: {
+    flex: 1,
+    gap: 4,
+  },
+  toggleTitle: {
+    fontSize: 16,
     fontWeight: '700',
   },
-  optionDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 4,
+  toggleDescription: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
   },
-  selectedBadge: {
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: withOpacity(colors.accentContrast || '#FFFFFF', 0.2),
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: withOpacity(colors.border || '#D9C8A9', 0.3),
   },
-  selectedText: {
+  statusText: {
     fontSize: 13,
     fontWeight: '600',
   },
