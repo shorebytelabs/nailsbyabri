@@ -149,6 +149,11 @@ function ManageUsersScreen({ navigation }) {
           <AppText style={[styles.userEmail, { color: secondaryFont }]} numberOfLines={1}>
             {user.email}
           </AppText>
+          {user.phone && (
+            <AppText style={[styles.userPhone, { color: secondaryFont }]} numberOfLines={1}>
+              {user.phone}
+            </AppText>
+          )}
         </View>
         <View style={styles.userMeta}>
           <View style={styles.metaRow}>

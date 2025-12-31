@@ -610,6 +610,18 @@ function UserDetailScreen({ navigation, route }) {
                 <AppText style={[styles.infoLabel, { color: secondaryFont }]}>Email:</AppText>
                 <AppText style={[styles.infoValue, { color: primaryFont }]}>{user.email}</AppText>
               </View>
+              {user.phone && (
+                <View style={styles.infoRow}>
+                  <AppText style={[styles.infoLabel, { color: secondaryFont }]}>Phone:</AppText>
+                  <AppText style={[styles.infoValue, { color: primaryFont }]}>{user.phone}</AppText>
+                </View>
+              )}
+              {user.age_group && (
+                <View style={styles.infoRow}>
+                  <AppText style={[styles.infoLabel, { color: secondaryFont }]}>Age Group:</AppText>
+                  <AppText style={[styles.infoValue, { color: primaryFont }]}>{user.age_group}</AppText>
+                </View>
+              )}
               <View style={styles.infoRow}>
                 <AppText style={[styles.infoLabel, { color: secondaryFont }]}>Status:</AppText>
                 <View
@@ -641,6 +653,51 @@ function UserDetailScreen({ navigation, route }) {
                 </AppText>
               </View>
             </View>
+          )}
+        </View>
+
+        {/* Authentication Methods Section */}
+        <View style={[styles.section, { backgroundColor: surface, borderColor: withOpacity(borderColor, 0.3) }]}>
+          <View style={styles.sectionHeader}>
+            <AppText style={[styles.sectionTitle, { color: primaryFont }]}>Authentication</AppText>
+          </View>
+          {user.auth_methods && Array.isArray(user.auth_methods) && user.auth_methods.length > 0 ? (
+            <>
+              <View style={styles.infoRow}>
+                <AppText style={[styles.infoLabel, { color: secondaryFont }]}>Methods Used:</AppText>
+                <View style={styles.authMethodsContainer}>
+                  {user.auth_methods.map((method, index) => {
+                    const methodLabels = {
+                      password: 'Password',
+                      email_code: 'Email Code',
+                      sms_code: 'SMS Code',
+                    };
+                    return (
+                      <View key={index} style={[styles.authMethodBadge, { backgroundColor: withOpacity(accent, 0.1) }]}>
+                        <AppText style={[styles.authMethodText, { color: accent }]}>
+                          {methodLabels[method] || method}
+                        </AppText>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+              {user.last_auth_method && (
+                <View style={styles.infoRow}>
+                  <AppText style={[styles.infoLabel, { color: secondaryFont }]}>Last Used:</AppText>
+                  <AppText style={[styles.infoValue, { color: primaryFont }]}>
+                    {user.last_auth_method === 'password' ? 'Password' :
+                     user.last_auth_method === 'email_code' ? 'Email Code' :
+                     user.last_auth_method === 'sms_code' ? 'SMS Code' :
+                     user.last_auth_method}
+                  </AppText>
+                </View>
+              )}
+            </>
+          ) : (
+            <AppText style={[styles.helpText, { color: secondaryFont }]}>
+              No authentication methods tracked yet
+            </AppText>
           )}
         </View>
 
@@ -1154,6 +1211,21 @@ function createStyles(colors) {
     helpText: {
       fontSize: 12,
       marginTop: 4,
+    },
+    authMethodsContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      flex: 1,
+    },
+    authMethodBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    authMethodText: {
+      fontSize: 12,
+      fontWeight: '600',
     },
     nailSizesSection: {
       gap: 18,

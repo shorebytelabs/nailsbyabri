@@ -51,9 +51,21 @@ function TermsScreen({ navigation }) {
           You must be at least 13 years of age to use this App. If you are under 18, you represent that you have obtained parental or guardian consent to use this App and agree to these Terms. By using the App, you represent and warrant that you meet the age requirement and have the legal capacity to enter into these Terms.
         </AppText>
 
-        <AppText style={[styles.sectionTitle, { color: primaryFont }]}>3. Account Registration</AppText>
+        <AppText style={[styles.sectionTitle, { color: primaryFont }]}>3. Account Registration and Authentication</AppText>
         <AppText style={[styles.bodyText, { color: primaryFont }]}>
-          To use certain features of the App, you must create an account. You agree to provide accurate, current, and complete information during registration and to update such information to keep it accurate, current, and complete. You are responsible for safeguarding your password and for all activities that occur under your account. You must notify us immediately of any unauthorized use of your account.
+          To use certain features of the App, you must create an account. You can create an account using:
+        </AppText>
+        <AppText style={[styles.bodyText, { color: primaryFont }]}>
+          • <AppText style={{ fontWeight: '600' }}>Email + One-Time Code:</AppText> You can sign in using your email address. We will send you a one-time verification code (OTP) via email to verify your identity. You must enter the code to complete authentication. This code is valid for a limited time and can only be used once.
+        </AppText>
+        <AppText style={[styles.bodyText, { color: primaryFont }]}>
+          • <AppText style={{ fontWeight: '600' }}>Email + Password:</AppText> Alternatively, you can create an account with an email address and password. You are responsible for safeguarding your password and for all activities that occur under your account. You must notify us immediately of any unauthorized use of your account.
+        </AppText>
+        <AppText style={[styles.bodyText, { color: primaryFont }]}>
+          You agree to provide accurate, current, and complete information during registration and to update such information to keep it accurate, current, and complete. By providing your email address for authentication, you consent to receiving verification codes and authentication-related communications via email.
+        </AppText>
+        <AppText style={[styles.bodyText, { color: primaryFont }]}>
+          <AppText style={{ fontWeight: '600' }}>Age Verification:</AppText> New users must verify that they are at least 13 years of age during account creation. Users under 18 must have parental or guardian consent to use the App.
         </AppText>
 
         <AppText style={[styles.sectionTitle, { color: primaryFont }]}>4. Services and Orders</AppText>

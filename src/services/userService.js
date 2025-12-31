@@ -22,7 +22,7 @@ export async function fetchUsers({ page = 1, pageSize = 20, search = '', role = 
     
     let query = supabase
       .from('profiles')
-      .select('id, full_name, email, role, active, created_at, last_login, failed_login_count, last_password_reset', { count: 'exact' });
+      .select('id, full_name, email, phone, role, active, created_at, last_login, failed_login_count, last_password_reset, age_group, auth_methods, last_auth_method', { count: 'exact' });
 
     // Apply search filter
     if (search && search.trim()) {
