@@ -1233,36 +1233,9 @@ function AppNavigator() {
     };
   }, [handleLoginSuccess, navigationReady]);
 
-  // Reset navigation to Login screen when user logs out
-  // IMPORTANT: This must be called BEFORE any conditional returns to follow Rules of Hooks
-  useEffect(() => {
-    if (!isAuthenticated && navigationReady && navigationRef.current && !isRestoringSession) {
-      // Small delay to ensure state is fully updated
-      const timer = setTimeout(() => {
-        if (navigationRef.current) {
-          // Only navigate if we're not already on an auth screen
-          const currentRoute = navigationRef.current.getCurrentRoute();
-          const isAuthScreen = currentRoute?.name === 'PasswordlessEntry' ||
-                              currentRoute?.name === 'OTPVerification' ||
-                              currentRoute?.name === 'AgeVerification' ||
-                              currentRoute?.name === 'NameCollection' ||
-                              currentRoute?.name === 'Login' || 
-                              currentRoute?.name === 'Signup' || 
-                              currentRoute?.name === 'ForgotPassword' ||
-                              currentRoute?.name === 'ResetPassword' ||
-                              currentRoute?.name === 'Consent';
-          
-          if (!isAuthScreen) {
-            navigationRef.current.reset({
-              index: 0,
-              routes: [{ name: 'PasswordlessEntry' }],
-            });
-          }
-        }
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isAuthenticated, navigationReady, isRestoringSession]);
+  // Note: We no longer redirect to login screen on logout
+  // The home screen will always be shown first, and users can navigate to login if needed
+  // Home screen handles authentication checks internally via ensureAuthenticated
 
   // Show loading screen while restoring session
   if (isRestoringSession) {
@@ -1290,18 +1263,15 @@ function AppNavigator() {
       }}
     >
       <Stack.Navigator 
-        initialRouteName={isAuthenticated ? "MainTabs" : "PasswordlessEntry"} 
+        initialRouteName="MainTabs"
         screenOptions={{ headerShown: false }}
       >
-        {!isAuthenticated ? (
-          <>
-            <Stack.Screen name="PasswordlessEntry" component={PasswordlessEntryScreenContainer} />
-            <Stack.Screen name="OTPVerification" component={OTPVerificationScreenContainer} />
-            <Stack.Screen name="Signup" component={SignupScreenContainer} />
-            <Stack.Screen name="Login" component={LoginScreenContainer} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreenContainer} />
-          </>
-        ) : null}
+        {/* Auth screens are always available for navigation */}
+        <Stack.Screen name="PasswordlessEntry" component={PasswordlessEntryScreenContainer} />
+        <Stack.Screen name="OTPVerification" component={OTPVerificationScreenContainer} />
+        <Stack.Screen name="Signup" component={SignupScreenContainer} />
+        <Stack.Screen name="Login" component={LoginScreenContainer} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreenContainer} />
 
         {/* AgeVerification and NameCollection must be available even when authenticated
             because OTP verification creates a session before signup completion */}
