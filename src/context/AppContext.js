@@ -360,7 +360,7 @@ export function AppStateProvider({ children }) {
           targetNav = parent;
           parent = targetNav?.getParent?.();
         }
-        targetNav?.navigate?.('Login');
+        targetNav?.navigate?.('PasswordlessEntry');
       }
 
       return false;

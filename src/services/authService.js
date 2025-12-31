@@ -259,8 +259,22 @@ export async function login({ email, password }) {
       if (!profileError && profileData) {
         profile = profileData;
         
-        // Update last_login timestamp
+        // Update last_login timestamp and auth method
         try {
+          // Update auth method to track password usage
+          try {
+            await supabase.rpc('update_auth_method', {
+              p_user_id: userId,
+              p_method: 'password',
+            });
+          } catch (rpcError) {
+            // Non-critical - function might not exist yet (backward compatibility)
+            if (__DEV__) {
+              console.warn('[auth] ⚠️  Failed to update auth method (non-critical):', rpcError.message);
+            }
+          }
+          
+          // Also update last_login directly (update_auth_method does this too, but do it here as fallback)
           await supabase
             .from('profiles')
             .update({ last_login: new Date().toISOString() })
@@ -291,6 +305,20 @@ export async function login({ email, password }) {
           
           // Update last_login for newly created profile
           try {
+            // Update auth method to track password usage
+            try {
+              await supabase.rpc('update_auth_method', {
+                p_user_id: userId,
+                p_method: 'password',
+              });
+            } catch (rpcError) {
+              // Non-critical - function might not exist yet (backward compatibility)
+              if (__DEV__) {
+                console.warn('[auth] ⚠️  Failed to update auth method (non-critical):', rpcError.message);
+              }
+            }
+            
+            // Also update last_login directly
             await supabase
               .from('profiles')
               .update({ last_login: new Date().toISOString() })
@@ -582,6 +610,381 @@ export async function signOut() {
     }
   } catch (error) {
     console.error('[auth] Failed to sign out:', error);
+    throw error;
+  }
+}
+
+/**
+ * Send OTP (magic link) to email
+ * @param {string} email - Email address
+ * @returns {Promise<void>}
+ */
+export async function sendEmailOTP(email) {
+  try {
+    if (__DEV__) {
+      console.log('[auth] Sending email OTP to:', email);
+    }
+
+    const sanitizedEmail = email.trim().toLowerCase();
+    
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(sanitizedEmail)) {
+      throw new Error('Please enter a valid email address.');
+    }
+
+    // Send email OTP code via Supabase Auth
+    // Note: emailRedirectTo is removed to send a code instead of a magic link
+    const { error } = await supabase.auth.signInWithOtp({
+      email: sanitizedEmail,
+      options: {
+        shouldCreateUser: true, // Auto-create account if doesn't exist
+      },
+    });
+
+    if (error) {
+      if (__DEV__) {
+        console.error('[auth] ❌ Failed to send email OTP:', error);
+        console.error('[auth] Error details:', {
+          message: error.message,
+          status: error.status,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        });
+      }
+      // Provide more specific error message
+      const errorMessage = error.message || 'Failed to send verification email';
+      throw new Error(errorMessage);
+    }
+
+    if (__DEV__) {
+      console.log('[auth] ✅ Email OTP sent successfully');
+    }
+  } catch (error) {
+    if (__DEV__) {
+      console.error('[auth] ❌ Email OTP failed:', error.message);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Send OTP via SMS to phone number
+ * @param {string} phone - Phone number (E.164 format: +1234567890)
+ * @returns {Promise<void>}
+ */
+export async function sendSMSOTP(phone) {
+  try {
+    if (__DEV__) {
+      console.log('[auth] Sending SMS OTP to:', phone);
+    }
+
+    const sanitizedPhone = phone.trim();
+    
+    // Basic phone format validation (E.164 format: starts with +, followed by digits)
+    const phoneRegex = /^\+[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(sanitizedPhone)) {
+      throw new Error('Please enter a valid phone number in international format (e.g., +1234567890).');
+    }
+
+    // Send SMS OTP via Supabase Auth
+    const { error } = await supabase.auth.signInWithOtp({
+      phone: sanitizedPhone,
+      options: {
+        shouldCreateUser: true, // Auto-create account if doesn't exist
+      },
+    });
+
+    if (error) {
+      if (__DEV__) {
+        console.error('[auth] ❌ Failed to send SMS OTP:', error);
+      }
+      throw error;
+    }
+
+    if (__DEV__) {
+      console.log('[auth] ✅ SMS OTP sent successfully');
+    }
+  } catch (error) {
+    if (__DEV__) {
+      console.error('[auth] ❌ SMS OTP failed:', error.message);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Verify OTP and sign in user
+ * @param {Object} payload - OTP verification data
+ * @param {string} payload.email - Email address (for email OTP)
+ * @param {string} payload.phone - Phone number (for SMS OTP)
+ * @param {string} payload.token - OTP token/code
+ * @param {string} payload.type - 'email' or 'sms'
+ * @returns {Promise<Object>} User and session data
+ */
+export async function verifyOTP({ email, phone, token, type = 'email' }) {
+  try {
+    if (__DEV__) {
+      console.log('[auth] Verifying OTP:', { type, hasEmail: !!email, hasPhone: !!phone });
+    }
+
+    // Verify OTP via Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.verifyOtp({
+      email: email?.trim().toLowerCase(),
+      phone: phone?.trim(),
+      token,
+      type: type === 'email' ? 'email' : 'sms',
+    });
+
+    if (authError) {
+      if (__DEV__) {
+        console.error('[auth] ❌ OTP verification failed:', authError);
+      }
+      
+      if (authError.message?.includes('Invalid') || authError.message?.includes('expired')) {
+        throw new Error('Invalid or expired code. Please request a new one.');
+      }
+      throw authError;
+    }
+
+    if (!authData.user) {
+      throw new Error('Failed to authenticate user');
+    }
+
+    const userId = authData.user.id;
+    const userMetadata = authData.user.user_metadata || {};
+
+    // Get or create profile
+    let profile = null;
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (!profileError && profileData) {
+        profile = profileData;
+        
+        // Update auth method and last login (only for existing complete profiles)
+        const hasCompletedSignup = profile.age_group && profile.terms_accepted_at && profile.privacy_accepted_at;
+        if (hasCompletedSignup) {
+          const authMethod = type === 'email' ? 'email_code' : 'sms_code';
+          try {
+            await supabase.rpc('update_auth_method', {
+              p_user_id: userId,
+              p_method: authMethod,
+            });
+          } catch (rpcError) {
+            // Non-critical - log but don't fail
+            if (__DEV__) {
+              console.warn('[auth] ⚠️  Failed to update auth method (non-critical):', rpcError.message);
+            }
+          }
+        }
+
+        // Update phone if provided and not already set
+        if (phone && !profile.phone) {
+          await supabase
+            .from('profiles')
+            .update({ phone: phone.trim() })
+            .eq('id', userId);
+          profile.phone = phone.trim();
+        }
+      } else if (profileError?.code === 'PGRST116') {
+        // Profile doesn't exist - this shouldn't happen with the trigger, but handle it
+        if (__DEV__) {
+          console.warn('[auth] ⚠️  Profile not found, creating...');
+        }
+        // Profile should be created by trigger, wait a moment
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const { data: newProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        profile = newProfile;
+      }
+    } catch (profileError) {
+      console.warn('[auth] ⚠️  Failed to fetch profile (non-critical):', profileError.message);
+    }
+
+    // Determine if user needs to complete signup (missing age_group or consent)
+    // This is more reliable than checking created_at === updated_at
+    const needsSignupCompletion = !profile?.age_group || !profile?.terms_accepted_at || !profile?.privacy_accepted_at;
+    
+    // If user needs signup completion, don't check for consent errors - they'll complete it via AgeVerification
+    // Only check consent for users who should have already completed signup
+    if (!needsSignupCompletion) {
+      // User has completed signup, so they should have consent - this shouldn't happen, but handle gracefully
+      const missingTermsConsent = !profile?.terms_accepted_at;
+      const missingPrivacyConsent = !profile?.privacy_accepted_at;
+      
+      if (missingTermsConsent || missingPrivacyConsent) {
+        // This is unexpected - treat as needing signup completion
+        if (__DEV__) {
+          console.warn('[auth] ⚠️  Profile exists but missing consent - routing to signup completion');
+        }
+      }
+    }
+
+    // Transform user data
+    const user = {
+      id: userId,
+      email: authData.user.email || null,
+      phone: phone || authData.user.phone || profile?.phone || null,
+      name: userMetadata.full_name || profile?.full_name || authData.user.email || phone,
+      age_group: userMetadata.age_group || profile?.age_group || null,
+      age: userMetadata.age_group 
+        ? (userMetadata.age_group === '55+' ? 55 : parseInt(userMetadata.age_group.split('-')[0]))
+        : (profile?.age_group === '55+' ? 55 : profile?.age_group ? parseInt(profile.age_group.split('-')[0]) : null),
+      role: profile?.role || 'user',
+      createdAt: authData.user.created_at,
+      needsAgeVerification: needsSignupCompletion, // User needs to complete signup (age + consent)
+      needsName: !profile?.full_name || (profile.full_name === authData.user.email) || (profile.full_name === phone),
+    };
+
+    if (__DEV__) {
+      console.log('[auth] ✅ OTP verified successfully:', userId);
+      console.log('[auth] Needs signup completion:', needsSignupCompletion);
+    }
+
+    return {
+      user,
+      session: authData.session,
+      needsAgeVerification: needsSignupCompletion, // Route to AgeVerification (which includes consent)
+      needsName: !profile?.full_name || (profile.full_name === authData.user.email) || (profile.full_name === phone),
+    };
+  } catch (error) {
+    if (__DEV__) {
+      console.error('[auth] ❌ OTP verification failed:', error.message);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Complete passwordless signup with age verification and optional name
+ * @param {Object} payload - Signup completion data
+ * @param {string} payload.userId - User ID
+ * @param {string} payload.ageGroup - Age group (13-17, 18-24, etc.)
+ * @param {string} payload.name - Optional name
+ * @param {boolean} payload.consentAccepted - Whether user accepted Terms & Privacy
+ * @returns {Promise<Object>} Updated user data
+ */
+export async function completePasswordlessSignup({ userId, ageGroup, name, consentAccepted = false }) {
+  try {
+    if (__DEV__) {
+      console.log('[auth] Completing passwordless signup:', { userId, ageGroup, hasName: !!name });
+    }
+
+    // Validate age group
+    const validAgeGroups = ['13-17', '18-24', '25-34', '35-44', '45-54', '55+'];
+    if (!validAgeGroups.includes(ageGroup)) {
+      throw new Error('Invalid age group. You must be 13 years or older.');
+    }
+
+    // Check if under 13
+    const ageMin = ageGroup === '55+' ? 55 : parseInt(ageGroup.split('-')[0]);
+    if (ageMin < 13) {
+      throw new Error('You must be 13 years or older to create an account.');
+    }
+
+    // Validate consent
+    if (!consentAccepted) {
+      throw new Error('You must accept the Terms & Conditions and Privacy Policy to create an account.');
+    }
+
+    // Update profile with age group, name, and consent
+    const now = new Date().toISOString();
+    const updateData = {
+      age_group: ageGroup,
+      terms_accepted_at: now,
+      privacy_accepted_at: now,
+      updated_at: now,
+    };
+
+    if (name && name.trim()) {
+      updateData.full_name = name.trim();
+    }
+
+    const { data: profile, error: updateError } = await supabase
+      .from('profiles')
+      .update(updateData)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    // Get updated user data
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) {
+      throw userError;
+    }
+
+    const userData = {
+      id: userId,
+      email: user.email || null,
+      phone: user.phone || profile?.phone || null,
+      name: profile.full_name || user.email || user.phone,
+      age_group: ageGroup,
+      age: ageMin,
+      role: profile.role || 'user',
+      createdAt: user.created_at,
+    };
+
+    if (__DEV__) {
+      console.log('[auth] ✅ Passwordless signup completed:', userId);
+    }
+
+    return {
+      user: userData,
+    };
+  } catch (error) {
+    if (__DEV__) {
+      console.error('[auth] ❌ Complete passwordless signup failed:', error.message);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Update user name in profile
+ * @param {string} userId - User ID
+ * @param {string} name - Name to set (null to skip)
+ * @returns {Promise<void>}
+ */
+export async function updateUserName(userId, name) {
+  try {
+    if (__DEV__) {
+      console.log('[auth] Updating user name:', userId);
+    }
+
+    const sanitizedName = name ? name.trim() : null;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        full_name: sanitizedName,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId);
+
+    if (error) {
+      throw error;
+    }
+
+    if (__DEV__) {
+      console.log('[auth] ✅ User name updated successfully');
+    }
+  } catch (error) {
+    if (__DEV__) {
+      console.error('[auth] ❌ Failed to update user name:', error.message);
+    }
     throw error;
   }
 }

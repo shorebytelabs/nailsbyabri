@@ -52,10 +52,15 @@ function PrivacyScreen({ navigation }) {
           When you create an account, we collect:
         </AppText>
         <AppText style={[styles.bodyText, { color: primaryFont }]}>
-          • Full name{'\n'}
-          • Email address{'\n'}
-          • Age group (for age verification){'\n'}
-          • Password (encrypted and stored securely)
+          • Full name (optional){'\n'}
+          • Email address (required for email-based authentication){'\n'}
+          • Age group (for age verification, required for new accounts){'\n'}
+          • Password (encrypted and stored securely, if you choose password-based authentication){'\n'}
+          • Authentication methods used (password or email code){'\n'}
+          • Last authentication method used (for security and account management)
+        </AppText>
+        <AppText style={[styles.bodyText, { color: primaryFont }]}>
+          <AppText style={{ fontWeight: '600' }}>Passwordless Authentication:</AppText> You can create an account and sign in using your email address with a one-time verification code (OTP). We will send a verification code to your email address that you must enter to complete authentication. This code is valid for a limited time and can only be used once.
         </AppText>
 
         <AppText style={[styles.subsectionTitle, { color: primaryFont }]}>1.2 Order Information</AppText>

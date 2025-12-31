@@ -8,6 +8,10 @@ import AppText from '../components/AppText';
 import { supabase } from '../lib/supabaseClient';
 import SignupScreen from '../screens/SignupScreen';
 import LoginScreen from '../screens/LoginScreen';
+import PasswordlessEntryScreen from '../screens/PasswordlessEntryScreen';
+import OTPVerificationScreen from '../screens/OTPVerificationScreen';
+import AgeVerificationScreen from '../screens/AgeVerificationScreen';
+import NameCollectionScreen from '../screens/NameCollectionScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import ConsentScreen from '../screens/ConsentScreen';
@@ -59,6 +63,184 @@ function SignupScreenContainer({ navigation }) {
       }}
       onSwitchToLogin={() => navigation.replace('Login')}
       onCancel={() => navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] })}
+    />
+  );
+}
+
+function PasswordlessEntryScreenContainer({ navigation }) {
+  const { handleLoginSuccess, handleConsentPendingLogin, clearAuthRedirect, setState, clearStatusMessage } = useAppState();
+
+  return (
+    <PasswordlessEntryScreen
+      navigation={navigation}
+      onOTPSent={(data) => {
+        // Navigate to OTP verification screen
+        navigation.navigate('OTPVerification', {
+          email: data.email,
+        });
+      }}
+      onSwitchToPassword={() => navigation.replace('Login')}
+      onCancel={() => navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] })}
+    />
+  );
+}
+
+function OTPVerificationScreenContainer({ navigation, route }) {
+  const { handleLoginSuccess, handleConsentPendingLogin, clearAuthRedirect, setState } = useAppState();
+  const email = route?.params?.email;
+
+  return (
+    <OTPVerificationScreen
+      navigation={navigation}
+      email={email}
+      onVerificationSuccess={async (result) => {
+        // Store session info for later use in age/name flows
+        // Session is already set by verifyOTP, so we can proceed
+        
+        // Check if user needs age verification or name collection
+        if (result.needsAgeVerification) {
+          // New user - navigate to age verification
+          // Session is already active, will be used when completing signup
+          navigation.navigate('AgeVerification', {
+            userId: result.user.id,
+            session: result.session, // Pass session for later use
+          });
+        } else if (result.needsName) {
+          // Existing user but needs name - navigate to name collection
+          // Session is already active, user is logged in
+          navigation.navigate('NameCollection', {
+            userId: result.user.id,
+          });
+        } else {
+          // Existing user with complete profile - log in
+          await handleLoginSuccess(result);
+          clearAuthRedirect();
+          navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+        }
+      }}
+      onBack={() => navigation.goBack()}
+    />
+  );
+}
+
+function AgeVerificationScreenContainer({ navigation, route }) {
+  const { handleLoginSuccess, clearAuthRedirect, setState } = useAppState();
+  const userId = route?.params?.userId;
+  const session = route?.params?.session; // Session from OTP verification
+
+  return (
+    <AgeVerificationScreen
+      navigation={navigation}
+      userId={userId}
+      onComplete={async (result) => {
+        // After age verification, get updated profile and check if name is needed
+        const { supabase } = await import('../lib/supabaseClient');
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        // Get current user to check email/phone
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const userData = {
+          id: userId,
+          email: user?.email || null,
+          phone: user?.phone || profile?.phone || null,
+          name: profile?.full_name || user?.email || user?.phone,
+          age_group: profile?.age_group || result.user.age_group,
+          role: profile?.role || 'user',
+          createdAt: user?.created_at,
+        };
+
+        // Check if name is still missing (name would be email or phone if not set)
+        if (!profile?.full_name || profile.full_name === userData.email || profile.full_name === userData.phone) {
+          // Navigate to name collection
+          navigation.navigate('NameCollection', {
+            userId: userId,
+          });
+        } else {
+          // Profile is complete, log in (session is already active from OTP)
+          await handleLoginSuccess({ user: userData, session: session });
+          clearAuthRedirect();
+          navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+        }
+      }}
+      onBack={() => navigation.goBack()}
+    />
+  );
+}
+
+function NameCollectionScreenContainer({ navigation, route }) {
+  const { handleLoginSuccess, clearAuthRedirect } = useAppState();
+  const userId = route?.params?.userId;
+
+  return (
+    <NameCollectionScreen
+      navigation={navigation}
+      userId={userId}
+      onComplete={async () => {
+        // Name collection is complete, user is already logged in from OTP verification
+        // Just fetch the updated user data
+        const { supabase } = await import('../lib/supabaseClient');
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        if (!error && user) {
+          // Get updated profile
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+          const userData = {
+            id: user.id,
+            email: user.email || null,
+            phone: user.phone || profile?.phone || null,
+            name: profile?.full_name || user.email || user.phone,
+            age_group: profile?.age_group || null,
+            role: profile?.role || 'user',
+            createdAt: user.created_at,
+          };
+
+          await handleLoginSuccess({ user: userData });
+          clearAuthRedirect();
+          navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+        } else {
+          // Fallback: just navigate to main
+          navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+        }
+      }}
+      onSkip={async () => {
+        // User skipped name, proceed to main
+        const { supabase } = await import('../lib/supabaseClient');
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        if (!error && user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+          const userData = {
+            id: user.id,
+            email: user.email || null,
+            phone: user.phone || profile?.phone || null,
+            name: profile?.full_name || user.email || user.phone,
+            age_group: profile?.age_group || null,
+            role: profile?.role || 'user',
+            createdAt: user.created_at,
+          };
+
+          await handleLoginSuccess({ user: userData });
+          clearAuthRedirect();
+          navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+        } else {
+          navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+        }
+      }}
     />
   );
 }
@@ -357,7 +539,7 @@ function BannerToast({ navigationRef }) {
 }
 
 function AppNavigator() {
-  const { state } = useAppState();
+  const { state, handleLoginSuccess } = useAppState();
   const isAuthenticated = Boolean(state.currentUser);
   const hasPendingConsent = Boolean(state.pendingConsent);
   const isRestoringSession = state.isRestoringSession ?? false;
@@ -367,25 +549,28 @@ function AppNavigator() {
 
   // Configure deep linking for password reset
   // Handle both deep links (nailsbyabri://) and Supabase verify URLs (https://)
+  // Note: HTTPS URLs require Universal Links (server-side setup) to work on iOS
+  // For now, we rely on Supabase redirecting to nailsbyabri:// deep links
   const linking = {
     prefixes: ['nailsbyabri://'],
-    config: {
-      screens: {
-        ResetPassword: 'reset-password',
-        Login: 'login',
-        Signup: 'signup',
-        ForgotPassword: 'forgot-password',
-        EmailVerified: 'email-verified',
-        MainTabs: {
-          screens: {
-            Home: 'home',
-            Gallery: 'gallery',
-            Orders: 'orders',
-            Profile: 'profile',
+      config: {
+        screens: {
+          ResetPassword: 'reset-password',
+          PasswordlessEntry: 'login', // Map 'login' deep link to PasswordlessEntry
+          Login: 'login-password', // Keep Login for password-based login
+          Signup: 'signup',
+          ForgotPassword: 'forgot-password',
+          EmailVerified: 'email-verified',
+          MainTabs: {
+            screens: {
+              Home: 'home',
+              Gallery: 'gallery',
+              Orders: 'orders',
+              Profile: 'profile',
+            },
           },
         },
       },
-    },
   };
 
   // Store the token from verify URL so ResetPasswordScreen can use it
@@ -436,8 +621,23 @@ function AppNavigator() {
                     console.warn('[AppNavigator] verifyOtp failed, but email may still be verified server-side:', sessionError.message);
                   }
                   // Supabase may have already verified the email server-side when the link was clicked
-                  // Navigate to login so user can try logging in
-                  navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+                  // Navigate to passwordless entry so user can try logging in
+                  const navigateToEntry = () => {
+                    if (navigationRef.current) {
+                      navigationRef.current.reset({ index: 0, routes: [{ name: 'PasswordlessEntry' }] });
+                    }
+                  };
+                  if (navigationReady) {
+                    setTimeout(navigateToEntry, 300);
+                  } else {
+                    const checkNav = setInterval(() => {
+                      if (navigationReady && navigationRef.current) {
+                        clearInterval(checkNav);
+                        navigateToEntry();
+                      }
+                    }, 100);
+                    setTimeout(() => clearInterval(checkNav), 5000);
+                  }
                   return;
                 }
 
@@ -446,24 +646,201 @@ function AppNavigator() {
                     console.log('[AppNavigator] ✅ Email verified successfully with session');
                   }
                   // Email is verified, but we don't want to auto-login
-                  // Clear the session and navigate to login screen so user can log in manually
+                  // Clear the session and navigate to passwordless entry so user can log in manually
                   await supabase.auth.signOut();
-                  navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+                  const navigateToEntry = () => {
+                    if (navigationRef.current) {
+                      navigationRef.current.reset({ index: 0, routes: [{ name: 'PasswordlessEntry' }] });
+                    }
+                  };
+                  if (navigationReady) {
+                    setTimeout(navigateToEntry, 300);
+                  } else {
+                    const checkNav = setInterval(() => {
+                      if (navigationReady && navigationRef.current) {
+                        clearInterval(checkNav);
+                        navigateToEntry();
+                      }
+                    }, 100);
+                    setTimeout(() => clearInterval(checkNav), 5000);
+                  }
                   return;
                 } else {
                   // Token was valid but no session - email is verified, user should log in manually
                   if (__DEV__) {
                     console.log('[AppNavigator] ✅ Email verified (no session) - user should log in manually');
                   }
-                  navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+                  const navigateToEntry = () => {
+                    if (navigationRef.current) {
+                      navigationRef.current.reset({ index: 0, routes: [{ name: 'PasswordlessEntry' }] });
+                    }
+                  };
+                  if (navigationReady) {
+                    setTimeout(navigateToEntry, 300);
+                  } else {
+                    const checkNav = setInterval(() => {
+                      if (navigationReady && navigationRef.current) {
+                        clearInterval(checkNav);
+                        navigateToEntry();
+                      }
+                    }, 100);
+                    setTimeout(() => clearInterval(checkNav), 5000);
+                  }
                   return;
                 }
               } catch (err) {
                 if (__DEV__) {
                   console.error('[AppNavigator] Error in email verification flow:', err);
                 }
-                // Even if verification fails, navigate to login - email might be verified server-side
-                navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+                // Even if verification fails, navigate to passwordless entry - email might be verified server-side
+                const navigateToEntry = () => {
+                  if (navigationRef.current) {
+                    navigationRef.current.reset({ index: 0, routes: [{ name: 'PasswordlessEntry' }] });
+                  }
+                };
+                if (navigationReady) {
+                  setTimeout(navigateToEntry, 300);
+                } else {
+                  const checkNav = setInterval(() => {
+                    if (navigationReady && navigationRef.current) {
+                      clearInterval(checkNav);
+                      navigateToEntry();
+                    }
+                  }, 100);
+                  setTimeout(() => clearInterval(checkNav), 5000);
+                }
+                return;
+              }
+            }
+
+            // Handle magic link (email OTP/passwordless login)
+            if (type === 'magiclink' && token) {
+              if (__DEV__) {
+                console.log('[AppNavigator] Handling magic link (email OTP)');
+                console.log('[AppNavigator] Token:', token.substring(0, 20) + '...');
+                console.log('[AppNavigator] Full URL:', url);
+              }
+              
+              // For magic links from Supabase verify URL, we can verify the token
+              // Note: verifyOtp with magiclink type accepts 'token' parameter
+              // The token from the URL is already a hash, so we pass it directly
+              try {
+                if (__DEV__) {
+                  console.log('[AppNavigator] Attempting to verify magic link token...');
+                }
+                const { data: sessionData, error: sessionError } = await supabase.auth.verifyOtp({
+                  token: token,
+                  type: 'magiclink',
+                });
+
+                if (sessionError) {
+                  if (__DEV__) {
+                    console.error('[AppNavigator] Magic link verification failed:', sessionError.message);
+                  }
+                  // Token might be expired or already used - navigate to passwordless entry
+                  const navigateToEntry = () => {
+                    if (navigationRef.current) {
+                      navigationRef.current.reset({ index: 0, routes: [{ name: 'PasswordlessEntry' }] });
+                    }
+                  };
+                  if (navigationReady) {
+                    setTimeout(navigateToEntry, 300);
+                  } else {
+                    const checkNav = setInterval(() => {
+                      if (navigationReady && navigationRef.current) {
+                        clearInterval(checkNav);
+                        navigateToEntry();
+                      }
+                    }, 100);
+                    setTimeout(() => clearInterval(checkNav), 5000);
+                  }
+                  return;
+                }
+
+                if (sessionData?.session && sessionData?.user) {
+                  if (__DEV__) {
+                    console.log('[AppNavigator] ✅ Magic link verified successfully, signing in user');
+                  }
+                  // Magic link creates a session automatically - sign the user in
+                  // Get user profile data
+                  const userId = sessionData.user.id;
+                  const { data: profileData } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', userId)
+                    .single();
+                  
+                  const user = {
+                    id: userId,
+                    email: sessionData.user.email,
+                    phone: sessionData.user.phone,
+                    name: profileData?.full_name || sessionData.user.email,
+                    age_group: profileData?.age_group || null,
+                    role: profileData?.role || 'user',
+                    createdAt: sessionData.user.created_at,
+                  };
+                  
+                  await handleLoginSuccess({ user, session: sessionData.session });
+                  const navigateToMain = () => {
+                    if (navigationRef.current) {
+                      navigationRef.current.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+                    }
+                  };
+                  if (navigationReady) {
+                    setTimeout(navigateToMain, 300);
+                  } else {
+                    const checkNav = setInterval(() => {
+                      if (navigationReady && navigationRef.current) {
+                        clearInterval(checkNav);
+                        navigateToMain();
+                      }
+                    }, 100);
+                    setTimeout(() => clearInterval(checkNav), 5000);
+                  }
+                  return;
+                } else {
+                  // No session returned - navigate to passwordless entry
+                  if (__DEV__) {
+                    console.log('[AppNavigator] Magic link verified but no session returned');
+                  }
+                  const navigateToEntry = () => {
+                    if (navigationRef.current) {
+                      navigationRef.current.reset({ index: 0, routes: [{ name: 'PasswordlessEntry' }] });
+                    }
+                  };
+                  if (navigationReady) {
+                    setTimeout(navigateToEntry, 300);
+                  } else {
+                    const checkNav = setInterval(() => {
+                      if (navigationReady && navigationRef.current) {
+                        clearInterval(checkNav);
+                        navigateToEntry();
+                      }
+                    }, 100);
+                    setTimeout(() => clearInterval(checkNav), 5000);
+                  }
+                  return;
+                }
+              } catch (err) {
+                if (__DEV__) {
+                  console.error('[AppNavigator] Error in magic link flow:', err);
+                }
+                const navigateToEntry = () => {
+                  if (navigationRef.current) {
+                    navigationRef.current.reset({ index: 0, routes: [{ name: 'PasswordlessEntry' }] });
+                  }
+                };
+                if (navigationReady) {
+                  setTimeout(navigateToEntry, 300);
+                } else {
+                  const checkNav = setInterval(() => {
+                    if (navigationReady && navigationRef.current) {
+                      clearInterval(checkNav);
+                      navigateToEntry();
+                    }
+                  }, 100);
+                  setTimeout(() => clearInterval(checkNav), 5000);
+                }
                 return;
               }
             }
@@ -555,6 +932,178 @@ function AppNavigator() {
               console.error('[AppNavigator] Error parsing verify URL:', err);
             }
           }
+        } else if (url.includes('email-verified')) {
+          // Direct deep link format: nailsbyabri://email-verified#access_token=...&refresh_token=...
+          // Supabase appends tokens to the URL fragment (after #)
+          if (__DEV__) {
+            console.log('[AppNavigator] Direct deep link to email-verified');
+            console.log('[AppNavigator] Full URL:', url);
+          }
+          
+          // Extract tokens from URL fragment (after #)
+          const hash = url.split('#')[1];
+          if (hash) {
+            try {
+              // Parse hash parameters
+              const params = new URLSearchParams(hash);
+              const accessToken = params.get('access_token');
+              const refreshToken = params.get('refresh_token');
+              const type = params.get('type');
+              
+              if (__DEV__) {
+                console.log('[AppNavigator] Found tokens in URL fragment:', { 
+                  hasAccessToken: !!accessToken, 
+                  hasRefreshToken: !!refreshToken,
+                  type 
+                });
+              }
+              
+              // Set session using tokens from URL fragment
+              if (accessToken && refreshToken) {
+                const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+                  access_token: accessToken,
+                  refresh_token: refreshToken,
+                });
+                
+                if (sessionError) {
+                  if (__DEV__) {
+                    console.error('[AppNavigator] Error setting session from URL fragment:', sessionError);
+                  }
+                  // Navigate to passwordless entry so user can try logging in
+                  const navigateToEntry = () => {
+                    if (navigationRef.current) {
+                      navigationRef.current.reset({ index: 0, routes: [{ name: 'PasswordlessEntry' }] });
+                    }
+                  };
+                  if (navigationReady) {
+                    setTimeout(navigateToEntry, 300);
+                  } else {
+                    const checkNav = setInterval(() => {
+                      if (navigationReady && navigationRef.current) {
+                        clearInterval(checkNav);
+                        navigateToEntry();
+                      }
+                    }, 100);
+                    setTimeout(() => clearInterval(checkNav), 5000);
+                  }
+                  return;
+                }
+                
+                if (sessionData?.session?.user) {
+                  if (__DEV__) {
+                    console.log('[AppNavigator] ✅ Session set from URL fragment, signing in user');
+                  }
+                  // Get user profile data
+                  const userId = sessionData.session.user.id;
+                  const { data: profileData } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', userId)
+                    .single();
+                  
+                  const user = {
+                    id: userId,
+                    email: sessionData.session.user.email,
+                    phone: sessionData.session.user.phone,
+                    name: profileData?.full_name || sessionData.session.user.email,
+                    age_group: profileData?.age_group || null,
+                    role: profileData?.role || 'user',
+                    createdAt: sessionData.session.user.created_at,
+                  };
+                  
+                  await handleLoginSuccess({ user, session: sessionData.session });
+                  const navigateToMain = () => {
+                    if (navigationRef.current) {
+                      navigationRef.current.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+                    }
+                  };
+                  if (navigationReady) {
+                    setTimeout(navigateToMain, 300);
+                  } else {
+                    const checkNav = setInterval(() => {
+                      if (navigationReady && navigationRef.current) {
+                        clearInterval(checkNav);
+                        navigateToMain();
+                      }
+                    }, 100);
+                    setTimeout(() => clearInterval(checkNav), 5000);
+                  }
+                  return;
+                }
+              }
+            } catch (err) {
+              if (__DEV__) {
+                console.error('[AppNavigator] Error parsing URL fragment:', err);
+              }
+            }
+          }
+          
+          // Fallback: Check if we have an active session (in case tokens aren't in fragment)
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (!sessionError && session?.user) {
+            if (__DEV__) {
+              console.log('[AppNavigator] ✅ Session found (fallback), signing in user');
+            }
+            // Get user profile data
+            const userId = session.user.id;
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', userId)
+              .single();
+            
+            const user = {
+              id: userId,
+              email: session.user.email,
+              phone: session.user.phone,
+              name: profileData?.full_name || session.user.email,
+              age_group: profileData?.age_group || null,
+              role: profileData?.role || 'user',
+              createdAt: session.user.created_at,
+            };
+            
+            await handleLoginSuccess({ user, session });
+            const navigateToMain = () => {
+              if (navigationRef.current) {
+                navigationRef.current.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+              }
+            };
+            if (navigationReady) {
+              setTimeout(navigateToMain, 300);
+            } else {
+              const checkNav = setInterval(() => {
+                if (navigationReady && navigationRef.current) {
+                  clearInterval(checkNav);
+                  navigateToMain();
+                }
+              }, 100);
+              setTimeout(() => clearInterval(checkNav), 5000);
+            }
+            return;
+          }
+          
+          // No session found - navigate to passwordless entry
+          if (__DEV__) {
+            console.log('[AppNavigator] No session found from email-verified link, navigating to PasswordlessEntry');
+          }
+          const navigateToEntry = () => {
+            if (navigationRef.current) {
+              navigationRef.current.reset({ index: 0, routes: [{ name: 'PasswordlessEntry' }] });
+            }
+          };
+          if (navigationReady) {
+            setTimeout(navigateToEntry, 300);
+          } else {
+            const checkNav = setInterval(() => {
+              if (navigationReady && navigationRef.current) {
+                clearInterval(checkNav);
+                navigateToEntry();
+              }
+            }, 100);
+            setTimeout(() => clearInterval(checkNav), 5000);
+          }
+          return;
         } else {
           // Direct deep link format: nailsbyabri://reset-password#access_token=...&type=recovery
           // OR just nailsbyabri://reset-password (when Supabase redirects after processing)
@@ -682,7 +1231,7 @@ function AppNavigator() {
       subscription.remove();
       appStateSubscription?.remove();
     };
-  }, []);
+  }, [handleLoginSuccess, navigationReady]);
 
   // Reset navigation to Login screen when user logs out
   // IMPORTANT: This must be called BEFORE any conditional returns to follow Rules of Hooks
@@ -691,10 +1240,24 @@ function AppNavigator() {
       // Small delay to ensure state is fully updated
       const timer = setTimeout(() => {
         if (navigationRef.current) {
-          navigationRef.current.reset({
-            index: 0,
-            routes: [{ name: 'Login' }],
-          });
+          // Only navigate if we're not already on an auth screen
+          const currentRoute = navigationRef.current.getCurrentRoute();
+          const isAuthScreen = currentRoute?.name === 'PasswordlessEntry' ||
+                              currentRoute?.name === 'OTPVerification' ||
+                              currentRoute?.name === 'AgeVerification' ||
+                              currentRoute?.name === 'NameCollection' ||
+                              currentRoute?.name === 'Login' || 
+                              currentRoute?.name === 'Signup' || 
+                              currentRoute?.name === 'ForgotPassword' ||
+                              currentRoute?.name === 'ResetPassword' ||
+                              currentRoute?.name === 'Consent';
+          
+          if (!isAuthScreen) {
+            navigationRef.current.reset({
+              index: 0,
+              routes: [{ name: 'PasswordlessEntry' }],
+            });
+          }
         }
       }, 100);
       return () => clearTimeout(timer);
@@ -726,14 +1289,24 @@ function AppNavigator() {
         }
       }}
     >
-      <Stack.Navigator initialRouteName="MainTabs" screenOptions={{ headerShown: false }}>
+      <Stack.Navigator 
+        initialRouteName={isAuthenticated ? "MainTabs" : "PasswordlessEntry"} 
+        screenOptions={{ headerShown: false }}
+      >
         {!isAuthenticated ? (
           <>
+            <Stack.Screen name="PasswordlessEntry" component={PasswordlessEntryScreenContainer} />
+            <Stack.Screen name="OTPVerification" component={OTPVerificationScreenContainer} />
             <Stack.Screen name="Signup" component={SignupScreenContainer} />
             <Stack.Screen name="Login" component={LoginScreenContainer} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreenContainer} />
           </>
         ) : null}
+
+        {/* AgeVerification and NameCollection must be available even when authenticated
+            because OTP verification creates a session before signup completion */}
+        <Stack.Screen name="AgeVerification" component={AgeVerificationScreenContainer} />
+        <Stack.Screen name="NameCollection" component={NameCollectionScreenContainer} />
 
         {hasPendingConsent ? (
           <Stack.Screen name="Consent" component={ConsentScreenContainer} />
