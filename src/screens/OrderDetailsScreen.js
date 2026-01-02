@@ -568,6 +568,65 @@ function createStyles(colors) {
       letterSpacing: 0.6,
       color: colors.accent || '#6F171F',
     },
+    // Unified payment section styles
+    paymentSectionCard: {
+      borderRadius: 20,
+      padding: 20,
+      gap: 16,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.divider || '#E6DCD0',
+      backgroundColor: colors.surface || '#FFFFFF',
+      ...cardShadow,
+    },
+    paymentStatusHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    paymentStatusHeaderLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      flex: 1,
+      minWidth: 0,
+    },
+    paymentStatusTitle: {
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    paymentStatusTitleNeeded: {
+      color: colors.warning || '#FF9800',
+    },
+    paymentStatusTitlePaid: {
+      color: colors.primaryFont || '#220707',
+    },
+    paymentStatusText: {
+      fontSize: 14,
+      color: colors.secondaryFont || '#767154',
+      lineHeight: 20,
+      marginTop: 4,
+    },
+    paymentExpandButton: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.accent || '#6F171F',
+      backgroundColor: 'transparent',
+    },
+    paymentExpandButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.accent || '#6F171F',
+      textTransform: 'none',
+    },
+    paymentDetailsContainer: {
+      marginTop: 8,
+      paddingTop: 16,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.divider || '#E6DCD0',
+    },
     adminPaymentAction: {
       marginTop: 16,
       padding: 16,
@@ -585,36 +644,6 @@ function createStyles(colors) {
       color: colors.secondaryFont || '#767154',
       textAlign: 'center',
       fontStyle: 'italic',
-    },
-    paymentReceivedCard: {
-      borderRadius: 20,
-      padding: 20,
-      gap: 12,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.divider || '#E6DCD0',
-      backgroundColor: colors.surface || '#FFFFFF',
-      ...cardShadow,
-    },
-    paymentReceivedHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    paymentReceivedTitle: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: colors.success || '#4B7A57',
-    },
-    paymentReceivedText: {
-      fontSize: 14,
-      color: colors.secondaryFont || '#767154',
-      lineHeight: 20,
-    },
-    paymentReceivedAdminNote: {
-      fontSize: 12,
-      color: colors.secondaryFont || '#767154',
-      fontStyle: 'italic',
-      marginTop: 4,
     },
     paymentMethodText: {
       fontSize: 13,
@@ -899,6 +928,8 @@ function OrderDetailsScreen({ navigation, route }) {
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const [otherPaymentMethodText, setOtherPaymentMethodText] = useState('');
+  const [showVenmoDetails, setShowVenmoDetails] = useState(false); // For unpaid: expandable Venmo details
+  const [showPaymentDetails, setShowPaymentDetails] = useState(false); // For paid: show Venmo info
 
   // Fetch full order details if:
   // 1. Coming from Home screen (list query excludes images)
@@ -1331,84 +1362,118 @@ function OrderDetailsScreen({ navigation, route }) {
               </View>
             </View>
 
-            {/* Payment Info Section */}
-            {/* Check paidAt (transformed field from fetchOrder) or paid_at (database field) */}
-            {!(order?.paidAt || order?.paid_at) ? (
-              <View>
-                <VenmoPaymentInfo
-                  totalAmount={order?.pricing?.total || order?.total}
-                  orderNumber={orderId || displayOrderId}
-                  showQRCode={true}
-                  compact={false}
-                  showPaymentNeeded={true}
-                />
-                {/* Admin: Mark as Paid Button */}
-                {isAdmin && (
-                  <View style={styles.adminPaymentAction}>
-                    <PrimaryButton
-                      label={markingPaid ? 'Marking as Paid...' : 'Mark Order as Paid'}
-                      onPress={handleMarkAsPaid}
-                      disabled={markingPaid}
-                      style={styles.markPaidButton}
-                    />
-                    <AppText style={styles.adminPaymentHint}>
-                      Mark order as paid via your preferred payment method (Venmo, Cash, etc.)
-                    </AppText>
-                  </View>
-                )}
-              </View>
-            ) : (
-              <View style={styles.paymentReceivedCard}>
-                <View style={styles.paymentReceivedHeader}>
-                  <Icon name="checkCircle" color={colors.success || '#4B7A57'} size={24} />
-                  <AppText style={styles.paymentReceivedTitle}>Payment Received</AppText>
-                </View>
-                <AppText style={styles.paymentReceivedText}>
-                  Payment was received on {(order.paid_at || order.paidAt) ? new Date(order.paid_at || order.paidAt).toLocaleDateString() : '—'}
-                </AppText>
-                {(order.payment_method || order.paymentMethod) && (() => {
-                  const paymentMethod = order.payment_method || order.paymentMethod;
-                  let methodLabel = '';
-                  let methodDescription = '';
-                  
-                  if (paymentMethod === 'venmo') {
-                    methodLabel = 'Venmo';
-                  } else if (paymentMethod === 'cash') {
-                    methodLabel = 'Cash';
-                  } else if (paymentMethod === 'other' || paymentMethod.startsWith('other:')) {
-                    methodLabel = 'Other';
-                    if (paymentMethod.startsWith('other:')) {
-                      methodDescription = paymentMethod.substring(6); // Remove "other:" prefix
-                    }
-                  } else {
-                    methodLabel = paymentMethod;
-                  }
-                  
-                  return (
-                    <View>
-                      <AppText style={styles.paymentMethodText}>
-                        Payment method: <AppText style={styles.paymentMethodValue}>{methodLabel}</AppText>
+            {/* Payment Section - Unified for paid and unpaid */}
+            <View style={styles.paymentSectionCard}>
+              {!(order?.paidAt || order?.paid_at) ? (
+                // Unpaid state: Compact alert header with expandable Venmo details
+                <>
+                  <View style={styles.paymentStatusHeader}>
+                    <View style={styles.paymentStatusHeaderLeft}>
+                      <Icon name="info" color={colors.warning || '#FF9800'} size={24} />
+                      <AppText style={[styles.paymentStatusTitle, styles.paymentStatusTitleNeeded]}>
+                        Payment Needed
                       </AppText>
-                      {methodDescription && (
-                        <AppText style={[styles.paymentMethodText, { marginTop: 4, fontStyle: 'italic' }]}>
-                          {methodDescription}
-                        </AppText>
-                      )}
                     </View>
-                  );
-                })()}
-                {isAdmin && (
-                  <TouchableOpacity
-                    onPress={handleMarkAsPaid}
-                    style={styles.changePaymentMethodButton}
-                  >
-                    <AppText style={[styles.changePaymentMethodText, { color: colors.accent || '#6F171F' }]}>
-                      Change Payment Method
-                    </AppText>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
+                    <TouchableOpacity
+                      onPress={() => setShowVenmoDetails(!showVenmoDetails)}
+                      style={styles.paymentExpandButton}
+                      accessibilityRole="button"
+                    >
+                      <AppText style={styles.paymentExpandButtonText}>
+                        {showVenmoDetails ? 'Hide' : 'Show'} details
+                      </AppText>
+                    </TouchableOpacity>
+                  </View>
+                  
+                  {showVenmoDetails && (
+                    <View style={styles.paymentDetailsContainer}>
+                      <VenmoPaymentInfo
+                        totalAmount={order?.pricing?.total || order?.total}
+                        orderNumber={orderId || displayOrderId}
+                        showQRCode={true}
+                        compact={true}
+                        showPaymentNeeded={false}
+                      />
+                    </View>
+                  )}
+                  
+                  {/* Admin: Mark as Paid Button */}
+                  {isAdmin && (
+                    <View style={styles.adminPaymentAction}>
+                      <PrimaryButton
+                        label={markingPaid ? 'Marking as Paid...' : 'Mark Order as Paid'}
+                        onPress={handleMarkAsPaid}
+                        disabled={markingPaid}
+                        style={styles.markPaidButton}
+                      />
+                      <AppText style={styles.adminPaymentHint}>
+                        Mark order as paid via your preferred payment method (Venmo, Cash, etc.)
+                      </AppText>
+                    </View>
+                  )}
+                </>
+              ) : (
+                // Paid state: Neutral status with optional payment details
+                <>
+                  <View style={styles.paymentStatusHeader}>
+                    <View style={styles.paymentStatusHeaderLeft}>
+                      <Icon name="checkCircle" color={colors.success || '#4B7A57'} size={24} />
+                      <View style={{ flex: 1 }}>
+                        <AppText style={[styles.paymentStatusTitle, styles.paymentStatusTitlePaid]}>
+                          Paid
+                        </AppText>
+                        <AppText style={styles.paymentStatusText}>
+                          Payment received on {(order.paid_at || order.paidAt) ? new Date(order.paid_at || order.paidAt).toLocaleDateString() : '—'}
+                        </AppText>
+                        {(order.payment_method || order.paymentMethod) && (() => {
+                          const paymentMethod = order.payment_method || order.paymentMethod;
+                          let methodLabel = '';
+                          let methodDescription = '';
+                          
+                          if (paymentMethod === 'venmo') {
+                            methodLabel = 'Venmo';
+                          } else if (paymentMethod === 'cash') {
+                            methodLabel = 'Cash';
+                          } else if (paymentMethod === 'other' || paymentMethod.startsWith('other:')) {
+                            methodLabel = 'Other';
+                            if (paymentMethod.startsWith('other:')) {
+                              methodDescription = paymentMethod.substring(6); // Remove "other:" prefix
+                            }
+                          } else {
+                            methodLabel = paymentMethod;
+                          }
+                          
+                          return (
+                            <View style={{ marginTop: 4 }}>
+                              <AppText style={styles.paymentMethodText}>
+                                Payment method: <AppText style={styles.paymentMethodValue}>{methodLabel}</AppText>
+                              </AppText>
+                              {methodDescription && (
+                                <AppText style={[styles.paymentMethodText, { marginTop: 4, fontStyle: 'italic' }]}>
+                                  {methodDescription}
+                                </AppText>
+                              )}
+                            </View>
+                          );
+                        })()}
+                      </View>
+                    </View>
+                  </View>
+                  
+                  {/* Admin: Change Payment Method Button */}
+                  {isAdmin && (
+                    <TouchableOpacity
+                      onPress={handleMarkAsPaid}
+                      style={styles.changePaymentMethodButton}
+                    >
+                      <AppText style={[styles.changePaymentMethodText, { color: colors.accent || '#6F171F' }]}>
+                        Change Payment Method
+                      </AppText>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+            </View>
 
             <View style={styles.card}>
               <View style={styles.cardHeaderRow}>

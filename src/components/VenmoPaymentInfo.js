@@ -233,12 +233,13 @@ function createStyles(colors, compact) {
     venmoHandleRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      flexWrap: 'wrap',
       gap: 12,
     },
     venmoLabel: {
       fontSize: 14,
       color: colors.secondaryFont || '#767154',
+      flexShrink: 0,
     },
     venmoHandleButton: {
       flexDirection: 'row',
@@ -248,11 +249,15 @@ function createStyles(colors, compact) {
       paddingVertical: 6,
       borderRadius: 8,
       backgroundColor: withOpacity(colors.accent || '#6F171F', 0.08),
+      flex: 1,
+      minWidth: 0,
+      flexShrink: 1,
     },
     venmoHandle: {
       fontSize: 15,
       fontWeight: '600',
       color: colors.accent || '#6F171F',
+      flexShrink: 1,
     },
     qrCodeContainer: {
       alignItems: 'center',
