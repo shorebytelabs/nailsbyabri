@@ -168,9 +168,20 @@ function OrderConfirmationScreen({ order, onDone, onViewOrder }) {
           }
         />
 
-        {/* Payment Section - Unified design consistent with Order Details */}
-        <View style={styles.paymentSectionCard}>
-          <View style={styles.paymentStatusHeader}>
+        {/* Payment Section - Unified design consistent with Order Details (hidden if order is free) */}
+        {(() => {
+          // Check if order is free (total is 0)
+          const orderTotal = order?.pricing?.total ?? order?.total ?? 0;
+          const isFree = orderTotal === 0 || orderTotal === '0' || parseFloat(orderTotal) === 0;
+          
+          // Don't show payment section for free orders
+          if (isFree) {
+            return null;
+          }
+          
+          return (
+            <View style={styles.paymentSectionCard}>
+              <View style={styles.paymentStatusHeader}>
             <View style={styles.paymentStatusHeaderLeft}>
               <Icon name="info" color={colors.warning || '#FF9800'} size={24} />
               <AppText style={[styles.paymentStatusTitle, styles.paymentStatusTitleNeeded]}>
@@ -199,7 +210,9 @@ function OrderConfirmationScreen({ order, onDone, onViewOrder }) {
               />
             </View>
           )}
-        </View>
+            </View>
+          );
+        })()}
 
         <View style={styles.sectionRow}>
           <View style={styles.sectionColumn}>

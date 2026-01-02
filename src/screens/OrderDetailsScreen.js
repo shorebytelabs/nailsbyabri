@@ -1362,9 +1362,20 @@ function OrderDetailsScreen({ navigation, route }) {
               </View>
             </View>
 
-            {/* Payment Section - Unified for paid and unpaid */}
-            <View style={styles.paymentSectionCard}>
-              {!(order?.paidAt || order?.paid_at) ? (
+            {/* Payment Section - Unified for paid and unpaid (hidden if order is free) */}
+            {(() => {
+              // Check if order is free (total is 0)
+              const orderTotal = order?.pricing?.total ?? order?.total ?? 0;
+              const isFree = orderTotal === 0 || orderTotal === '0' || parseFloat(orderTotal) === 0;
+              
+              // Don't show payment section for free orders
+              if (isFree) {
+                return null;
+              }
+              
+              return (
+                <View style={styles.paymentSectionCard}>
+                  {!(order?.paidAt || order?.paid_at) ? (
                 // Unpaid state: Compact alert header with expandable Venmo details
                 <>
                   <View style={styles.paymentStatusHeader}>
@@ -1473,7 +1484,9 @@ function OrderDetailsScreen({ navigation, route }) {
                   )}
                 </>
               )}
-            </View>
+                </View>
+              );
+            })()}
 
             <View style={styles.card}>
               <View style={styles.cardHeaderRow}>
