@@ -1696,18 +1696,54 @@ function OrderDetailsScreen({ navigation, route }) {
               <View style={styles.cardHeaderRow}>
                 <AppText style={styles.cardTitle}>Price Breakdown</AppText>
               </View>
-              {order?.pricing && typeof order.pricing === 'object' && Array.isArray(order.pricing.lineItems) && order.pricing.lineItems.length > 0 ? (
-                order.pricing.lineItems.map((item) => (
-                  <SummaryRow
-                    key={item.id}
-                    styles={styles}
-                    label={item.label}
-                    value={formatCurrency(item.amount)}
-                  />
-                ))
-              ) : (
-                <AppText style={styles.secondaryText}>Pricing details unavailable.</AppText>
-              )}
+              {(() => {
+                // Get line items from pricing object
+                const lineItems = order?.pricing?.lineItems || [];
+                const hasLineItems = Array.isArray(lineItems) && lineItems.length > 0;
+                
+                // Get discount amount (could be in order.discount or pricing object)
+                const discountAmount = order?.discount || order?.pricing?.discount || 0;
+                const hasDiscount = Boolean(discountAmount && (typeof discountAmount === 'number' ? discountAmount > 0 : parseFloat(discountAmount) > 0));
+                
+                // Get total
+                const orderTotal = order?.pricing?.total ?? order?.total ?? 0;
+                
+                // If we have line items, use them; otherwise show unavailable message
+                if (!hasLineItems) {
+                  return <AppText style={styles.secondaryText}>Pricing details unavailable.</AppText>;
+                }
+                
+                // Calculate subtotal from line items (excluding discounts which have negative amounts)
+                const subtotal = lineItems
+                  .filter(item => item.amount > 0) // Only positive amounts (exclude discount line items)
+                  .reduce((sum, item) => sum + (item.amount || 0), 0);
+                
+                // Check if discount is already in lineItems (as a negative amount)
+                const discountInLineItems = lineItems.find(item => item.id === 'admin_discount' || (item.amount < 0 && (item.label?.toLowerCase().includes('discount') || item.id === 'promo')));
+                
+                return (
+                  <View>
+                    {lineItems
+                      .filter(item => item && (item.label || item.id)) // Filter out invalid items
+                      .map((item, index) => (
+                        <SummaryRow
+                          key={item.id || `item-${index}`}
+                          styles={styles}
+                          label={item.label || 'Item'}
+                          value={formatCurrency(item.amount || 0)}
+                        />
+                      ))}
+                    {/* Show discount separately if it exists but isn't in lineItems */}
+                    {hasDiscount && !discountInLineItems ? (
+                      <SummaryRow
+                        styles={styles}
+                        label="Discount"
+                        value={formatCurrency(-Math.abs(Number(discountAmount)))}
+                      />
+                    ) : null}
+                  </View>
+                );
+              })()}
               <View style={styles.totalRow}>
                 <AppText style={styles.totalLabel}>Total</AppText>
                 <AppText style={styles.totalValue}>

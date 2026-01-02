@@ -3,7 +3,7 @@
  * Handles orders and order_sets (nail sets)
  */
 import { supabase } from '../lib/supabaseClient';
-import { calculatePriceBreakdown } from '../utils/pricing';
+import { calculatePriceBreakdown, calculatePriceBreakdownSync } from '../utils/pricing';
 import { extractStoragePathFromUrl } from './imageStorageService';
 import { createSystemNotification } from './notificationService';
 
@@ -339,22 +339,28 @@ function transformOrderFromDB(order, orderSets = []) {
     }
   }
 
-  // If pricing is missing or invalid, try to recalculate it
-  if (!pricing || typeof pricing !== 'object' || !pricing.total) {
+  // If pricing is missing, invalid, or missing lineItems, try to recalculate it
+  const hasValidPricing = pricing && typeof pricing === 'object' && pricing.total !== undefined;
+  const hasLineItems = hasValidPricing && Array.isArray(pricing.lineItems) && pricing.lineItems.length > 0;
+  
+  if (!hasValidPricing || !hasLineItems) {
     try {
       const nailSets = orderSets.map(transformOrderSetFromDB);
       const fulfillment = order.fulfillment || { method: 'pickup', speed: 'standard', address: null };
       const promoCode = order.promo_code;
+      const adminDiscount = order.discount || 0; // Include discount when recalculating
       
       // Only recalculate if we have nail sets
       if (nailSets.length > 0) {
-        pricing = calculatePriceBreakdown({
+        // Use sync version since transformOrderFromDB is not async
+        pricing = calculatePriceBreakdownSync({
           nailSets,
           fulfillment,
           promoCode,
+          adminDiscount,
         });
         if (__DEV__) {
-          console.log('[transformOrderFromDB] Recalculated missing/invalid pricing:', pricing);
+          console.log('[transformOrderFromDB] Recalculated pricing (missing/invalid or no lineItems) with discount:', pricing);
         }
       } else {
         pricing = null;

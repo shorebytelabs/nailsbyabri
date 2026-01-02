@@ -327,7 +327,7 @@ export async function calculatePriceBreakdown({
     const actualDiscount = Math.min(adminDiscountAmount, subtotal);
     lineItems.push({
       id: 'admin_discount',
-      label: 'Admin Discount',
+      label: 'Discount',
       amount: -actualDiscount,
     });
     discount += actualDiscount;
@@ -469,7 +469,7 @@ export function calculatePriceBreakdownSync({
     const actualDiscount = Math.min(adminDiscountAmount, subtotal);
     lineItems.push({
       id: 'admin_discount',
-      label: 'Admin Discount',
+      label: 'Discount',
       amount: -actualDiscount,
     });
     discount += actualDiscount;
