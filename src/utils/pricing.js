@@ -298,6 +298,15 @@ export async function calculatePriceBreakdown({
       promoLabel = promoCode.discountDescription 
         ? `Promo (${promoCodeStr}): ${promoCode.discountDescription}`
         : `Promo (${promoCodeStr})`;
+      
+      if (__DEV__) {
+        console.log('[calculatePriceBreakdownSync] Applying promo code:', {
+          code: promoCodeStr,
+          discount: promoDiscount,
+          discountDescription: promoCode.discountDescription,
+          promoType: promoCode.promo?.type,
+        });
+      }
     } else if (typeof promoCode === 'string') {
       // Legacy string format (backward compatibility)
       if (promoCode.trim().toLowerCase() === 'holiday10') {
@@ -440,12 +449,14 @@ export function calculatePriceBreakdownSync({
     let promoLabel = 'Promo Discount';
 
     if (typeof promoCode === 'object' && promoCode.valid && promoCode.discount !== undefined) {
+      // Validated promo code object (from validatePromoCode)
       promoDiscount = Number(promoCode.discount) || 0;
       const promoCodeStr = promoCode.promo?.code || '';
       promoLabel = promoCode.discountDescription 
         ? `Promo (${promoCodeStr}): ${promoCode.discountDescription}`
         : `Promo (${promoCodeStr})`;
     } else if (typeof promoCode === 'string') {
+      // Legacy string format (backward compatibility)
       if (promoCode.trim().toLowerCase() === 'holiday10') {
         promoDiscount = Math.round(subtotal * 0.1);
         promoLabel = 'Holiday Discount';
@@ -453,6 +464,8 @@ export function calculatePriceBreakdownSync({
     }
 
     if (promoDiscount > 0) {
+      // For free shipping, the discount applies to shipping cost
+      // For other types, it applies to the subtotal
       const actualDiscount = Math.min(promoDiscount, subtotal);
       lineItems.push({
         id: 'promo',

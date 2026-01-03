@@ -956,6 +956,7 @@ function NewOrderStepperScreen({ route }) {
         notes: resumeDraft.fulfillment?.notes || '',
       },
       promoCode: resumeDraft.promoCode || '',
+      promoCodeData: null, // Will be validated in separate effect
       customerSizes: resumeDraft.customerSizes || null, // Store customerSizes for easy access
       saveAddress: resumeDraft.saveAddress || false, // Restore save address checkbox state
     });
@@ -1020,6 +1021,74 @@ function NewOrderStepperScreen({ route }) {
       navigation.setParams({ ...(route?.params || {}), resume: false });
     }
   }, [navigation, resumeDraft, resumeFlag, route?.params]);
+
+  // Validate promo code when draft is loaded (if promo code exists)
+  useEffect(() => {
+    const validateDraftPromoCode = async () => {
+      // Only validate if we have a promo code string but no validated data
+      if (!orderDraft.promoCode || typeof orderDraft.promoCode !== 'string' || !orderDraft.promoCode.trim()) {
+        return;
+      }
+      
+      // Skip if already validated
+      if (orderDraft.promoCodeData?.valid) {
+        return;
+      }
+
+      // Skip if draft is not loaded yet (wait for hydration to complete)
+      if (!hydratedDraftRef.current) {
+        return;
+      }
+
+      // Skip if we don't have sets yet (can't validate without order data)
+      if (!orderDraft.sets || orderDraft.sets.length === 0) {
+        return;
+      }
+
+      try {
+        const { validatePromoCode } = await import('../services/promoCodeService');
+        const validationResult = await validatePromoCode(
+          orderDraft.promoCode.trim(),
+          {
+            nailSets: orderDraft.sets,
+            fulfillment: orderDraft.deliveryDetails,
+          },
+          state.currentUser?.id || null,
+        );
+
+        if (validationResult.valid) {
+          // Update orderDraft with validated promo code data
+          setOrderDraft((prev) => ({
+            ...prev,
+            promoCodeData: validationResult,
+          }));
+
+          if (__DEV__) {
+            console.log('[NewOrderStepper] Validated promo code on draft load:', {
+              promoCode: orderDraft.promoCode,
+              discount: validationResult.discount,
+              discountDescription: validationResult.discountDescription,
+            });
+          }
+        } else {
+          // Promo code is invalid - clear it
+          if (__DEV__) {
+            console.warn('[NewOrderStepper] Promo code validation failed on draft load:', validationResult.error);
+          }
+          setOrderDraft((prev) => ({
+            ...prev,
+            promoCode: '',
+            promoCodeData: null,
+          }));
+        }
+      } catch (error) {
+        console.error('[NewOrderStepper] Error validating promo code on draft load:', error);
+        // On error, don't clear the promo code - let user see it and try again
+      }
+    };
+
+    validateDraftPromoCode();
+  }, [orderDraft.promoCode, orderDraft.sets, orderDraft.deliveryDetails, state.currentUser?.id, orderDraft.promoCodeData]);
 
   const priceDetails = useMemo(
     () => {
@@ -1251,7 +1320,9 @@ function NewOrderStepperScreen({ route }) {
         notes: fulfillment.notes || null,
       },
       orderNotes: null,
-      promoCode: orderDraft.promoCode ? orderDraft.promoCode.trim() : null,
+      // Pass validated promo code object if available, otherwise pass the string
+      // createOrUpdateOrder will validate it if it's a string
+      promoCode: orderDraft.promoCodeData?.valid ? orderDraft.promoCodeData : (orderDraft.promoCode ? orderDraft.promoCode.trim() : null),
       status,
     };
   };
@@ -2996,6 +3067,33 @@ function NewOrderStepperScreen({ route }) {
         ) : null}
       </View>
 
+      {/* Status message banner (e.g., promo code applied) */}
+      {state.statusMessage ? (
+        <View
+          style={[
+            styles.statusBanner,
+            {
+              backgroundColor: withOpacity(success || '#4B7A57', 0.12),
+              borderColor: withOpacity(success || '#4B7A57', 0.4),
+              bottom: 80 + Math.max(insets.bottom, 0),
+            },
+          ]}
+        >
+          <AppText style={[styles.statusBannerText, { color: success || '#4B7A57' }]}>
+            {state.statusMessage}
+          </AppText>
+          <TouchableOpacity
+            onPress={() => {
+              setState((prev) => ({ ...prev, statusMessage: null }));
+            }}
+            accessibilityRole="button"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <AppText style={[styles.statusBannerAction, { color: accent }]}>Dismiss</AppText>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       {/* Toast notification */}
       {toastMessage ? (
         <View
@@ -3006,7 +3104,7 @@ function NewOrderStepperScreen({ route }) {
                 ? withOpacity(warningColor || '#C27A3B', 0.95)
                 : withOpacity(accent || '#6F171F', 0.95),
               shadowColor: shadow || '#000000',
-              bottom: 80 + Math.max(insets.bottom, 0),
+              bottom: state.statusMessage ? (80 + Math.max(insets.bottom, 0) + 70) : (80 + Math.max(insets.bottom, 0)),
             },
           ]}
         >
@@ -5593,7 +5691,7 @@ function ReviewStep({
                   { color: withOpacity(primaryFont, 0.7) },
                 ]}
               >
-                {promoCode ? `Promo code applied: ${promoCode.toUpperCase()}` : 'Have a promo code?'}
+                {promoCode ? `Promo code applied: ${typeof promoCode === 'string' ? promoCode.toUpperCase() : (promoCode?.promo?.code || promoCode?.code || String(promoCode)).toUpperCase()}` : 'Have a promo code?'}
               </AppText>
             </TouchableOpacity>
           </View>
@@ -5615,7 +5713,22 @@ function ReviewStep({
                       { color: accent },
                     ]}
                   >
-                    {promoCode.toUpperCase()}
+                    {(() => {
+                      let codeStr = '';
+                      if (typeof promoCode === 'string') {
+                        // Check if it's a JSON string and parse it
+                        try {
+                          const parsed = JSON.parse(promoCode);
+                          codeStr = parsed?.promo?.code || parsed?.code || promoCode;
+                        } catch {
+                          // Not JSON, use as-is
+                          codeStr = promoCode;
+                        }
+                      } else if (typeof promoCode === 'object' && promoCode !== null) {
+                        codeStr = promoCode?.promo?.code || promoCode?.code || '';
+                      }
+                      return codeStr.toUpperCase();
+                    })()}
                   </AppText>
                 </View>
                 <TouchableOpacity
@@ -6933,6 +7046,34 @@ const styles = StyleSheet.create({
   },
   footerButtonWrapperSummary: {
     flex: 1,
+  },
+  statusBanner: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    shadowColor: '#000000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  statusBannerText: {
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: '600',
+    flex: 1,
+  },
+  statusBannerAction: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   toastContainer: {
     position: 'absolute',
