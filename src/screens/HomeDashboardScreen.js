@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {Animated, FlatList, Image, Linking, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions} from 'react-native';
+import {Alert, Animated, FlatList, Image, Linking, Pressable, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions} from 'react-native';
 import AppText from '../components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -269,13 +269,14 @@ function HomeDashboardScreen() {
     return 2; // Shipment and care notifications
   }, []);
 
-  const handleCreatePress = () => {
+  // Use the EXACT same handler as the plus button in MainTabs (openCreateFlow)
+  const handleCreatePress = useCallback(() => {
     const canProceed = handleStartOrder({ navigation });
     if (canProceed) {
       logEvent('tap_home_create');
       navigation.navigate('NewOrderFlow');
     }
-  };
+  }, [handleStartOrder, navigation]);
 
   const handleOpenUrl = async (url) => {
     try {
@@ -327,11 +328,17 @@ function HomeDashboardScreen() {
   );
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: 10 }]}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, { paddingTop: 10 }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="always"
+        scrollEnabled={true}
+        nestedScrollEnabled={true}
+        scrollEventThrottle={16}
+        canCancelContentTouches={false}
+      >
       <View style={[styles.heroCard, { backgroundColor: withOpacity(colors.secondaryBackground || '#E7D8CA', 0.5) }]}>
         <AppText
           style={[
@@ -349,22 +356,24 @@ function HomeDashboardScreen() {
         >
           Pick your shape, design, and sizing in minutes
         </AppText>
-        <TouchableOpacity
-          style={[
+        <Pressable
+          style={({ pressed }) => [
             styles.heroButton,
             { 
               backgroundColor: accentColor,
               shadowColor: accentColor,
+              opacity: pressed ? 0.8 : 1,
             },
           ]}
-          onPress={handleCreatePress}
+          onPressIn={handleCreatePress}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Create new custom nail set"
           accessibilityRole="button"
         >
           <AppText style={[styles.heroButtonText, { color: accentContrastColor }]}>
             {CTA_LABEL}
           </AppText>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {carouselPhotos.length > 0 && (
@@ -378,22 +387,18 @@ function HomeDashboardScreen() {
             >
               Gallery
             </AppText>
-            <TouchableOpacity
-              onPress={() => {
-                console.log('[HomeDashboard] View All button pressed - navigating to Gallery');
-                try {
-                  navigation.navigate('Gallery');
-                } catch (error) {
-                  console.error('[HomeDashboard] Navigation error:', error);
-                }
-              }}
-              style={styles.viewAllButton}
+            <Pressable
+              onPressIn={() => navigation.navigate('Gallery')}
+              style={({ pressed }) => [
+                styles.viewAllButton,
+                { opacity: pressed ? 0.7 : 1 }
+              ]}
               accessibilityRole="button"
             >
               <AppText style={[styles.viewAllButtonText, { color: accentColor }]}>
                 View All
               </AppText>
-            </TouchableOpacity>
+            </Pressable>
           </View>
           <CarouselInfiniteScroll
             photos={carouselPhotos}
@@ -470,7 +475,8 @@ function HomeDashboardScreen() {
           )}
         />
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -549,6 +555,7 @@ const createStyles = ({
       shadowOffset: { width: 0, height: 4 },
       shadowRadius: 8,
       elevation: 4,
+      zIndex: 10,
     },
     heroButtonText: {
       fontWeight: '700',
