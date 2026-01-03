@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {Alert, Animated, FlatList, Image, Linking, Pressable, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions} from 'react-native';
+import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
 import AppText from '../components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -223,6 +224,7 @@ function HomeDashboardScreen() {
   const [tipsLoading, setTipsLoading] = useState(true);
   const [carouselPhotos, setCarouselPhotos] = useState([]);
   const [carouselLoading, setCarouselLoading] = useState(true);
+  const tipsFlatListRef = useRef(null);
 
   const loadTips = useCallback(async () => {
     try {
@@ -329,7 +331,7 @@ function HomeDashboardScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView
+      <GestureScrollView
         style={styles.container}
         contentContainerStyle={[styles.content, { paddingTop: 10 }]}
         showsVerticalScrollIndicator={false}
@@ -337,7 +339,7 @@ function HomeDashboardScreen() {
         scrollEnabled={true}
         nestedScrollEnabled={true}
         scrollEventThrottle={16}
-        canCancelContentTouches={false}
+        directionalLockEnabled={false}
       >
       <View style={[styles.heroCard, { backgroundColor: withOpacity(colors.secondaryBackground || '#E7D8CA', 0.5) }]}>
         <AppText
@@ -443,6 +445,10 @@ function HomeDashboardScreen() {
           snapToInterval={cardWidth + 12} // card width + gap
           decelerationRate="fast"
           pagingEnabled={false}
+          onScrollBeginDrag={() => {
+            // Claim gesture priority for horizontal scrolling
+          }}
+          scrollEventThrottle={16}
           renderItem={({ item: tip }) => (
             <View
               style={[
@@ -475,7 +481,7 @@ function HomeDashboardScreen() {
           )}
         />
       )}
-      </ScrollView>
+      </GestureScrollView>
     </View>
   );
 }
@@ -602,6 +608,7 @@ const createStyles = ({
     },
     tipsCarousel: {
       paddingVertical: 4,
+      paddingLeft: horizontalPadding,
       gap: 12,
     },
     tipsLoadingContainer: {
