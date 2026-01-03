@@ -3,9 +3,10 @@
  * Handles orders and order_sets (nail sets)
  */
 import { supabase } from '../lib/supabaseClient';
-import { calculatePriceBreakdown } from '../utils/pricing';
+import { calculatePriceBreakdown, calculatePriceBreakdownSync } from '../utils/pricing';
 import { extractStoragePathFromUrl } from './imageStorageService';
 import { createSystemNotification } from './notificationService';
+import { validatePromoCode } from './promoCodeService';
 
 /**
  * Normalize nail sets for storage
@@ -327,7 +328,7 @@ function transformOrderSetFromDB(set) {
 /**
  * Transform order from database to app format
  */
-function transformOrderFromDB(order, orderSets = []) {
+async function transformOrderFromDB(order, orderSets = []) {
   // Parse pricing if it's a string (JSONB from Supabase might be stringified)
   let pricing = order.pricing;
   if (typeof pricing === 'string') {
@@ -339,22 +340,71 @@ function transformOrderFromDB(order, orderSets = []) {
     }
   }
 
-  // If pricing is missing or invalid, try to recalculate it
-  if (!pricing || typeof pricing !== 'object' || !pricing.total) {
+  // If pricing is missing, invalid, or missing lineItems, try to recalculate it
+  const hasValidPricing = pricing && typeof pricing === 'object' && pricing.total !== undefined;
+  const hasLineItems = hasValidPricing && Array.isArray(pricing.lineItems) && pricing.lineItems.length > 0;
+  
+  // Check if pricing has promo discount line item if promo_code exists
+  const hasPromoCode = order.promo_code && typeof order.promo_code === 'string' && order.promo_code.trim();
+  const hasPromoInLineItems = hasLineItems && pricing.lineItems.some(item => item.id === 'promo');
+  
+  // If we have a promo code but no promo line item in pricing, we should recalculate
+  const needsRecalculation = !hasValidPricing || !hasLineItems || (hasPromoCode && !hasPromoInLineItems);
+  
+  if (__DEV__ && hasPromoCode) {
+    console.log('[transformOrderFromDB] Promo code check:', {
+      promoCode: order.promo_code,
+      hasValidPricing,
+      hasLineItems,
+      hasPromoInLineItems,
+      needsRecalculation,
+      lineItems: pricing?.lineItems?.map(item => ({ id: item.id, label: item.label, amount: item.amount })) || [],
+    });
+  }
+  
+  if (needsRecalculation) {
     try {
       const nailSets = orderSets.map(transformOrderSetFromDB);
       const fulfillment = order.fulfillment || { method: 'pickup', speed: 'standard', address: null };
-      const promoCode = order.promo_code;
+      let promoCode = order.promo_code;
+      const adminDiscount = order.discount || 0; // Include discount when recalculating
       
       // Only recalculate if we have nail sets
       if (nailSets.length > 0) {
-        pricing = calculatePriceBreakdown({
+        // If promoCode is a string, validate it first to get the discount
+        if (promoCode && typeof promoCode === 'string' && promoCode.trim()) {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const userId = user?.id || null;
+            const validationResult = await validatePromoCode(promoCode, {
+              nailSets,
+              fulfillment,
+            }, userId);
+            
+            if (validationResult.valid) {
+              // Use the validated promo code object with discount
+              promoCode = validationResult;
+            } else {
+              // Promo code is invalid - log warning but continue without it
+              console.warn('[transformOrderFromDB] Promo code validation failed during recalculation:', validationResult.error);
+              promoCode = null;
+            }
+          } catch (error) {
+            // If validation fails, log but continue without promo code
+            console.error('[transformOrderFromDB] Error validating promo code during recalculation:', error);
+            promoCode = null;
+          }
+        }
+        
+        // Use async version now that we can validate promo codes
+        pricing = await calculatePriceBreakdown({
           nailSets,
           fulfillment,
           promoCode,
+          adminDiscount,
         });
         if (__DEV__) {
-          console.log('[transformOrderFromDB] Recalculated missing/invalid pricing:', pricing);
+          console.log('[transformOrderFromDB] Recalculated pricing (missing/invalid or no lineItems) with discount:', pricing);
         }
       } else {
         pricing = null;
@@ -589,11 +639,39 @@ export async function createOrUpdateOrder(orderData) {
     }
 
     // Calculate pricing (using frontend calculation)
-    // Note: calculatePriceBreakdown is async, so we need to await it
+    // promoCode can be either:
+    // 1. A validated object (from validatePromoCode) - use directly
+    // 2. A string - validate it first to get the discount object
+    let promoCodeForPricing = promoCode;
+    
+    // If promoCode is a string (not a validated object), try to validate it
+    if (promoCode && typeof promoCode === 'string' && promoCode.trim()) {
+      try {
+        const validationResult = await validatePromoCode(promoCode, {
+          nailSets: normalizedSets,
+          fulfillment,
+        }, userId);
+        
+        if (validationResult.valid) {
+          // Use the validated promo code object with discount
+          promoCodeForPricing = validationResult;
+        } else {
+          // Promo code is invalid - log warning but continue without it
+          console.warn('[createOrUpdateOrder] Promo code validation failed:', validationResult.error);
+          promoCodeForPricing = null;
+        }
+      } catch (error) {
+        // If validation fails, log but continue without promo code
+        console.error('[createOrUpdateOrder] Error validating promo code:', error);
+        promoCodeForPricing = null;
+      }
+    }
+    
     const pricing = await calculatePriceBreakdown({
-      nailSets,
+      nailSets: normalizedSets,
       fulfillment,
-      promoCode,
+      promoCode: promoCodeForPricing,
+      adminDiscount: orderData.discount || 0,
     });
 
     // Ensure pricing is a valid object with total
@@ -601,17 +679,34 @@ export async function createOrUpdateOrder(orderData) {
       console.error('[orders] Invalid pricing calculated:', pricing);
       throw new Error('Failed to calculate order pricing. Please try again.');
     }
+    
+    if (__DEV__ && promoCodeForPricing) {
+      const hasPromoLineItem = pricing.lineItems?.some(item => item.id === 'promo');
+      console.log('[createOrUpdateOrder] Pricing calculated with promo code:', {
+        promoCode: typeof promoCodeForPricing === 'string' ? promoCodeForPricing : promoCodeForPricing?.promo?.code,
+        hasPromoLineItem,
+        lineItems: pricing.lineItems?.map(item => ({ id: item.id, label: item.label, amount: item.amount })) || [],
+        total: pricing.total,
+      });
+    }
 
     const now = new Date().toISOString();
     const isUpdate = !!orderData.id;
 
     // Prepare order payload
+    // Extract promo code string from object if needed (database stores string, not object)
+    const promoCodeString = typeof promoCode === 'string' 
+      ? promoCode.trim() 
+      : (typeof promoCode === 'object' && promoCode !== null
+        ? (promoCode.promo?.code || promoCode.code || null)
+        : null);
+    
     const orderPayload = {
       user_id: userId,
       status: status || 'draft',
       customer_sizes: customerSizes || { mode: 'standard', values: {} },
       order_notes: typeof orderNotes === 'string' ? orderNotes.trim() : '',
-      promo_code: promoCode || null,
+      promo_code: promoCodeString || null,
       pricing,
       fulfillment: fulfillment || { method: 'pickup', speed: 'standard', address: null },
     };
@@ -705,7 +800,7 @@ export async function createOrUpdateOrder(orderData) {
     }
 
     // Fetch complete order with sets
-    const completeOrder = transformOrderFromDB(order, orderSets);
+    const completeOrder = await transformOrderFromDB(order, orderSets);
 
     if (__DEV__) {
       const totalTime = Date.now() - startTime;
@@ -778,7 +873,7 @@ export async function fetchOrder(orderId) {
       throw setsError;
     }
 
-    const transformed = transformOrderFromDB(order, orderSets || []);
+    const transformed = await transformOrderFromDB(order, orderSets || []);
     
     // Fetch user profile information
     if (order.user_id) {
@@ -1109,10 +1204,10 @@ export async function fetchOrders(params = {}) {
     }
 
     // Transform orders with their sets and user information
-    const transformedOrders = (orders || []).map((order) => {
+    const transformedOrders = await Promise.all((orders || []).map(async (order) => {
       // Remove the joined profile from the order object before transforming (if it exists)
       const { profile: joinedProfile, ...orderWithoutProfile } = order;
-      const transformed = transformOrderFromDB(orderWithoutProfile, setsByOrderId[order.id] || []);
+      const transformed = await transformOrderFromDB(orderWithoutProfile, setsByOrderId[order.id] || []);
       
       // Add user information from profiles map or joined profile
       const profile = profilesMap[order.user_id] || (Array.isArray(joinedProfile) ? joinedProfile[0] : joinedProfile);
@@ -1142,7 +1237,7 @@ export async function fetchOrders(params = {}) {
       }
       
       return transformed;
-    });
+    }));
 
     if (__DEV__) {
       const totalTime = Date.now() - startTime;
@@ -1448,7 +1543,7 @@ export async function updateOrder(orderId, updates) {
         throw setsError;
       }
 
-      const transformed = transformOrderFromDB(currentOrder, sets || []);
+      const transformed = await transformOrderFromDB(currentOrder, sets || []);
       return { order: transformed };
     }
 
@@ -1517,7 +1612,7 @@ export async function updateOrder(orderId, updates) {
       orderSets = sets;
     }
 
-    const transformed = transformOrderFromDB(updatedOrder, orderSets || []);
+    const transformed = await transformOrderFromDB(updatedOrder, orderSets || []);
     
     // Fetch user profile information
     if (updatedOrder.user_id) {
@@ -1712,7 +1807,7 @@ export async function completeOrder(orderId, payload = {}) {
         .from('order_sets')
         .select('*')
         .eq('order_id', orderId);
-      return { order: transformOrderFromDB(order, orderSets || []) };
+      return { order: await transformOrderFromDB(order, orderSets || []) };
     }
 
     // Validate payment intent if provided
@@ -1769,7 +1864,7 @@ export async function completeOrder(orderId, payload = {}) {
       throw updateError;
     }
 
-    const completeOrder = transformOrderFromDB(updatedOrder, orderSets || []);
+    const completeOrder = await transformOrderFromDB(updatedOrder, orderSets || []);
 
     if (__DEV__) {
       console.log('[orders] ✅ Order completed successfully');

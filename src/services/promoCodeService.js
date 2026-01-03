@@ -65,7 +65,7 @@ export async function validatePromoCode(code, orderData = {}, userId = null) {
 
     // Calculate order subtotal for validation using actual pricing
     // First calculate the full price breakdown without promo code
-    const priceBreakdown = calculatePriceBreakdown({
+    const priceBreakdown = await calculatePriceBreakdown({
       nailSets: orderData.nailSets || [],
       fulfillment: orderData.fulfillment || {},
       promoCode: null, // Don't include promo in initial calculation
@@ -73,6 +73,17 @@ export async function validatePromoCode(code, orderData = {}, userId = null) {
     });
     // Get subtotal (includes shipping) for validation checks
     const subtotal = priceBreakdown.subtotal || 0;
+    
+    if (__DEV__) {
+      console.log('[validatePromoCode] Price breakdown calculation:', {
+        nailSetsCount: orderData.nailSets?.length || 0,
+        fulfillment: orderData.fulfillment,
+        subtotal,
+        lineItemsCount: priceBreakdown.lineItems?.length || 0,
+        promoType: promo.type,
+        minOrderAmount: promo.min_order_amount,
+      });
+    }
     // Get subtotal before shipping for percentage/fixed amount calculations
     const subtotalBeforeShipping = priceBreakdown.lineItems
       ?.filter((item) => item.id !== 'delivery')
@@ -113,6 +124,17 @@ export async function validatePromoCode(code, orderData = {}, userId = null) {
     // Calculate discount amount
     // Pass both subtotals: full (with shipping) for validation, before shipping for percentage calculations
     const discountResult = calculateDiscount(promo, subtotal, subtotalBeforeShipping, orderData);
+    
+    if (__DEV__) {
+      console.log('[validatePromoCode] Discount calculation:', {
+        promoType: promo.type,
+        subtotal,
+        subtotalBeforeShipping,
+        calculatedDiscount: discountResult.discount,
+        discountDescription: discountResult.description,
+        newTotal: Math.max(0, subtotal - discountResult.discount),
+      });
+    }
 
     return {
       valid: true,

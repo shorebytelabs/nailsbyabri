@@ -767,7 +767,7 @@ export async function verifyOTP({ email, phone, token, type = 'email' }) {
       if (!profileError && profileData) {
         profile = profileData;
         
-        // Update auth method and last login (only for existing complete profiles)
+        // Update auth method and last login
         const hasCompletedSignup = profile.age_group && profile.terms_accepted_at && profile.privacy_accepted_at;
         if (hasCompletedSignup) {
           const authMethod = type === 'email' ? 'email_code' : 'sms_code';
@@ -781,6 +781,19 @@ export async function verifyOTP({ email, phone, token, type = 'email' }) {
             if (__DEV__) {
               console.warn('[auth] ⚠️  Failed to update auth method (non-critical):', rpcError.message);
             }
+          }
+        }
+        
+        // Always update last_login directly as a fallback (update_auth_method also does this, but this ensures it works)
+        try {
+          await supabase
+            .from('profiles')
+            .update({ last_login: new Date().toISOString() })
+            .eq('id', userId);
+        } catch (updateError) {
+          // Non-critical - log but don't fail login
+          if (__DEV__) {
+            console.warn('[auth] ⚠️  Failed to update last_login (non-critical):', updateError.message);
           }
         }
 

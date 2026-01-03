@@ -56,6 +56,7 @@ import ManageShapesScreen from './ManageShapesScreen';
 import ManageDeliveryMethodsScreen from './ManageDeliveryMethodsScreen';
 import ManageFeedbackScreen from './ManageFeedbackScreen';
 import ManageNailSizingModeScreen from './ManageNailSizingModeScreen';
+import ManageCarouselScreen from './ManageCarouselScreen';
 import { Image } from 'react-native';
 
 function AdminPanelScreen({ navigation }) {
@@ -981,6 +982,15 @@ function AdminPanelScreen({ navigation }) {
         setActiveView('nailSizingMode');
       },
     },
+    {
+      key: 'carousel',
+      title: 'Home Carousel',
+      description: 'Manage photos displayed in the home screen carousel',
+      icon: 'gallery',
+      onPress: () => {
+        setActiveView('carousel');
+      },
+    },
   ];
 
   const primaryFont = colors.primaryFont || '#220707';
@@ -1189,6 +1199,19 @@ function AdminPanelScreen({ navigation }) {
   if (activeView === 'nailSizingMode') {
     return (
       <ManageNailSizingModeScreen
+        navigation={{
+          ...navigation,
+          goBack: () => {
+            setActiveView('main');
+          },
+        }}
+      />
+    );
+  }
+
+  if (activeView === 'carousel') {
+    return (
+      <ManageCarouselScreen
         navigation={{
           ...navigation,
           goBack: () => {

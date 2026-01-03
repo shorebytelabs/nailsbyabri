@@ -524,3 +524,156 @@ export async function setNailSizingMode(mode, adminUserId) {
   }
 }
 
+/**
+ * Get carousel photos for home screen
+ * @returns {Promise<string[]>} Array of up to 5 image URLs
+ */
+export async function getCarouselPhotos() {
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'carousel_photos')
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // Setting doesn't exist, return empty array
+        if (__DEV__) {
+          console.log('[appSettings] Carousel photos setting not found, using empty array');
+        }
+        return [];
+      }
+      throw error;
+    }
+
+    // Parse JSONB value - should be an array of URLs
+    let photos;
+    if (typeof data.value === 'string') {
+      try {
+        const parsed = JSON.parse(data.value);
+        photos = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        photos = [];
+      }
+    } else if (Array.isArray(data.value)) {
+      photos = data.value;
+    } else {
+      photos = [];
+    }
+
+    // Ensure it's an array of strings (URLs) and limit to 5
+    const validPhotos = photos
+      .filter(url => typeof url === 'string' && url.trim().length > 0)
+      .slice(0, 5);
+    
+    if (__DEV__) {
+      console.log('[appSettings] ✅ Carousel photos loaded:', validPhotos.length, 'photos');
+    }
+    return validPhotos;
+  } catch (error) {
+    console.error('[appSettings] ❌ Error getting carousel photos:', error);
+    return [];
+  }
+}
+
+/**
+ * Set carousel photos for home screen (admin only)
+ * @param {string[]} photoUrls - Array of up to 5 image URLs
+ * @param {string} adminUserId - The ID of the admin making the change
+ * @returns {Promise<void>}
+ */
+export async function setCarouselPhotos(photoUrls, adminUserId) {
+  try {
+    // Validate input - must be array of up to 5 URLs
+    if (!Array.isArray(photoUrls)) {
+      throw new Error('Carousel photos must be an array of URLs');
+    }
+    
+    if (photoUrls.length > 5) {
+      throw new Error('Carousel photos cannot exceed 5 photos');
+    }
+
+    // Validate each URL is a string
+    const validUrls = photoUrls
+      .filter(url => typeof url === 'string' && url.trim().length > 0)
+      .slice(0, 5);
+    
+    if (__DEV__) {
+      console.log('[appSettings] Setting carousel photos:', validUrls.length, 'photos', 'by admin:', adminUserId);
+    }
+
+    // Verify admin user exists and has admin role
+    const { data: adminProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, role, email')
+      .eq('id', adminUserId)
+      .single();
+
+    if (profileError || !adminProfile) {
+      console.error('[appSettings] ❌ Admin profile not found:', profileError);
+      throw new Error('Admin profile not found. Please ensure you are logged in as an admin.');
+    }
+
+    if (adminProfile.role !== 'admin') {
+      console.error('[appSettings] ❌ User is not an admin. Role:', adminProfile.role);
+      throw new Error('You do not have admin permissions to change carousel photos.');
+    }
+
+    if (__DEV__) {
+      console.log('[appSettings] ✅ Admin verified:', adminProfile.email, 'Role:', adminProfile.role);
+    }
+
+    // Try to update existing row
+    const { data: updateData, error: updateError } = await supabase
+      .from('app_settings')
+      .update({
+        value: validUrls,
+        updated_by_admin_id: adminUserId,
+      })
+      .eq('key', 'carousel_photos')
+      .select();
+
+    // If there's an RLS error, provide more helpful message
+    if (updateError) {
+      if (updateError.code === '42501') {
+        console.error('[appSettings] ❌ RLS Policy Error - Admin role may not be recognized by RLS');
+        throw new Error('Row-level security policy blocked the update. Please verify your admin role in the database.');
+      }
+      console.error('[appSettings] ❌ Error updating carousel photos:', updateError);
+      throw updateError;
+    }
+
+    // If update succeeded but returned 0 rows, the row doesn't exist - try insert
+    if (!updateData || updateData.length === 0) {
+      if (__DEV__) {
+        console.log('[appSettings] No existing row found, attempting insert...');
+      }
+      
+      const { error: insertError } = await supabase
+        .from('app_settings')
+        .insert({
+          key: 'carousel_photos',
+          value: validUrls,
+          updated_by_admin_id: adminUserId,
+        });
+
+      if (insertError) {
+        if (insertError.code === '42501') {
+          console.error('[appSettings] ❌ RLS Policy Error on INSERT');
+          throw new Error('Row-level security policy blocked the insert. Please verify your admin role in the database.');
+        }
+        console.error('[appSettings] ❌ Error inserting carousel photos:', insertError);
+        throw insertError;
+      }
+    }
+
+    if (__DEV__) {
+      console.log('[appSettings] ✅ Carousel photos updated successfully');
+    }
+  } catch (error) {
+    console.error('[appSettings] ❌ Failed to set carousel photos:', error);
+    throw error;
+  }
+}
+

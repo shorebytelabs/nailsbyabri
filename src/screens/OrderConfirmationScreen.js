@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {Alert, Linking, Pressable, StyleSheet, View, useWindowDimensions, Image} from 'react-native';
+import {Alert, Linking, Pressable, StyleSheet, TouchableOpacity, View, useWindowDimensions, Image} from 'react-native';
 import AppText from '../components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
@@ -37,6 +37,7 @@ function OrderConfirmationScreen({ order, onDone, onViewOrder }) {
     : null;
 
   const [copied, setCopied] = useState(false);
+  const [showVenmoDetails, setShowVenmoDetails] = useState(false); // Hidden by default
 
   useEffect(() => {
     if (!copied) {
@@ -167,13 +168,51 @@ function OrderConfirmationScreen({ order, onDone, onViewOrder }) {
           }
         />
 
-        {/* Venmo Payment Info - Prominent section right after confirmation */}
-        <VenmoPaymentInfo
-          totalAmount={order?.pricing?.total || order?.total}
-          orderNumber={orderId || displayOrderId}
-          showQRCode={true}
-          compact={false}
-        />
+        {/* Payment Section - Unified design consistent with Order Details (hidden if order is free) */}
+        {(() => {
+          // Check if order is free (total is 0)
+          const orderTotal = order?.pricing?.total ?? order?.total ?? 0;
+          const isFree = orderTotal === 0 || orderTotal === '0' || parseFloat(orderTotal) === 0;
+          
+          // Don't show payment section for free orders
+          if (isFree) {
+            return null;
+          }
+          
+          return (
+            <View style={styles.paymentSectionCard}>
+              <View style={styles.paymentStatusHeader}>
+            <View style={styles.paymentStatusHeaderLeft}>
+              <Icon name="info" color={colors.warning || '#FF9800'} size={24} />
+              <AppText style={[styles.paymentStatusTitle, styles.paymentStatusTitleNeeded]}>
+                Payment Needed
+              </AppText>
+            </View>
+            <TouchableOpacity
+              onPress={() => setShowVenmoDetails(!showVenmoDetails)}
+              style={styles.paymentExpandButton}
+              accessibilityRole="button"
+            >
+              <AppText style={styles.paymentExpandButtonText}>
+                {showVenmoDetails ? 'Hide' : 'Show'} details
+              </AppText>
+            </TouchableOpacity>
+          </View>
+          
+          {showVenmoDetails && (
+            <View style={styles.paymentDetailsContainer}>
+              <VenmoPaymentInfo
+                totalAmount={order?.pricing?.total || order?.total}
+                orderNumber={orderId || displayOrderId}
+                showQRCode={true}
+                compact={true}
+                showPaymentNeeded={false}
+              />
+            </View>
+          )}
+            </View>
+          );
+        })()}
 
         <View style={styles.sectionRow}>
           <View style={styles.sectionColumn}>
@@ -444,6 +483,56 @@ function createStyles(colors, isWide) {
       fontSize: 14,
       color: colors.secondaryFont || '#767154',
       lineHeight: 20,
+    },
+    // Unified payment section styles (consistent with Order Details)
+    paymentSectionCard: {
+      borderRadius: 20,
+      padding: 20,
+      gap: 16,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.divider || '#E6DCD0',
+      backgroundColor: colors.surface || '#FFFFFF',
+      ...cardShadow,
+    },
+    paymentStatusHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    paymentStatusHeaderLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      flex: 1,
+      minWidth: 0,
+    },
+    paymentStatusTitle: {
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    paymentStatusTitleNeeded: {
+      color: colors.warning || '#FF9800',
+    },
+    paymentExpandButton: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.accent || '#6F171F',
+      backgroundColor: 'transparent',
+    },
+    paymentExpandButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.accent || '#6F171F',
+      textTransform: 'none',
+    },
+    paymentDetailsContainer: {
+      marginTop: 8,
+      paddingTop: 16,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.divider || '#E6DCD0',
     },
     sectionRow: {
       flexDirection: isWide ? 'row' : 'column',
