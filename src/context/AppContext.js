@@ -124,28 +124,6 @@ export function AppStateProvider({ children }) {
               currentUser: adminUser,
             }));
 
-            // Load orders for restored user
-            const { fetchOrders } = await import('../services/api');
-            try {
-              const fetchParams = adminUser.isAdmin
-                ? { allOrders: true }
-                : { userId: adminUser.id };
-              const response = await fetchOrders(fetchParams);
-              const orders = Array.isArray(response?.orders) ? response.orders : [];
-              
-              if (isMounted) {
-                setState((prev) => ({
-                  ...prev,
-                  orders,
-                  ordersLoaded: true,
-                }));
-              }
-            } catch (error) {
-              if (__DEV__) {
-                console.warn('[AppContext] ⚠️  Failed to load orders on session restore (non-critical):', error?.message);
-              }
-            }
-
             if (__DEV__) {
               console.log('[AppContext] ✅ Session restored successfully');
             }
